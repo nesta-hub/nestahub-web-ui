@@ -46,7 +46,7 @@ export function CategoryView({ category, categorySlug, onBack, onProductClick }:
            <ArrowLeft className="w-5 h-5" />
          </button>
          <h1 className="text-xl font-bold text-foreground">
-           {category.name} Collectibles
+           {category.name}
          </h1>
        </div>
        
