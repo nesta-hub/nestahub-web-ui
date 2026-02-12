@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CatalogueProduct, formatPrice } from "@/data/catalogueData";
+import { CatalogueProduct } from "@/data/catalogueData";
+import { formatPrice } from "@/lib/api";
 
 interface GiftProductSelectDrawerProps {
   open: boolean;

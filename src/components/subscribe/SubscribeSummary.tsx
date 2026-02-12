@@ -1,5 +1,5 @@
 import { CartItem, calculateSubscriptionPrice } from "@/contexts/CartContext";
-import { formatPrice } from "@/data/catalogueData";
+import { formatPrice } from "@/lib/api";
 
 interface SubscribeSummaryProps {
   items: CartItem[];

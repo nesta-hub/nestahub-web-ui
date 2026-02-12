@@ -82,6 +82,134 @@ export interface CategoriesResponse {
   total: number;
 }
 
+// Gift Bundle Types
+export interface AgeGroup {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  ageRangeStart?: number;
+  ageRangeEnd?: number;
+}
+
+export interface BundleCategory {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  totalPrice: number;
+  productCount: number;
+  sortOrder: number;
+}
+
+export interface Bundle {
+  id: string;
+  name: string;
+  slug: string;
+  totalPrice: number;
+  sortOrder: number;
+  categories: BundleCategory[];
+}
+
+export interface BundlesByAgeGroup {
+  ageGroup: AgeGroup;
+  bundles: Bundle[];
+}
+
+export interface BundlesGroupedResponse {
+  ageGroups: BundlesByAgeGroup[];
+}
+
+export interface BundleProductVariant {
+  id: string;
+  sku: string;
+  price: number;
+  imageUrl?: string;
+  attributes: VariantAttribute[];
+}
+
+export interface BundleCategoryProduct {
+  id: string;
+  variantId: string;
+  quantity: number;
+  sortOrder: number;
+  variant: BundleProductVariant & {
+    product: {
+      id: string;
+      name: string;
+      brand: string;
+      slug: string;
+    };
+  };
+}
+
+export interface BundleCategoryDetail {
+  id: string;
+  categoryId: string;
+  description: string;
+  sortOrder: number;
+  category: {
+    id: string;
+    name: string;
+    displayName: string;
+    slug: string;
+  };
+  products: BundleCategoryProduct[];
+  totalPrice: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BundleAgeGroupDetail {
+  id: string;
+  bundleId: string;
+  ageGroupId: string;
+  sortOrder: number;
+  ageGroup: AgeGroup;
+  categories: BundleCategoryDetail[];
+  categoryCount: number;
+  productCount: number;
+  totalPrice: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BundleDetail {
+  id: string;
+  name: string;
+  slug: string;
+  isActive: boolean;
+  sortOrder: number;
+  ageGroupCount: number;
+  calculatedPrice: number;
+  bundleAgeGroups: BundleAgeGroupDetail[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CategoryProductSummary {
+  id: string;
+  name: string;
+  brand: string;
+  slug: string;
+  description?: string;
+  imageUrl?: string;
+  minPrice: number;
+  maxPrice: number;
+}
+
+export interface CategoryProductsResponse {
+  category: {
+    id: string;
+    name: string;
+    displayName: string;
+    slug: string;
+    description?: string;
+  };
+  products: CategoryProductSummary[];
+  total: number;
+}
+
 export const api = {
   // Featured products for landing page
   async getFeaturedProducts(limit: number = 5): Promise<FeaturedProductsResponse> {
@@ -120,6 +248,25 @@ export const api = {
   async getCategories(): Promise<CategoriesResponse> {
     const response = await fetch(`${API_BASE_URL}/categories`);
     if (!response.ok) throw new Error('Failed to fetch categories');
+    return response.json();
+  },
+
+  // Gift Bundles
+  async getBundles(): Promise<BundlesGroupedResponse> {
+    const response = await fetch(`${API_BASE_URL}/gift-bundles`);
+    if (!response.ok) throw new Error('Failed to fetch bundles');
+    return response.json();
+  },
+
+  async getBundle(idOrSlug: string): Promise<BundleDetail> {
+    const response = await fetch(`${API_BASE_URL}/gift-bundles/${idOrSlug}`);
+    if (!response.ok) throw new Error('Failed to fetch bundle');
+    return response.json();
+  },
+
+  async getCategoryProducts(categoryId: string): Promise<CategoryProductsResponse> {
+    const response = await fetch(`${API_BASE_URL}/gift-bundles/category/${categoryId}/products`);
+    if (!response.ok) throw new Error('Failed to fetch category products');
     return response.json();
   },
 };

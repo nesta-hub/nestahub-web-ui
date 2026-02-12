@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2, Package, ChevronDown } from "lucide-react";
 import { addDays } from "date-fns";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -13,63 +14,45 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import {
-  BundleProductRow,
   VariantSheet,
-  SizeSheet,
   DeliverySection,
   OrderSummary,
 } from "@/components/bundles";
-import {
-  getStageById,
-  getTierById,
-  formatPrice,
-  getSubscriptionPrice,
-  diaperVariants,
-  diaperSizes,
-  wipesVariants,
-  skinCareVariants,
-  type ConfiguredProduct,
-  type ProductVariant,
-  type ProductSize,
-  type SubscriptionConfig,
-  type BundleItem,
-} from "@/data/bundleData";
+import { api, type ProductVariant as ApiProductVariant } from "@/lib/api";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-// Map category to its variants
-const getCategoryVariants = (category: string): ProductVariant[] => {
-  switch (category.toLowerCase()) {
-    case "diapers":
-      return diaperVariants;
-    case "wipes":
-      return wipesVariants;
-    case "vaseline":
-    case "lotion":
-    case "baby wash":
-    case "baby oil":
-      return skinCareVariants;
-    default:
-      return skinCareVariants;
-  }
+// Types for configured products
+type ConfiguredProduct = {
+  categoryId: string;
+  categoryName: string;
+  categoryDisplayName: string;
+  bundleCategoryProductId: string;
+  quantity: number;
+  selectedVariantId: string;
+  selectedVariant: {
+    id: string;
+    sku: string;
+    price: number;
+    imageUrl?: string;
+    productId: string;
+    productName: string;
+    brand: string;
+    attributes: Array<{ attributeName: string; displayValue: string }>;
+  };
 };
 
-// Check if category has size options
-const categoryHasSizes = (category: string): boolean => {
-  return category.toLowerCase() === "diapers";
+type SubscriptionConfig = {
+  frequency: "one-time" | "weekly" | "bi-weekly" | "monthly";
+  startDate: Date;
 };
 
-// Initialize products from tier contents
-const initializeProducts = (contents: BundleItem[]): ConfiguredProduct[] => {
-  return contents.map((item) => {
-    const variants = getCategoryVariants(item.category);
-    const hasSizes = categoryHasSizes(item.category);
-    return {
-      category: item.category,
-      quantity: 1, // Default quantity
-      selectedVariant: variants[0],
-      selectedSize: hasSizes ? diaperSizes[0] : undefined,
-    };
-  });
+// Helper to calculate subscription discount (5% off)
+const getSubscriptionPrice = (price: number) => Math.round(price * 0.95);
+
+// Helper to format price
+const formatPrice = (priceInKobo: number) => {
+  const naira = priceInKobo / 100;
+  return `₦${naira.toLocaleString()}`;
 };
 
 const BundleConfigurator = () => {
@@ -77,17 +60,26 @@ const BundleConfigurator = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  // Parse bundleId (format: stageId__tierId)
+  // Parse bundleId (format: stageId__bundleSlug)
   const parts = bundleId?.split("__") || [];
   const stageId = parts[0];
-  const tierId = parts[1];
-  const stage = stageId ? getStageById(stageId) : undefined;
-  const tier = tierId ? getTierById(tierId) : undefined;
+  const bundleSlug = parts[1];
+
+  // Fetch bundles to get stage info
+  const { data: bundlesData } = useQuery({
+    queryKey: ['bundles'],
+    queryFn: api.getBundles,
+  });
+
+  // Fetch bundle details
+  const { data: bundleData, isLoading: bundleLoading, error: bundleError } = useQuery({
+    queryKey: ['bundle', bundleSlug],
+    queryFn: () => bundleSlug ? api.getBundle(bundleSlug) : Promise.reject('No bundle slug'),
+    enabled: !!bundleSlug,
+  });
 
   // State for configured products
-  const [products, setProducts] = useState<ConfiguredProduct[]>(() =>
-    tier ? initializeProducts(tier.contents) : []
-  );
+  const [products, setProducts] = useState<ConfiguredProduct[]>([]);
 
   // State for subscription config
   const [subscriptionConfig, setSubscriptionConfig] = useState<SubscriptionConfig>({
@@ -97,63 +89,133 @@ const BundleConfigurator = () => {
 
   // Sheet states
   const [variantSheetOpen, setVariantSheetOpen] = useState(false);
-  const [sizeSheetOpen, setSizeSheetOpen] = useState(false);
   const [activeProductIndex, setActiveProductIndex] = useState<number | null>(null);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+
+  // Fetch category products when changing variant
+  const { data: categoryProductsData } = useQuery({
+    queryKey: ['categoryProducts', activeCategoryId],
+    queryFn: () => activeCategoryId ? api.getCategoryProducts(activeCategoryId) : Promise.reject('No category'),
+    enabled: !!activeCategoryId && variantSheetOpen,
+  });
+
+  // Initialize products from bundle data
+  useEffect(() => {
+    if (bundleData?.categories && products.length === 0) {
+      const initialProducts: ConfiguredProduct[] = [];
+
+      bundleData.categories.forEach((category) => {
+        category.products.forEach((product) => {
+          initialProducts.push({
+            categoryId: category.categoryId,
+            categoryName: category.category.name,
+            categoryDisplayName: category.category.displayName,
+            bundleCategoryProductId: product.id,
+            quantity: product.quantity,
+            selectedVariantId: product.variantId,
+            selectedVariant: {
+              id: product.variant.id,
+              sku: product.variant.sku,
+              price: product.variant.price,
+              imageUrl: product.variant.imageUrl,
+              productId: product.variant.product.id,
+              productName: product.variant.product.name,
+              brand: product.variant.product.brand,
+              attributes: product.variant.attributes.map(attr => ({
+                attributeName: attr.attributeName,
+                displayValue: attr.displayValue,
+              })),
+            },
+          });
+        });
+      });
+
+      setProducts(initialProducts);
+    }
+  }, [bundleData, products.length]);
 
   // Calculate total price
   const totalPrice = useMemo(() => {
-    if (!tier) return 0;
-    let total = tier.basePrice;
-
-    products.forEach((product) => {
-      total += product.selectedVariant.priceDelta;
-      if (product.selectedSize) {
-        total += product.selectedSize.priceDelta;
-      }
-    });
-
-    return total;
-  }, [tier, products]);
+    return products.reduce((total, product) => {
+      return total + (product.selectedVariant.price * product.quantity);
+    }, 0);
+  }, [products]);
 
   const finalPrice =
     subscriptionConfig.frequency === "one-time"
       ? totalPrice
       : getSubscriptionPrice(totalPrice);
 
-  if (!stage || !tier) {
+  // Find stage info
+  const ageGroupData = bundlesData?.ageGroups.find(ag => ag.ageGroup.slug === stageId);
+  const stage = ageGroupData ? {
+    id: ageGroupData.ageGroup.slug,
+    name: ageGroupData.ageGroup.name,
+    ageRange: ageGroupData.ageGroup.ageRangeStart !== undefined && ageGroupData.ageGroup.ageRangeEnd !== undefined
+      ? `${ageGroupData.ageGroup.ageRangeStart}-${ageGroupData.ageGroup.ageRangeEnd} months`
+      : undefined,
+    emoji: '👶',
+  } : undefined;
+
+  const tier = bundleData ? {
+    id: bundleData.slug,
+    name: bundleData.name,
+  } : undefined;
+
+  // Loading state
+  if (bundleLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  // Error state
+  if (bundleError || !stage || !tier) {
     return (
       <Layout>
         <div className="container py-8">
-          <p className="text-muted-foreground">Bundle not found</p>
+          <p className="text-destructive">
+            {bundleError ? 'Failed to load bundle' : 'Bundle not found'}
+          </p>
         </div>
       </Layout>
     );
   }
 
   const handleChangeBrand = (index: number) => {
+    const product = products[index];
     setActiveProductIndex(index);
+    setActiveCategoryId(product.categoryId);
     setVariantSheetOpen(true);
   };
 
-  const handleChangeSize = (index: number) => {
-    setActiveProductIndex(index);
-    setSizeSheetOpen(true);
-  };
-
-  const handleVariantSelect = (variant: ProductVariant) => {
+  const handleVariantSelect = (variant: ApiProductVariant) => {
     if (activeProductIndex === null) return;
+
+    const product = products[activeProductIndex];
     setProducts((prev) =>
       prev.map((p, i) =>
-        i === activeProductIndex ? { ...p, selectedVariant: variant } : p
-      )
-    );
-  };
-
-  const handleSizeSelect = (size: ProductSize) => {
-    if (activeProductIndex === null) return;
-    setProducts((prev) =>
-      prev.map((p, i) =>
-        i === activeProductIndex ? { ...p, selectedSize: size } : p
+        i === activeProductIndex ? {
+          ...p,
+          selectedVariantId: variant.id,
+          selectedVariant: {
+            id: variant.id,
+            sku: variant.sku,
+            price: variant.price,
+            imageUrl: variant.imageUrl,
+            productId: p.selectedVariant.productId, // Keep existing product ID
+            productName: p.selectedVariant.productName, // Will be updated from category products
+            brand: p.selectedVariant.brand,
+            attributes: variant.attributes.map(attr => ({
+              attributeName: attr.attributeName,
+              displayValue: attr.displayValue,
+            })),
+          },
+        } : p
       )
     );
   };
@@ -186,13 +248,45 @@ const BundleConfigurator = () => {
             <h2 className="font-semibold text-foreground">Your Bundle</h2>
             <div className="space-y-3">
               {products.map((product, index) => (
-                <BundleProductRow
-                  key={index}
-                  product={product}
-                  onChangeBrand={() => handleChangeBrand(index)}
-                  onChangeSize={() => handleChangeSize(index)}
-                  showSizeOption={categoryHasSizes(product.category)}
-                />
+                <div key={index} className="flex gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                    {product.selectedVariant.imageUrl ? (
+                      <img src={product.selectedVariant.imageUrl} alt={product.selectedVariant.productName} className="w-full h-full object-cover rounded-lg" />
+                    ) : (
+                      <Package className="w-8 h-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div>
+                      <h4 className="font-semibold text-foreground">
+                        {product.categoryDisplayName}{" "}
+                        <span className="font-normal text-muted-foreground">({product.quantity})</span>
+                      </h4>
+                      <p className="text-sm text-foreground">
+                        {product.selectedVariant.brand} {product.selectedVariant.productName}
+                      </p>
+                      {product.selectedVariant.attributes.length > 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          {product.selectedVariant.attributes.map(a => a.displayValue).join(', ')}
+                        </p>
+                      )}
+                      <p className="text-sm font-medium text-foreground mt-1">
+                        {formatPrice(product.selectedVariant.price)}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={() => handleChangeBrand(index)}
+                      >
+                        Change Brand
+                        <ChevronDown className="w-3 h-3 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -203,25 +297,23 @@ const BundleConfigurator = () => {
             onConfigChange={setSubscriptionConfig}
           />
 
-          {activeProduct && (
+          {activeProduct && categoryProductsData && (
             <VariantSheet
               open={variantSheetOpen}
               onOpenChange={setVariantSheetOpen}
-              title={`Select ${activeProduct.category} Brand`}
-              variants={getCategoryVariants(activeProduct.category)}
-              selectedVariantId={activeProduct.selectedVariant.id}
+              title={`Select ${activeProduct.categoryDisplayName} Product`}
+              variants={categoryProductsData.products.flatMap(p =>
+                p.variants.map(v => ({
+                  id: v.id,
+                  name: p.name,
+                  brand: p.brand,
+                  priceDelta: v.price - activeProduct.selectedVariant.price,
+                  imageUrl: v.imageUrl,
+                  attributes: v.attributes,
+                }))
+              )}
+              selectedVariantId={activeProduct.selectedVariantId}
               onSelect={handleVariantSelect}
-            />
-          )}
-
-          {activeProduct && activeProduct.selectedSize && (
-            <SizeSheet
-              open={sizeSheetOpen}
-              onOpenChange={setSizeSheetOpen}
-              title={`Select ${activeProduct.category} Size`}
-              sizes={diaperSizes}
-              selectedSizeId={activeProduct.selectedSize.id}
-              onSelect={handleSizeSelect}
             />
           )}
         </div>
@@ -283,13 +375,44 @@ const BundleConfigurator = () => {
               <h2 className="text-xl font-semibold text-foreground">Your Bundle</h2>
               <div className="space-y-4">
                 {products.map((product, index) => (
-                  <BundleProductRow
-                    key={index}
-                    product={product}
-                    onChangeBrand={() => handleChangeBrand(index)}
-                    onChangeSize={() => handleChangeSize(index)}
-                    showSizeOption={categoryHasSizes(product.category)}
-                  />
+                  <div key={index} className="flex gap-4 p-4 bg-card border border-border rounded-lg">
+                    <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                      {product.selectedVariant.imageUrl ? (
+                        <img src={product.selectedVariant.imageUrl} alt={product.selectedVariant.productName} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <Package className="w-10 h-10 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div>
+                        <h4 className="font-semibold text-foreground text-lg">
+                          {product.categoryDisplayName}{" "}
+                          <span className="font-normal text-muted-foreground">({product.quantity})</span>
+                        </h4>
+                        <p className="text-base text-foreground">
+                          {product.selectedVariant.brand} {product.selectedVariant.productName}
+                        </p>
+                        {product.selectedVariant.attributes.length > 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            {product.selectedVariant.attributes.map(a => a.displayValue).join(', ')}
+                          </p>
+                        )}
+                        <p className="text-base font-medium text-foreground mt-1">
+                          {formatPrice(product.selectedVariant.price)} each
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleChangeBrand(index)}
+                        >
+                          Change Brand
+                          <ChevronDown className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -317,25 +440,23 @@ const BundleConfigurator = () => {
         </div>
 
         {/* Dialogs for desktop selection */}
-        {activeProduct && (
+        {activeProduct && categoryProductsData && (
           <VariantSheet
             open={variantSheetOpen}
             onOpenChange={setVariantSheetOpen}
-            title={`Select ${activeProduct.category} Brand`}
-            variants={getCategoryVariants(activeProduct.category)}
-            selectedVariantId={activeProduct.selectedVariant.id}
+            title={`Select ${activeProduct.categoryDisplayName} Product`}
+            variants={categoryProductsData.products.flatMap(p =>
+              p.variants.map(v => ({
+                id: v.id,
+                name: p.name,
+                brand: p.brand,
+                priceDelta: v.price - activeProduct.selectedVariant.price,
+                imageUrl: v.imageUrl,
+                attributes: v.attributes,
+              }))
+            )}
+            selectedVariantId={activeProduct.selectedVariantId}
             onSelect={handleVariantSelect}
-          />
-        )}
-
-        {activeProduct && activeProduct.selectedSize && (
-          <SizeSheet
-            open={sizeSheetOpen}
-            onOpenChange={setSizeSheetOpen}
-            title={`Select ${activeProduct.category} Size`}
-            sizes={diaperSizes}
-            selectedSizeId={activeProduct.selectedSize.id}
-            onSelect={handleSizeSelect}
           />
         )}
       </div>

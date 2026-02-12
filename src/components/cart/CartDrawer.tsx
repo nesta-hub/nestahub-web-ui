@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCart } from "@/contexts/CartContext";
 import { CartItemRow } from "./CartItemRow";
-import { formatPrice } from "@/data/catalogueData";
+import { formatPrice } from "@/lib/api";
 import { ShoppingBag } from "lucide-react";
 
 export function CartDrawer() {

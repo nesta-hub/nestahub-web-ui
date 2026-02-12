@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { CartItem } from "@/contexts/CartContext";
-import { formatPrice } from "@/data/catalogueData";
+import { formatPrice } from "@/lib/api";
 import { Minus, Plus } from "lucide-react";
 
 interface SubscribeItemCardProps {

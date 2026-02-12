@@ -14,9 +14,11 @@ interface ProductDetailDrawerProps {
   onOpenChange: (open: boolean) => void;
   product?: CatalogueProduct | null;
   productSlug?: string | null;
+  mode?: 'cart' | 'select';
+  onSelect?: (variant: any, quantity: number) => void;
 }
 
-export function ProductDetailDrawer({ open, onOpenChange, product, productSlug }: ProductDetailDrawerProps) {
+export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, mode = 'cart', onSelect }: ProductDetailDrawerProps) {
   const { addToCart } = useCart();
 
   // Fetch API product if slug is provided
@@ -152,6 +154,27 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug }
     });
   }, [apiProduct, attributeOrder, isAttributeValueAvailable]);
 
+  // Helper: Get display value for an attribute value
+  const getDisplayValue = useCallback((attrName: string, attrValue: string): string => {
+    if (!apiProduct) return attrValue;
+
+    // Find a variant that has this attribute value
+    const variantWithAttr = apiProduct.variants.find(variant =>
+      variant.attributes.some(attr =>
+        attr.attributeName === attrName && attr.value === attrValue
+      )
+    );
+
+    if (variantWithAttr) {
+      const attr = variantWithAttr.attributes.find(
+        a => a.attributeName === attrName && a.value === attrValue
+      );
+      return attr?.displayValue || attrValue;
+    }
+
+    return attrValue;
+  }, [apiProduct]);
+
   // Reset selections when product changes
   useEffect(() => {
     if (product) {
@@ -177,6 +200,23 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug }
 
     // API product - use variant
     if (apiProduct && matchedVariant) {
+      // If in select mode, call onSelect callback instead of adding to cart
+      if (mode === 'select' && onSelect) {
+        // Enrich variant with product info for the callback
+        onSelect({
+          ...matchedVariant,
+          product: {
+            id: apiProduct.id,
+            name: apiProduct.name,
+            brand: apiProduct.brand,
+            slug: apiProduct.slug,
+          }
+        }, quantity);
+        onOpenChange(false);
+        return;
+      }
+
+      // Default cart mode
       addToCart({
         variantId: matchedVariant.id,
         productId: apiProduct.id,
@@ -205,6 +245,14 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug }
 
     const selectedType = product.types.find(t => t.id === selectedTypeId);
     const selectedSize = product.sizes?.find(s => s.id === selectedSizeId);
+
+    // If in select mode (only applies to API products, but keep for consistency)
+    if (mode === 'select' && onSelect) {
+      // For old products, we don't have a proper variant structure
+      // This shouldn't happen in practice as select mode is for API products only
+      onOpenChange(false);
+      return;
+    }
 
     addToCart({
       variantId: `${product.id}-${selectedTypeId}-${selectedSizeId || 'none'}`,
@@ -311,7 +359,7 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug }
                                 : "border-border/50 bg-muted/30 text-muted-foreground/50 cursor-not-allowed"
                           )}
                         >
-                          {value}
+                          {getDisplayValue(attrName, value)}
                         </button>
                       );
                     })}
@@ -389,15 +437,15 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug }
               </div>
             </div>
             
-            {/* Add to Cart Button - pinned */}
+            {/* Add to Cart / Select Button - pinned */}
             <div className="px-6 py-6 shrink-0">
-              <Button 
-                variant="shop" 
+              <Button
+                variant="shop"
                 className="w-full h-12 rounded-xl"
                 onClick={handleAddToCart}
                 disabled={!unitPrice}
               >
-                Add to Cart
+                {mode === 'select' ? 'Select' : 'Add to Cart'}
               </Button>
             </div>
           </div>

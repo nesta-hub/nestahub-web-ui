@@ -2,7 +2,7 @@ import { Copy, Check, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { formatPrice } from "@/data/bundleData";
+import { formatPrice } from "@/lib/api";
 
 interface CheckoutPaymentViewProps {
   orderId: string;

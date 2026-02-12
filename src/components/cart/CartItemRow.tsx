@@ -1,7 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { CartItem, useCart } from "@/contexts/CartContext";
 import { QuantityControl } from "./QuantityControl";
-import { formatPrice } from "@/data/catalogueData";
+import { formatPrice } from "@/lib/api";
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +22,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
 
   // Build display - prioritize API attributes, fallback to legacy
   const variantLabel = item.attributes && item.attributes.length > 0
-    ? item.attributes.map(attr => attr.value).join(' · ')  // e.g., "Size 1 · Jumbo"
+    ? item.attributes.map(attr => attr.displayValue || attr.value).join(' · ')  // e.g., "Size 1 · Jumbo"
     : item.sizeName
       ? `${item.typeName} · ${item.sizeName}`
       : item.typeName;

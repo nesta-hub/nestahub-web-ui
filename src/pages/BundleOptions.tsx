@@ -1,5 +1,6 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Info, Package } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, Info, Package, Loader2 } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +12,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { TierCard } from "@/components/bundles";
-import { getStageById, bundleTiers } from "@/data/bundleData";
+import { api } from "@/lib/api";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const BundleOptions = () => {
@@ -19,19 +20,62 @@ const BundleOptions = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  const stage = stageId ? getStageById(stageId) : undefined;
+  // Fetch bundles data
+  const { data: bundlesData, isLoading, error } = useQuery({
+    queryKey: ['bundles'],
+    queryFn: api.getBundles,
+  });
 
-  if (!stage) {
+  // Find the age group matching the stageId (which is actually the age group slug)
+  const ageGroupData = bundlesData?.ageGroups.find(ag => ag.ageGroup.slug === stageId);
+  const stage = ageGroupData ? {
+    id: ageGroupData.ageGroup.slug,
+    name: ageGroupData.ageGroup.name,
+    ageRange: ageGroupData.ageGroup.ageRangeStart !== undefined && ageGroupData.ageGroup.ageRangeEnd !== undefined
+      ? `${ageGroupData.ageGroup.ageRangeStart}-${ageGroupData.ageGroup.ageRangeEnd} months`
+      : undefined,
+    description: ageGroupData.ageGroup.description || '',
+    emoji: '👶',
+  } : undefined;
+
+  // Map bundles to tier format for TierCard component
+  const bundleTiers = ageGroupData?.bundles.map(bundle => ({
+    id: bundle.slug,
+    name: bundle.name,
+    type: bundle.slug as any, // Type for styling purposes
+    summary: bundle.categories.map(c => c.displayName).join(' + '),
+    contents: bundle.categories.map(c => ({
+      category: c.displayName,
+      quantity: `${c.productCount} ${c.productCount === 1 ? 'product' : 'products'}`,
+    })),
+    basePrice: bundle.totalPrice,
+    isPopular: false, // Could be set based on sortOrder or other criteria
+  })) || [];
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error || !stage) {
     return (
       <Layout>
         <div className="container py-8">
-          <p className="text-muted-foreground">Stage not found</p>
+          <p className="text-destructive">
+            {error ? 'Failed to load bundles' : 'Stage not found'}
+          </p>
         </div>
       </Layout>
     );
   }
 
   const handleTierSelect = (tierId: string) => {
+    // Pass the bundle slug as the tierId
     navigate(`/configure/${stageId}__${tierId}`);
   };
 
