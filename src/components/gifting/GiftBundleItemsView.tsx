@@ -41,7 +41,7 @@ export interface SelectedProduct {
 interface GiftBundleItemsViewProps {
   open: boolean;
   onClose: () => void;
-  bundleSlug: string;
+  bundleId: string;
   ageGroupSlug: string;
   onProceed: (items: SelectedProduct[]) => void;
 }
@@ -69,15 +69,15 @@ function convertToCartItem(item: SelectedProduct): Omit<CartItem, 'quantity'> {
 export function GiftBundleItemsView({
   open,
   onClose,
-  bundleSlug,
+  bundleId,
   ageGroupSlug,
   onProceed,
 }: GiftBundleItemsViewProps) {
-  // Fetch bundle details
+  // Fetch bundle details by ID instead of slug
   const { data: bundleData, isLoading: bundleLoading } = useQuery({
-    queryKey: ['bundle', bundleSlug],
-    queryFn: () => api.getBundle(bundleSlug),
-    enabled: open && !!bundleSlug,
+    queryKey: ['bundle', bundleId],
+    queryFn: () => api.getBundle(bundleId),
+    enabled: open && !!bundleId,
   });
 
   const [items, setItems] = useState<SelectedProduct[]>([]);
@@ -108,7 +108,7 @@ export function GiftBundleItemsView({
         category.products.forEach((product) => {
           initialItems.push({
             categoryId: category.categoryId,
-            categoryName: category.category.displayName,
+            categoryName: category.category.name, // Use internal name instead of display name
             bundleCategoryProductId: product.id,
             variantId: product.variantId,
             variant: {

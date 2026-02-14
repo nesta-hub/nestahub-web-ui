@@ -3,11 +3,14 @@ import { Search, Sparkles, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { Input } from "@/components/ui/input";
+import { useIsMobile } from "@/hooks/use-mobile";
+import desktopPlaceholder from "@/assets/desktop-placeholder.jpg";
 import { api, ProductCard as APIProductCard } from "@/lib/api";
  import { AssistDrawer, ProductCard, ProductDetailDrawer, CategoryView } from "@/components/catalogue";
  import { CatalogueProduct, getProductsByCategory } from "@/data/catalogueData";
 
 const Catalogue = () => {
+  const isMobile = useIsMobile();
   const [isAssistDrawerOpen, setIsAssistDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<CatalogueProduct | null>(null);
@@ -48,6 +51,28 @@ const Catalogue = () => {
   const handleBackFromCategory = () => {
     setSelectedCategory(null);
   };
+
+  // Desktop placeholder
+  if (!isMobile) {
+    return (
+      <Layout>
+        <div className="relative min-h-[calc(100vh-5rem)] flex items-center justify-center">
+          <img
+            src={desktopPlaceholder}
+            alt="Baby care essentials"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" />
+          <div className="relative z-10 text-center px-4">
+            <h1 className="text-4xl font-bold text-foreground mb-4">Desktop Experience Coming Soon</h1>
+            <p className="text-muted-foreground max-w-md mx-auto text-lg font-medium">
+              Browse on a mobile device or a tablet to shop.
+            </p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   // If category is selected, show CategoryView
   if (selectedCategory) {
@@ -119,11 +144,11 @@ const Catalogue = () => {
             className="w-full flex items-start gap-3 p-4 rounded-xl bg-primary/5 border border-primary/10 hover:bg-primary/10 transition-colors text-left"
           >
             <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm text-muted-foreground sm:inline">
+            <div className="flex flex-wrap items-center gap-1">
+              <p className="text-sm text-muted-foreground">
                 Not sure of what to order?
               </p>
-              <p className="text-sm font-medium text-primary mt-0.5 sm:mt-0 sm:inline sm:ml-1 inline-flex items-center gap-1">
+              <p className="text-sm font-medium text-primary inline-flex items-center gap-1">
                 Try assisted shopping
                 <ChevronRight className="h-4 w-4" />
               </p>

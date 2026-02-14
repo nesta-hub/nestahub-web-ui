@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { generateOrderId, PickupStation } from "@/data/bundleData";
 import {
   CheckoutDeliverySection,
@@ -17,8 +18,8 @@ import {
   OrderTypeSummaryCard,
   AutoRenewConfigDrawer,
   AutoRenewExplainerDrawer,
-  CheckoutSignIn,
 } from "@/components/checkout";
+import { SignInForm } from "@/components/auth/SignInForm";
 
 type DeliveryMethod = 'pickup' | 'address';
 type OrderType = 'one-off' | 'auto-renew';
@@ -28,28 +29,40 @@ const Checkout = () => {
   const [searchParams] = useSearchParams();
   const isFromGifting = searchParams.get('source') === 'gifting';
   const { items, totalAmount, setAllItemsAutoRenew } = useCart();
+  const { user, loading: authLoading } = useAuth();
 
   // Order type state - skip if from gifting (default to one-off)
   const [orderType, setOrderType] = useState<OrderType | null>(isFromGifting ? 'one-off' : null);
   const [orderTypeConfirmed, setOrderTypeConfirmed] = useState(isFromGifting);
   const [isAutoRenewDrawerOpen, setIsAutoRenewDrawerOpen] = useState(false);
   const [isExplainerDrawerOpen, setIsExplainerDrawerOpen] = useState(false);
-  const [isSignedIn, setIsSignedIn] = useState(false);
 
   // Delivery state
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
   const [pickupStation, setPickupStation] = useState<PickupStation | null>(null);
   const [address, setAddress] = useState<string | null>(null);
 
-  // Contact state - used for BOTH flows
-  const [fullName, setFullName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  // Contact state - used for BOTH flows - pre-fill from user if authenticated
+  const [fullName, setFullName] = useState(user?.name || '');
+  const [phoneNumber, setPhoneNumber] = useState(user?.phone || '');
 
   // View state
   const [showPayment, setShowPayment] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderId] = useState(() => generateOrderId());
   const contactRef = useRef<HTMLDivElement>(null);
+
+  // Pre-fill contact info when user data loads
+  useEffect(() => {
+    if (user) {
+      if (user.name && !fullName) {
+        setFullName(user.name);
+      }
+      if (user.phone && !phoneNumber) {
+        setPhoneNumber(user.phone);
+      }
+    }
+  }, [user]);
 
   // Redirect to catalogue if cart is empty
   useEffect(() => {
@@ -152,9 +165,14 @@ const Checkout = () => {
 
         {/* Content */}
         <div className="flex-1 px-4 py-4 space-y-6">
-          {!isSignedIn ? (
+          {/* Show loading while checking auth state */}
+          {authLoading ? (
+            <div className="flex-1 flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : !user ? (
             <div className="animate-fade-in">
-              <CheckoutSignIn onSignIn={() => setIsSignedIn(true)} />
+              <SignInForm />
             </div>
           ) : (
             <>

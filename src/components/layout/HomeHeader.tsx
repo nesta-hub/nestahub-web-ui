@@ -30,7 +30,7 @@ export function HomeHeader() {
 
         {/* Centered Logo */}
         <Link to="/" className="flex items-center">
-          <img src={nestaLogo} alt="Nesta Hub" className="h-9" />
+          <img src={nestaLogo} alt="Nesta Hub" className="h-12" />
         </Link>
 
         {/* Shop Button */}

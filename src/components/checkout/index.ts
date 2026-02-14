@@ -10,4 +10,3 @@ export { OrderTypeInfoPill } from "./OrderTypeInfoPill";
 export { AutoRenewExplainerDrawer } from "./AutoRenewExplainerDrawer";
 export { AutoRenewConfigDrawer } from "./AutoRenewConfigDrawer";
 export { OrderTypeSummaryCard } from "./OrderTypeSummaryCard";
-export { CheckoutSignIn } from "./CheckoutSignIn";

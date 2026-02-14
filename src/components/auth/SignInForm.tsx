@@ -14,7 +14,17 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-export function CheckoutSignIn() {
+interface SignInFormProps {
+  title?: string;
+  description?: string;
+  containerClassName?: string;
+}
+
+export function SignInForm({
+  title = "Sign in to continue",
+  description = "This is a one-time process to complete your order",
+  containerClassName = "flex-1 flex flex-col items-center justify-center px-6 py-12"
+}: SignInFormProps) {
   const { signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +33,10 @@ export function CheckoutSignIn() {
     try {
       setLoading(true);
       setError(null);
+
+      // Save current URL to localStorage so we can redirect back after OAuth
+      localStorage.setItem('auth_redirect_url', window.location.pathname + window.location.search);
+
       await signInWithGoogle();
       // User will be redirected to Google OAuth page
     } catch (err) {
@@ -33,12 +47,12 @@ export function CheckoutSignIn() {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+    <div className={containerClassName}>
       <h2 className="text-xl font-semibold text-foreground mb-2 text-center">
-        Sign in to continue
+        {title}
       </h2>
       <p className="text-sm text-muted-foreground mb-8 text-center max-w-xs">
-        This is a one-time process to complete your order
+        {description}
       </p>
 
       <div className="w-full max-w-sm space-y-3">

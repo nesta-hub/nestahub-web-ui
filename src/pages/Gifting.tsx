@@ -5,6 +5,8 @@ import { useCart } from "@/contexts/CartContext";
 import { SelectedProduct } from "@/components/gifting/GiftBundleItemsView";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Layout } from "@/components/layout";
+import { useIsMobile } from "@/hooks/use-mobile";
+import desktopPlaceholder from "@/assets/desktop-placeholder.jpg";
 import { cn } from "@/lib/utils";
 import { api, type AgeGroup, type Bundle, type BundleCategory } from "@/lib/api";
 import { GiftBundleDetailDrawer } from "@/components/gifting/GiftBundleDetailDrawer";
@@ -82,7 +84,6 @@ function GiftBundleCard({
 
       {/* Price section */}
       <div className="pt-1.5 border-t border-border/50">
-        <p className="text-[10px] text-muted-foreground">from</p>
         <p className="text-sm font-bold text-foreground">
           {formatPrice(tier.basePrice)}
         </p>
@@ -152,6 +153,7 @@ function AgeGroupSection({
 const Gifting = () => {
   const navigate = useNavigate();
   const { addToCart, clearCart} = useCart();
+  const isMobile = useIsMobile();
 
   // Fetch bundles from API
   const { data: bundlesData, isLoading, error } = useQuery({
@@ -179,10 +181,10 @@ const Gifting = () => {
   const bundlesByStage = new Map<string, UITier[]>();
   bundlesData?.ageGroups.forEach(ag => {
     const tiers: UITier[] = ag.bundles.map(bundle => ({
-      id: bundle.slug,
+      id: bundle.id, // Use bundle ID instead of slug
       name: bundle.name,
       contents: bundle.categories.map(cat => ({
-        category: cat.displayName,
+        category: cat.name, // Use internal name instead of display name
         quantity: `${cat.productCount} ${cat.productCount === 1 ? 'product' : 'products'}`,
       })),
       basePrice: bundle.totalPrice,
@@ -192,13 +194,13 @@ const Gifting = () => {
 
   // Find selected tier and stage
   const selectedStageData = bundlesData?.ageGroups.find(ag => ag.ageGroup.slug === selectedStageId);
-  const selectedBundleData = selectedStageData?.bundles.find(b => b.slug === selectedTierId);
+  const selectedBundleData = selectedStageData?.bundles.find(b => b.id === selectedTierId);
 
   const selectedTier = selectedBundleData ? {
-    id: selectedBundleData.slug,
+    id: selectedBundleData.id, // Use bundle ID instead of slug
     name: selectedBundleData.name,
     contents: selectedBundleData.categories.map(cat => ({
-      category: cat.displayName,
+      category: cat.name, // Use internal name instead of display name
       quantity: `${cat.productCount} products`,
     })),
     basePrice: selectedBundleData.totalPrice,
@@ -214,7 +216,7 @@ const Gifting = () => {
   } : null;
 
   const selectedContents = selectedBundleData?.categories.map(cat => ({
-    category: cat.displayName,
+    category: cat.name, // Use internal name instead of display name
     quantity: cat.description || `${cat.productCount} products`,
   })) || [];
 
@@ -276,6 +278,28 @@ const Gifting = () => {
     );
   }
 
+  // Desktop placeholder
+  if (!isMobile) {
+    return (
+      <Layout>
+        <div className="relative min-h-[calc(100vh-5rem)] flex items-center justify-center">
+          <img
+            src={desktopPlaceholder}
+            alt="Baby care essentials"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" />
+          <div className="relative z-10 text-center px-4">
+            <h1 className="text-4xl font-bold text-foreground mb-4">Desktop Experience Coming Soon</h1>
+            <p className="text-muted-foreground max-w-md mx-auto text-lg font-medium">
+              Browse on a mobile device or a tablet to shop.
+            </p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="min-h-screen pb-24">
@@ -315,7 +339,7 @@ const Gifting = () => {
         <GiftBundleItemsView
           open={itemsViewOpen}
           onClose={() => setItemsViewOpen(false)}
-          bundleSlug={selectedTierId}
+          bundleId={selectedTierId}
           ageGroupSlug={selectedStageId}
           onProceed={handleProceed}
         />

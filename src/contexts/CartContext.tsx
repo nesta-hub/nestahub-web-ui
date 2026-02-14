@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useCallback, useMemo } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback, useMemo, useEffect } from "react";
 import { addDays } from "date-fns";
 
 export const SUBSCRIPTION_DISCOUNT = 0.05; // 5%
@@ -51,10 +51,49 @@ function getItemKey(productId: string, typeId: string, sizeId: string | undefine
   return `${productId}-${typeId}-${sizeId || 'no-size'}`;
 }
 
+const CART_STORAGE_KEY = 'nesta_cart_items';
+const SUBSCRIPTION_DATE_STORAGE_KEY = 'nesta_subscription_start_date';
+
+// Helper to safely parse JSON from localStorage
+function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (error) {
+    console.error(`Error loading ${key} from localStorage:`, error);
+    return defaultValue;
+  }
+}
+
+// Helper to safely save JSON to localStorage
+function saveToLocalStorage<T>(key: string, value: T): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.error(`Error saving ${key} to localStorage:`, error);
+  }
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+  // Initialize state from localStorage
+  const [items, setItems] = useState<CartItem[]>(() =>
+    loadFromLocalStorage<CartItem[]>(CART_STORAGE_KEY, [])
+  );
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [subscriptionStartDate, setSubscriptionStartDateState] = useState<Date>(() => addDays(new Date(), 1));
+  const [subscriptionStartDate, setSubscriptionStartDateState] = useState<Date>(() => {
+    const savedDate = loadFromLocalStorage<string | null>(SUBSCRIPTION_DATE_STORAGE_KEY, null);
+    return savedDate ? new Date(savedDate) : addDays(new Date(), 1);
+  });
+
+  // Sync cart items to localStorage whenever they change
+  useEffect(() => {
+    saveToLocalStorage(CART_STORAGE_KEY, items);
+  }, [items]);
+
+  // Sync subscription start date to localStorage whenever it changes
+  useEffect(() => {
+    saveToLocalStorage(SUBSCRIPTION_DATE_STORAGE_KEY, subscriptionStartDate.toISOString());
+  }, [subscriptionStartDate]);
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
   const closeCart = useCallback(() => setIsCartOpen(false), []);
@@ -111,6 +150,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = useCallback(() => {
     setItems([]);
+    localStorage.removeItem(CART_STORAGE_KEY);
   }, []);
 
   const setSubscriptionStartDate = useCallback((date: Date) => {

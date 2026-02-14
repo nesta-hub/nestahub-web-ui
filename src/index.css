@@ -327,4 +327,64 @@
   .animate-step-in {
     animation: step-slide-in 0.3s ease-out forwards;
   }
+
+  /* Spring bounce straighten for mobile entry cards */
+  @keyframes spring-straighten {
+    0%   { transform: rotate(var(--card-tilt)) translateY(var(--card-offset, 0px)); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+    60%  { transform: rotate(0.5deg) translateY(-2px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
+    80%  { transform: rotate(-0.3deg) translateY(0px); box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15); }
+    100% { transform: rotate(0deg) translateY(0px); box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15); }
+  }
+
+  @keyframes spring-tilt-back {
+    0%   { transform: rotate(0deg) translateY(0px); box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.15); }
+    100% { transform: rotate(var(--card-tilt)) translateY(var(--card-offset, 0px)); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+  }
+
+  .animate-spring-straighten {
+    animation: spring-straighten 600ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  .animate-spring-tilt-back {
+    animation: spring-tilt-back 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes slide-in-from-right {
+    0%   { opacity: 0; transform: translateX(60px); }
+    100% { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes slide-in-from-left {
+    0%   { opacity: 0; transform: translateX(-60px); }
+    100% { opacity: 1; transform: translateX(0); }
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-from-right 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-from-left 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 25s linear infinite;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

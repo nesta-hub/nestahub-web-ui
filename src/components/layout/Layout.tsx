@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { MobileNav } from "./MobileNav";
 import { DesktopHeader } from "./DesktopHeader";
+import { Footer } from "./Footer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { FloatingCartIcon } from "@/components/cart/FloatingCartIcon";
 
@@ -27,9 +28,16 @@ export function Layout({ children, showNav = true }: LayoutProps) {
       {showFloatingCart && <FloatingCartIcon />}
 
       {/* Main Content */}
-      <main className={`${isMobile && showNav ? "pb-18" : ""} ${!isMobile && showNav ? "pt-16" : ""}`}>
+      <main className={`${!isMobile && showNav ? "pt-20" : ""}`}>
         {children}
       </main>
+
+      {/* Footer: always on desktop, only on home for mobile */}
+      {(showNav || (isMobile && location.pathname === "/")) && (!isMobile || location.pathname === "/") && (
+        <div className={isMobile ? "mb-16" : ""}>
+          <Footer />
+        </div>
+      )}
 
       {/* Mobile Bottom Nav */}
       {isMobile && showNav && <MobileNav />}
