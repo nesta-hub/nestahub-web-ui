@@ -17,6 +17,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithFacebook: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -93,6 +94,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const signInWithFacebook = async () => {
+    const redirectUrl = window.location.origin + '/auth/callback';
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'facebook',
+      options: {
+        redirectTo: redirectUrl,
+      },
+    });
+
+    if (error) {
+      console.error('Error signing in with Facebook:', error);
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -108,6 +124,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     session,
     loading,
     signInWithGoogle,
+    signInWithFacebook,
     signOut,
   };
 

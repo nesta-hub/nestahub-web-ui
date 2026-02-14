@@ -14,6 +14,14 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
+function FacebookIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="#1877F2">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+    </svg>
+  );
+}
+
 interface SignInFormProps {
   title?: string;
   description?: string;
@@ -25,13 +33,14 @@ export function SignInForm({
   description = "This is a one-time process to complete your order",
   containerClassName = "flex-1 flex flex-col items-center justify-center px-6 py-12"
 }: SignInFormProps) {
-  const { signInWithGoogle } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { signInWithGoogle, signInWithFacebook } = useAuth();
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [facebookLoading, setFacebookLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleGoogleSignIn = async () => {
     try {
-      setLoading(true);
+      setGoogleLoading(true);
       setError(null);
 
       // Save current URL to localStorage so we can redirect back after OAuth
@@ -42,7 +51,24 @@ export function SignInForm({
     } catch (err) {
       console.error('Error signing in with Google:', err);
       setError('Failed to sign in with Google. Please try again.');
-      setLoading(false);
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleFacebookSignIn = async () => {
+    try {
+      setFacebookLoading(true);
+      setError(null);
+
+      // Save current URL to localStorage so we can redirect back after OAuth
+      localStorage.setItem('auth_redirect_url', window.location.pathname + window.location.search);
+
+      await signInWithFacebook();
+      // User will be redirected to Facebook OAuth page
+    } catch (err) {
+      console.error('Error signing in with Facebook:', err);
+      setError('Failed to sign in with Facebook. Please try again.');
+      setFacebookLoading(false);
     }
   };
 
@@ -60,9 +86,9 @@ export function SignInForm({
           variant="outline"
           className="w-full h-12 gap-2"
           onClick={handleGoogleSignIn}
-          disabled={loading}
+          disabled={googleLoading || facebookLoading}
         >
-          {loading ? (
+          {googleLoading ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
               Signing in...
@@ -71,6 +97,25 @@ export function SignInForm({
             <>
               <GoogleIcon className="w-5 h-5" />
               Continue with Google
+            </>
+          )}
+        </Button>
+
+        <Button
+          variant="outline"
+          className="w-full h-12 gap-2"
+          onClick={handleFacebookSignIn}
+          disabled={googleLoading || facebookLoading}
+        >
+          {facebookLoading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            <>
+              <FacebookIcon className="w-5 h-5" />
+              Continue with Facebook
             </>
           )}
         </Button>
