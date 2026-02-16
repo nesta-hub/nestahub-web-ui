@@ -18,10 +18,15 @@ export function AutoRenewConfigDrawer({
 }: AutoRenewConfigDrawerProps) {
   const { items, setItemAutoRenew } = useCart();
 
-  // Calculate total with discounts applied
+  // Calculate total with subscription prices applied
   const totalAmount = items.reduce((sum, item) => {
     const basePrice = item.unitPrice * item.quantity;
-    return sum + (item.isAutoRenew ? calculateSubscriptionPrice(basePrice) : basePrice);
+    if (item.isAutoRenew) {
+      // Use custom subscription price if available, otherwise use regular price
+      const subscriptionUnitPrice = item.subscriptionPrice || item.unitPrice;
+      return sum + (subscriptionUnitPrice * item.quantity);
+    }
+    return sum + basePrice;
   }, 0);
 
   const handleToggleAutoRenew = (item: CartItem, isAutoRenew: boolean) => {

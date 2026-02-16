@@ -26,6 +26,8 @@ export interface CartItem {
   // Subscription fields
   isAutoRenew?: boolean;
   frequencyWeeks?: number; // 2-8 weeks
+  subscriptionPrice?: number; // Custom subscription price from variant (in kobo)
+  recommendedFrequencyWeeks?: number; // Recommended frequency from variant
 }
 
 interface CartContextType {

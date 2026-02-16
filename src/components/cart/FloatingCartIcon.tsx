@@ -1,13 +1,15 @@
 import { ShoppingCart } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { cn } from "@/lib/utils";
 
 export function FloatingCartIcon() {
-  const { itemCount, openCart } = useCart();
+  const { itemCount } = useCart();
+  const navigate = useNavigate();
 
   return (
     <button
-      onClick={openCart}
+      onClick={() => navigate("/cart")}
       className={cn(
         "fixed top-4 right-4 z-40",
         "w-12 h-12 rounded-full",

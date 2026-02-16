@@ -19,10 +19,11 @@ export function SubscribeSummary({ items }: SubscribeSummaryProps) {
     0
   );
 
-  const autoRenewDiscountedTotal = autoRenewItems.reduce(
-    (sum, item) => sum + calculateSubscriptionPrice(item.unitPrice * item.quantity),
-    0
-  );
+  const autoRenewDiscountedTotal = autoRenewItems.reduce((sum, item) => {
+    // Use custom subscription price if available, otherwise use regular price
+    const subscriptionUnitPrice = item.subscriptionPrice || item.unitPrice;
+    return sum + (subscriptionUnitPrice * item.quantity);
+  }, 0);
 
   const totalSavings = autoRenewOriginalTotal - autoRenewDiscountedTotal;
   const grandTotal = oneTimeTotal + autoRenewDiscountedTotal;

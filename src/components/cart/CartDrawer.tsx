@@ -2,10 +2,10 @@ import { useNavigate } from "react-router-dom";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useCart } from "@/contexts/CartContext";
+import { useCart, calculateSubscriptionPrice } from "@/contexts/CartContext";
 import { CartItemRow } from "./CartItemRow";
 import { formatPrice } from "@/lib/api";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, RefreshCw } from "lucide-react";
 
 export function CartDrawer() {
   const navigate = useNavigate();
@@ -15,6 +15,22 @@ export function CartDrawer() {
     closeCart();
     navigate("/checkout");
   };
+
+  // Build upcoming renewals grouped by frequency
+  const renewalGroups = items
+    .filter(item => item.isAutoRenew && item.frequencyWeeks)
+    .reduce((acc, item) => {
+      const freq = item.frequencyWeeks!;
+      // Use custom subscription price if available, otherwise use regular price
+      const subscriptionUnitPrice = item.subscriptionPrice || item.unitPrice;
+      const amount = subscriptionUnitPrice * item.quantity;
+      acc[freq] = (acc[freq] || 0) + amount;
+      return acc;
+    }, {} as Record<number, number>);
+
+  const sortedRenewals = Object.entries(renewalGroups)
+    .map(([weeks, amount]) => ({ weeks: Number(weeks), amount }))
+    .sort((a, b) => a.weeks - b.weeks);
 
   return (
     <Drawer open={isCartOpen} onOpenChange={(open) => !open && closeCart()}>
@@ -45,12 +61,31 @@ export function CartDrawer() {
 
               {/* Footer */}
               <div className="px-6 py-4 border-t border-border flex-shrink-0">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-muted-foreground">Total</span>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-muted-foreground">Total Today</span>
                   <span className="text-xl font-bold text-foreground">
                     {formatPrice(totalAmount)}
                   </span>
                 </div>
+
+                {/* Upcoming renewals */}
+                {sortedRenewals.length > 0 && (
+                  <div className="bg-primary/5 rounded-lg p-3 mb-4">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <RefreshCw className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-xs font-medium text-foreground">Future payments</span>
+                    </div>
+                    <div className="space-y-1">
+                      {sortedRenewals.map(({ weeks, amount }) => (
+                        <div key={weeks} className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">In {weeks} weeks</span>
+                          <span className="font-medium text-foreground">{formatPrice(amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <Button
                   variant="shop"
                   className="w-full h-12 rounded-xl text-base"

@@ -271,6 +271,20 @@
     @apply flex gap-3 p-3 bg-muted/30 rounded-xl;
   }
 
+  /* Simple fade in animation */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
   /* Fade in from below animation for progressive disclosure */
   @keyframes fade-in-up {
     from {

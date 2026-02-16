@@ -16,6 +16,9 @@ export interface ProductVariant {
   stock: number;
   isInStock: boolean;
   imageUrl?: string;
+  description?: string;
+  subscriptionPrice?: number;
+  recommendedFrequencyWeeks?: number;
   attributes: VariantAttribute[];
   isActive: boolean;
 }
@@ -284,4 +287,26 @@ export function getPriceRangeDisplay(minPrice: number, maxPrice: number): string
     return formatPrice(minPrice);
   }
   return `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+}
+
+// Pickup Station Types
+export interface PickupStation {
+  id: string;
+  name: string;
+  address: string;
+  city?: string;
+  dayOfWeek: string;
+  hours: string;
+  phoneNumber: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+// Pickup Station API
+export async function getPickupStations(): Promise<PickupStation[]> {
+  const response = await fetch(`${API_BASE_URL}/pickup-stations`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch pickup stations');
+  }
+  return response.json();
 }
