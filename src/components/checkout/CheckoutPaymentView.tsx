@@ -67,7 +67,20 @@ export function CheckoutPaymentView({
         <Card className="p-4 bg-primary/5 border-primary/20">
           <div className="text-center">
             <p className="text-sm text-muted-foreground mb-1">Amount to Pay</p>
-            <p className="text-3xl font-bold text-primary">{formatPrice(totalAmount)}</p>
+            <div className="flex items-center justify-center gap-2">
+              <p className="text-3xl font-bold text-primary">{formatPrice(totalAmount)}</p>
+              <button
+                onClick={() => handleCopy(totalAmount.toString(), 'amount')}
+                className="p-2 hover:bg-primary/10 rounded-lg transition-colors"
+                title="Copy amount"
+              >
+                {copied === 'amount' ? (
+                  <Check className="w-5 h-5 text-green-600" />
+                ) : (
+                  <Copy className="w-5 h-5 text-primary" />
+                )}
+              </button>
+            </div>
           </div>
         </Card>
 

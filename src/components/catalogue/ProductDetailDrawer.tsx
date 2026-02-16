@@ -636,9 +636,9 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
                       <p className="text-foreground">{matchedVariant.description}</p>
                     )}
 
-                    {/* Product description (brown/muted text) */}
+                    {/* Product description (brown/muted text - always muted) */}
                     {apiProduct?.description && (
-                      <p className={matchedVariant?.description ? "mt-2 text-muted-foreground" : "text-foreground"}>
+                      <p className={matchedVariant?.description ? "mt-2 text-muted-foreground" : "text-muted-foreground"}>
                         {apiProduct.description}
                       </p>
                     )}

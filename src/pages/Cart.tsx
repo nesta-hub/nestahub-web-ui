@@ -66,8 +66,7 @@ const Cart = () => {
 
               {sortedRenewals.length > 0 && (
                 <div className="bg-primary/5 rounded-lg p-3 mb-4">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <RefreshCw className="w-3.5 h-3.5 text-primary" />
+                  <div className="mb-2">
                     <span className="text-xs font-medium text-foreground">Future payments</span>
                   </div>
                   <div className="space-y-1">

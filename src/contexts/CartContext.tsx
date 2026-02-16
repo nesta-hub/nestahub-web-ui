@@ -105,7 +105,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items]);
 
   const totalAmount = useMemo(() => {
-    return items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    return items.reduce((sum, item) => {
+      // Use subscription price if item is subscribed and has custom subscription price
+      const itemPrice = item.isAutoRenew && item.subscriptionPrice
+        ? item.subscriptionPrice
+        : item.unitPrice;
+      return sum + itemPrice * item.quantity;
+    }, 0);
   }, [items]);
 
   const addToCart = useCallback((item: Omit<CartItem, 'quantity'>, quantity: number) => {

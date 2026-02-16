@@ -26,6 +26,11 @@ export function CartItemRow({ item }: CartItemRowProps) {
     : [item.typeName, item.sizeName].filter(Boolean);
   const variantLabel = variantParts.join(' · ');
 
+  // Calculate display price - use subscription price if subscribed
+  const displayUnitPrice = item.isAutoRenew && item.subscriptionPrice
+    ? item.subscriptionPrice
+    : item.unitPrice;
+
   return (
     <div className="flex gap-3 py-3">
       {/* Product Image */}
@@ -59,7 +64,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
             Every {item.frequencyWeeks} weeks
           </span>
         ) : (
-          <span className="text-xs font-medium mt-1 inline-flex items-center gap-1 text-muted-foreground">
+          <span className="text-xs font-medium mt-1 inline-flex items-center gap-1 text-primary">
             One-time
           </span>
         )}
@@ -67,7 +72,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
         {/* Price, Quantity & Remove */}
         <div className="flex items-center justify-between mt-2">
           <p className="text-sm font-semibold text-foreground">
-            {formatPrice(item.unitPrice * item.quantity)}
+            {formatPrice(displayUnitPrice * item.quantity)}
           </p>
           <div className="flex items-center gap-2">
             <QuantityControl size="sm" value={item.quantity} onChange={handleQuantityChange} />
