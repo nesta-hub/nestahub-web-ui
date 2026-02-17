@@ -1,4 +1,4 @@
-import { CartItem, calculateSubscriptionPrice } from "@/contexts/CartContext";
+import { CartItem } from "@/contexts/CartContext";
 import { formatPrice } from "@/lib/api";
 
 interface SubscribeSummaryProps {

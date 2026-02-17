@@ -23,8 +23,8 @@ const PrivacyPolicy = () => {
               </p>
                <p className="text-sm text-muted-foreground leading-relaxed">
                 If you choose to sign in using Facebook Sign-In, we receive limited information from your 
-                Google account, such as your name, email address, and profile picture. 
-                We do not access your Google password or any other Google account data.
+                Facebook account, such as your name, email address, and profile picture. 
+                We do not access your Facebook password or any other Facebook account data.
               </p>
             </section>
 

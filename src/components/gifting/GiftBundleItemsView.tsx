@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Trash2, RefreshCw, Loader2 } from "lucide-react";
+import { ArrowLeft, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuantityControl } from "@/components/cart/QuantityControl";
 import { api, type BundleCategoryProduct, type ProductVariant } from "@/lib/api";
@@ -233,7 +233,7 @@ export function GiftBundleItemsView({
 
       {/* Items */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="p-4 space-y-3">
+          <div className="px-4 divide-y divide-border">
             {items.map((item, index) => {
               const unitPrice = item.variant.price;
               const isSwapping = swappingIndex === index;
@@ -242,8 +242,8 @@ export function GiftBundleItemsView({
               return (
                 <div key={`${item.categoryName}-${index}`} ref={isSwapping ? swapRef : undefined}>
                   {isSwapping && categoryProducts.length > 0 ? (
-                    /* Swap carousel replaces the card */
-                    <div className="rounded-xl border border-border bg-card p-3 animate-fade-in">
+                    /* Swap carousel replaces the row */
+                    <div className="rounded-xl border border-border bg-card p-3 my-3 animate-fade-in">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-sm font-medium text-foreground">{item.categoryName}</p>
                         <button
@@ -285,44 +285,43 @@ export function GiftBundleItemsView({
                       </div>
                     </div>
                   ) : (
-                    /* Product card */
-                    <div className="rounded-xl border border-border bg-card p-3">
-                      <div className="flex gap-3">
-                        {/* Image */}
-                        <div className="w-16 h-16 rounded-lg bg-secondary/50 overflow-hidden flex-shrink-0">
-                          {item.variant.imageUrl ? (
-                            <img src={item.variant.imageUrl} alt={item.variant.product.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-secondary/80 to-secondary/30" />
-                          )}
+                    /* Product row - flat style matching CartItemRow */
+                    <div className="flex gap-3 py-3">
+                      {/* Image */}
+                      <div className="w-14 h-14 rounded-lg bg-secondary/50 overflow-hidden flex-shrink-0">
+                        {item.variant.imageUrl ? (
+                          <img src={item.variant.imageUrl} alt={item.variant.product.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-secondary/80 to-secondary/30" />
+                        )}
+                      </div>
+
+                      {/* Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <div className="min-w-0">
+                            <p className="text-xs text-muted-foreground">{item.categoryName}</p>
+                            <h4 className="font-medium text-foreground text-sm leading-tight truncate">
+                              {item.variant.product.brand} {item.variant.product.name}
+                            </h4>
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                              {item.variant.attributes.map(attr => attr.displayValue).join(' · ')}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleChangeClick(index)}
+                            className="text-xs text-primary font-medium shrink-0 ml-2 mt-0.5"
+                          >
+                            Change
+                          </button>
                         </div>
 
-                        {/* Details */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between">
-                            <div className="min-w-0">
-                              <p className="text-xs text-muted-foreground">{item.categoryName}</p>
-                              <h4 className="font-medium text-foreground text-sm leading-tight truncate">
-                                {item.variant.product.brand} {item.variant.product.name}
-                              </h4>
-                              <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                                {item.variant.attributes.map(attr => attr.displayValue).join(' · ')}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => handleChangeClick(index)}
-                              className="text-sm text-primary font-medium shrink-0 ml-2"
-                            >
-                              <RefreshCw className="w-4 h-4 inline mr-1" />
-                              Change
-                            </button>
-                          </div>
-
-                          {/* Price + controls */}
-                          <p className="text-sm font-semibold text-foreground mt-1">
-                            {formatPrice(unitPrice)}
+                        {/* Price + qty + delete in one row */}
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-sm font-semibold text-foreground">
+                            {formatPrice(unitPrice * item.quantity)}
                           </p>
-                          <div className="flex items-center justify-between mt-1.5">
+                          <div className="flex items-center gap-2">
                             <QuantityControl
                               value={item.quantity}
                               onChange={(q) => handleQuantityChange(index, q)}
@@ -330,9 +329,9 @@ export function GiftBundleItemsView({
                             />
                             <button
                               onClick={() => handleDelete(index)}
-                              className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>

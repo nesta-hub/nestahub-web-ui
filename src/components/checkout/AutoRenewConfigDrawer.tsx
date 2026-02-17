@@ -1,7 +1,7 @@
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CartItem, useCart, calculateSubscriptionPrice } from "@/contexts/CartContext";
+import { CartItem, useCart } from "@/contexts/CartContext";
 import { formatPrice } from "@/lib/api";
 import { SubscribeItemCard } from "@/components/subscribe/SubscribeItemCard";
 

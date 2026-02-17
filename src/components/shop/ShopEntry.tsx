@@ -252,7 +252,7 @@ export function ShopEntry() {
   return (
     <div className="min-h-screen flex flex-col pb-24 md:pb-8">
       {/* Full-Bleed Hero Section with border on mobile */}
-      <section className="relative min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-4rem)] flex items-center justify-center border-b border-border md:border-b-0">
+      <section className="relative min-h-[80vh] md:min-h-[80vh] flex items-center justify-center border-b border-border md:border-b-0">
         {/* Full-bleed background image */}
         <div className="absolute inset-0">
           <img src={heroLifestyle} alt="Premium baby care products" className="w-full h-full object-cover" />

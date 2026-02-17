@@ -7,7 +7,7 @@ import { CatalogueProduct, formatPrice as formatPriceOld } from "@/data/catalogu
 import { api, ProductDetail, formatPrice as formatPriceAPI } from "@/lib/api";
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import { QuantityControl } from "@/components/cart/QuantityControl";
-import { useCart, calculateSubscriptionPrice } from "@/contexts/CartContext";
+import { useCart } from "@/contexts/CartContext";
 import { Check, RefreshCw, ChevronRight } from "lucide-react";
 
 interface ProductDetailDrawerProps {
@@ -327,8 +327,9 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
   }, [open]);
 
   const handleAddToCartClick = () => {
-    if (step === "details") {
-      setStep("purchase-type");
+    if (mode === 'select') {
+      // Bundle/select mode: skip purchase-type step, select immediately as one-time
+      finalizeAddToCart();
     } else {
       setStep("purchase-type");
     }

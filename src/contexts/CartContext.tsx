@@ -1,12 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useCallback, useMemo, useEffect } from "react";
 import { addDays } from "date-fns";
 
-export const SUBSCRIPTION_DISCOUNT = 0.05; // 5%
-
-export function calculateSubscriptionPrice(basePrice: number): number {
-  return Math.round(basePrice * (1 - SUBSCRIPTION_DISCOUNT));
-}
-
 export interface CartItem {
   variantId: string; // Variant ID from API
   productId: string;

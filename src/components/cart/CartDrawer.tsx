@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useCart, calculateSubscriptionPrice } from "@/contexts/CartContext";
+import { useCart } from "@/contexts/CartContext";
 import { CartItemRow } from "./CartItemRow";
 import { formatPrice } from "@/lib/api";
 import { ShoppingBag, RefreshCw } from "lucide-react";
@@ -62,7 +62,7 @@ export function CartDrawer() {
               {/* Footer */}
               <div className="px-6 py-4 border-t border-border flex-shrink-0">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-muted-foreground">Total Today</span>
+                  <span className="text-muted-foreground">{sortedRenewals.length > 0 ? 'Total Today' : 'Total'}</span>
                   <span className="text-xl font-bold text-foreground">
                     {formatPrice(totalAmount)}
                   </span>

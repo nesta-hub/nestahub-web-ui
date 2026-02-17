@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { useCart, calculateSubscriptionPrice } from "@/contexts/CartContext";
+import { useCart } from "@/contexts/CartContext";
 import { CartItemRow } from "@/components/cart/CartItemRow";
 import { formatPrice } from "@/lib/api";
 import { ArrowLeft, ShoppingBag, RefreshCw } from "lucide-react";
@@ -58,7 +58,7 @@ const Cart = () => {
             {/* Sticky Footer */}
             <div className="sticky bottom-0 bg-background border-t border-border px-4 py-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-muted-foreground">Total Today</span>
+                <span className="text-muted-foreground">{sortedRenewals.length > 0 ? 'Total Today' : 'Total'}</span>
                 <span className="text-xl font-bold text-foreground">
                   {formatPrice(totalAmount)}
                 </span>
