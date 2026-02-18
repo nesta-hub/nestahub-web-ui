@@ -3,15 +3,17 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Package, RefreshCw, MessageCircle, LogOut, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
+import { useNavigate } from "react-router-dom";
 
 const menuItems = [
-  { icon: Package, label: "View Orders" },
-  { icon: RefreshCw, label: "Manage Subscriptions" },
-  { icon: MessageCircle, label: "Contact Us" },
+  { icon: Package, label: "View Orders", href: "/orders" },
+  { icon: RefreshCw, label: "Manage Subscriptions", href: "/subscriptions" },
+  { icon: MessageCircle, label: "Contact Us", href: "/contact" },
 ];
 
 const Account = () => {
   const { user, loading, signOut } = useAuth();
+  const navigate = useNavigate();
 
   // Generate initials from user name
   const getInitials = (name: string | null | undefined) => {
@@ -70,9 +72,10 @@ const Account = () => {
 
         {/* Menu Items */}
         <div className="border-t border-border">
-          {menuItems.map(({ icon: Icon, label }) => (
+          {menuItems.map(({ icon: Icon, label, href }) => (
             <div
               key={label}
+              onClick={() => navigate(href)}
               className="flex items-center justify-between px-2 py-4 border-b border-border hover:bg-accent/50 cursor-pointer transition-colors"
             >
               <div className="flex items-center gap-3">

@@ -252,7 +252,7 @@ const Gifting = () => {
       }, item.quantity);
     });
 
-    navigate("/checkout?source=gifting");
+    navigate(`/checkout?source=gifting${selectedTierId ? `&bundleId=${selectedTierId}` : ''}`);
     setTimeout(() => setItemsViewOpen(false), 100);
   };
   

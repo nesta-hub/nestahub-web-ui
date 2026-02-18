@@ -2,11 +2,12 @@ import { Copy, Check, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { formatPrice } from "@/lib/api";
+import { formatPrice, api } from "@/lib/api";
 
 interface CheckoutPaymentViewProps {
   orderId: string;
   totalAmount: number;
+  token: string;
   onPaymentConfirmed: () => void;
   onBack: () => void;
 }
@@ -14,10 +15,13 @@ interface CheckoutPaymentViewProps {
 export function CheckoutPaymentView({
   orderId,
   totalAmount,
+  token,
   onPaymentConfirmed,
   onBack,
 }: CheckoutPaymentViewProps) {
   const [copied, setCopied] = useState<string | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const bankDetails = {
     bank: "Moniepoint MFB",
@@ -29,6 +33,19 @@ export function CheckoutPaymentView({
     navigator.clipboard.writeText(text);
     setCopied(field);
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  const handlePaymentMade = async () => {
+    setIsConfirming(true);
+    setConfirmError(null);
+    try {
+      await api.markPaymentMade(orderId, token);
+      onPaymentConfirmed();
+    } catch (err) {
+      setConfirmError(err instanceof Error ? err.message : 'Failed to confirm payment. Please try again.');
+    } finally {
+      setIsConfirming(false);
+    }
   };
 
   return (
@@ -126,12 +143,16 @@ export function CheckoutPaymentView({
 
       {/* Footer */}
       <div className="p-4 border-t bg-background shrink-0 space-y-2">
+        {confirmError && (
+          <p className="text-sm text-destructive text-center">{confirmError}</p>
+        )}
         <Button
           variant="shop"
           className="w-full h-12 text-base font-semibold"
-          onClick={onPaymentConfirmed}
+          onClick={handlePaymentMade}
+          disabled={isConfirming}
         >
-          Payment Made
+          {isConfirming ? 'Confirming...' : 'Payment Made'}
         </Button>
         <p className="text-xs text-muted-foreground text-center">
           Click "Payment Made" once transfer is completed

@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { generateOrderId, PickupStation } from "@/data/bundleData";
+import type { PickupStation } from "@/lib/api";
 import {
   CheckoutDeliverySection,
   CheckoutPickupSection,
@@ -15,13 +15,15 @@ import {
   CheckoutSuccessView,
 } from "@/components/checkout";
 import { SignInForm } from "@/components/auth/SignInForm";
+import { api } from "@/lib/api";
 
 type DeliveryMethod = 'pickup' | 'address';
 
 const Checkout = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { items, totalAmount } = useCart();
-  const { user, loading: authLoading } = useAuth();
+  const { user, session } = useAuth();
 
   // Delivery state
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
@@ -47,8 +49,15 @@ const Checkout = () => {
   // View state
   const [showPayment, setShowPayment] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [orderId] = useState(() => generateOrderId());
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  const [serverTotalAmount, setServerTotalAmount] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const contactRef = useRef<HTMLDivElement>(null);
+
+  // Determine order type: 'bundle' if coming from gifting page, else 'shop'
+  const orderType = searchParams.get('source') === 'gifting' ? 'bundle' : 'shop';
+  const bundleId = searchParams.get('bundleId');
 
   // Redirect to catalogue if cart is empty
   useEffect(() => {
@@ -90,17 +99,54 @@ const Checkout = () => {
     navigate(-1);
   };
 
+  const handleProceedToPayment = async () => {
+    if (!session?.access_token) return;
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      const orderItems = items.map((item) => ({
+        variantId: item.variantId,
+        quantity: item.quantity,
+        isAutoRenew: item.isAutoRenew ?? false,
+        frequencyWeeks: item.isAutoRenew ? (item.frequencyWeeks ?? null) : null,
+      }));
+
+      const result = await api.createOrder(
+        {
+          orderType: orderType as 'shop' | 'bundle',
+          fullName: fullName.trim(),
+          phoneNumber: phoneNumber.trim(),
+          deliveryMethod: deliveryMethod!,
+          pickupStationId: deliveryMethod === 'pickup' ? pickupStation?.id ?? null : null,
+          deliveryAddress: deliveryMethod === 'address' ? address : null,
+          bundleId: bundleId ?? null,
+          items: orderItems,
+        },
+        session.access_token,
+      );
+
+      setOrderNumber(result.orderNumber);
+      setServerTotalAmount(result.totalAmount);
+      setShowPayment(true);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to place order. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handlePaymentConfirmed = () => {
     setShowPayment(false);
     setShowSuccess(true);
   };
 
   // Payment overlay
-  if (showPayment) {
+  if (showPayment && orderNumber) {
     return (
       <CheckoutPaymentView
-        orderId={orderId}
-        totalAmount={totalAmount}
+        orderId={orderNumber}
+        totalAmount={serverTotalAmount ?? totalAmount}
+        token={session?.access_token ?? ''}
         onPaymentConfirmed={handlePaymentConfirmed}
         onBack={() => setShowPayment(false)}
       />
@@ -108,8 +154,8 @@ const Checkout = () => {
   }
 
   // Success overlay
-  if (showSuccess) {
-    return <CheckoutSuccessView orderId={orderId} />;
+  if (showSuccess && orderNumber) {
+    return <CheckoutSuccessView orderId={orderNumber} />;
   }
 
   return (
@@ -180,14 +226,17 @@ const Checkout = () => {
 
         {/* Footer with CTA */}
         {hasDeliveryDetails && (
-          <div className="p-4 border-t shrink-0 animate-fade-in">
+          <div className="p-4 border-t shrink-0 animate-fade-in space-y-2">
+            {submitError && (
+              <p className="text-sm text-destructive text-center">{submitError}</p>
+            )}
             <Button
               variant="shop"
               className="w-full h-12 text-base font-semibold"
-              onClick={() => setShowPayment(true)}
-              disabled={!isContactValid}
+              onClick={handleProceedToPayment}
+              disabled={!isContactValid || isSubmitting}
             >
-              Proceed to Payment
+              {isSubmitting ? 'Placing Order...' : 'Proceed to Payment'}
             </Button>
           </div>
         )}

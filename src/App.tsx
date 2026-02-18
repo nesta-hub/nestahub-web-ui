@@ -16,6 +16,8 @@ import GiftCards from "./pages/GiftCards";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Account from "./pages/Account";
+import Orders from "./pages/Orders";
+import Subscriptions from "./pages/Subscriptions";
 import Catalogue from "./pages/Catalogue";
 import Gifting from "./pages/Gifting";
 import Subscribe from "./pages/Subscribe";
@@ -65,6 +67,8 @@ const App = () => (
               <Route path="/privacy-policy" element={<PrivacyPolicy />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/account" element={<Account />} />
+              <Route path="/orders" element={<Orders />} />
+              <Route path="/subscriptions" element={<Subscriptions />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/image-preview" element={<ImagePreview />} />
               <Route path="/icon-preview" element={<IconPreview />} />

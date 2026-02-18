@@ -213,6 +213,15 @@ export interface CategoryProductsResponse {
   total: number;
 }
 
+export interface OrderResponse {
+  orderNumber: string;
+  status: string;
+  orderType: string;
+  totalAmount: number; // in kobo
+  createdAt: string;
+  paymentMadeAt?: string | null;
+}
+
 export const api = {
   // Featured products for landing page
   async getFeaturedProducts(limit: number = 5): Promise<FeaturedProductsResponse> {
@@ -272,6 +281,54 @@ export const api = {
     if (!response.ok) throw new Error('Failed to fetch category products');
     return response.json();
   },
+
+  // Orders
+  async createOrder(
+    data: {
+      orderType: 'shop' | 'bundle';
+      fullName: string;
+      phoneNumber: string;
+      deliveryMethod: 'pickup' | 'address';
+      pickupStationId?: string | null;
+      deliveryAddress?: string | null;
+      bundleId?: string | null;
+      items: Array<{
+        variantId: string;
+        quantity: number;
+        isAutoRenew: boolean;
+        frequencyWeeks?: number | null;
+      }>;
+    },
+    token: string,
+  ): Promise<OrderResponse> {
+    const response = await fetch(`${API_BASE_URL}/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to create order');
+    }
+    return response.json();
+  },
+
+  async markPaymentMade(orderNumber: string, token: string): Promise<OrderResponse> {
+    const response = await fetch(`${API_BASE_URL}/orders/${orderNumber}/payment-made`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to confirm payment');
+    }
+    return response.json();
+  },
 };
 
 // Helper function to format price
@@ -287,6 +344,59 @@ export function getPriceRangeDisplay(minPrice: number, maxPrice: number): string
     return formatPrice(minPrice);
   }
   return `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+}
+
+// ─── User Orders ──────────────────────────────────────────────────────────────
+
+export interface MyOrderItem {
+  productName: string;
+  productBrand: string;
+  variant: string; // pre-formatted string e.g. "Jumbo · Size 3"
+  quantity: number;
+  unitPrice: number; // kobo
+}
+
+export interface MyOrder {
+  orderNumber: string;
+  status: string;
+  totalAmount: number; // kobo
+  createdAt: string;
+  deliveryMethod: string;
+  fullName: string;
+  deliveryAddress: string | null;
+  pickupStationName: string | null;
+  pickupStationAddress: string | null;
+  items: MyOrderItem[];
+}
+
+export interface MyOrdersResponse {
+  orders: MyOrder[];
+}
+
+// ─── User Subscriptions ───────────────────────────────────────────────────────
+
+export interface MySubscriptionAttribute {
+  name: string;
+  value: string;
+}
+
+export interface MySubscription {
+  id: string;
+  status: string;
+  productName: string;
+  productBrand: string;
+  categoryId: string;
+  variantId: string;
+  variantAttributes: MySubscriptionAttribute[];
+  frequencyWeeks: number;
+  nextRenewalDate: string | null;
+  unitPrice: number; // kobo
+  quantity: number;
+  imageUrl: string | null;
+}
+
+export interface MySubscriptionsResponse {
+  subscriptions: MySubscription[];
 }
 
 // Pickup Station Types
@@ -308,5 +418,80 @@ export async function getPickupStations(): Promise<PickupStation[]> {
   if (!response.ok) {
     throw new Error('Failed to fetch pickup stations');
   }
+  return response.json();
+}
+
+// ─── User Orders API ──────────────────────────────────────────────────────────
+
+export async function getMyOrders(token: string): Promise<MyOrdersResponse> {
+  const response = await fetch(`${API_BASE_URL}/orders/my`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to fetch orders');
+  return response.json();
+}
+
+// ─── User Subscriptions API ───────────────────────────────────────────────────
+
+export async function getMySubscriptions(token: string): Promise<MySubscriptionsResponse> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/my`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to fetch subscriptions');
+  return response.json();
+}
+
+export async function pauseSubscription(id: string, token: string): Promise<MySubscription> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/${id}/pause`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to pause subscription');
+  return response.json();
+}
+
+export async function resumeSubscription(id: string, token: string): Promise<MySubscription> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/${id}/resume`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to resume subscription');
+  return response.json();
+}
+
+export async function cancelSubscription(id: string, token: string): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to cancel subscription');
+  return response.json();
+}
+
+export async function updateSubscriptionFrequency(
+  id: string,
+  frequencyWeeks: number,
+  token: string,
+): Promise<MySubscription> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/${id}/frequency`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ frequencyWeeks }),
+  });
+  if (!response.ok) throw new Error('Failed to update frequency');
+  return response.json();
+}
+
+export async function updateSubscriptionVariant(
+  id: string,
+  variantId: string,
+  token: string,
+): Promise<MySubscription> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/${id}/variant`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ variantId }),
+  });
+  if (!response.ok) throw new Error('Failed to update variant');
   return response.json();
 }

@@ -17,6 +17,7 @@ interface ProductDetailDrawerProps {
   productSlug?: string | null;
   mode?: 'cart' | 'select';
   onSelect?: (variant: any, quantity: number) => void;
+  preferSubscriptionPrice?: boolean;
 }
 
 type DrawerStep = "configure" | "details" | "purchase-type";
@@ -30,7 +31,7 @@ const BASE_FREQUENCY_OPTIONS = [
   { weeks: 8, label: "8 weeks" },
 ];
 
-export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, mode = 'cart', onSelect }: ProductDetailDrawerProps) {
+export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, mode = 'cart', onSelect, preferSubscriptionPrice = false }: ProductDetailDrawerProps) {
   const { addToCart } = useCart();
 
   // Fetch API product if slug is provided
@@ -111,8 +112,11 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
 
   // Calculate current unit price based on selections
   const unitPrice = useMemo(() => {
-    // API product - use matched variant price
+    // API product - use matched variant price (subscription price if preferred)
     if (apiProduct && matchedVariant) {
+      if (preferSubscriptionPrice && matchedVariant.subscriptionPrice) {
+        return matchedVariant.subscriptionPrice;
+      }
       return matchedVariant.price;
     }
 
@@ -127,7 +131,7 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
       if (size) price += size.priceDelta;
     }
     return price;
-  }, [apiProduct, matchedVariant, product, selectedTypeId, selectedSizeId]);
+  }, [apiProduct, matchedVariant, preferSubscriptionPrice, product, selectedTypeId, selectedSizeId]);
 
   // Calculate total price (unit price × quantity)
   const totalPrice = useMemo(() => {
