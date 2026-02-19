@@ -291,6 +291,8 @@ export const api = {
       deliveryMethod: 'pickup' | 'address';
       pickupStationId?: string | null;
       deliveryAddress?: string | null;
+      deliveryLat?: number;
+      deliveryLng?: number;
       bundleId?: string | null;
       items: Array<{
         variantId: string;

@@ -15,7 +15,7 @@ import {
   CheckoutSuccessView,
 } from "@/components/checkout";
 import { SignInForm } from "@/components/auth/SignInForm";
-import { api } from "@/lib/api";
+import { api, formatPrice } from "@/lib/api";
 
 type DeliveryMethod = 'pickup' | 'address';
 
@@ -29,6 +29,9 @@ const Checkout = () => {
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
   const [pickupStation, setPickupStation] = useState<PickupStation | null>(null);
   const [address, setAddress] = useState<string | null>(null);
+  const [addressDeliveryFee, setAddressDeliveryFee] = useState<number | null>(null);
+  const [addressLat, setAddressLat] = useState<number | null>(null);
+  const [addressLng, setAddressLng] = useState<number | null>(null);
 
   // Contact state - pre-fill from user data when available
   const [fullName, setFullName] = useState('');
@@ -66,6 +69,10 @@ const Checkout = () => {
     }
   }, [items.length, navigate]);
 
+  // Delivery fee — dynamic based on address zone
+  const deliveryFee = deliveryMethod === 'address' ? (addressDeliveryFee ?? 0) : 0;
+  const grandTotal = totalAmount + deliveryFee;
+
   // Validation
   const isContactValid = fullName.trim().length >= 2 && phoneNumber.trim().length >= 10;
   const hasDeliveryDetails = deliveryMethod === 'pickup' ? !!pickupStation : !!address;
@@ -85,6 +92,9 @@ const Checkout = () => {
     setDeliveryMethod(null);
     setPickupStation(null);
     setAddress(null);
+    setAddressDeliveryFee(null);
+    setAddressLat(null);
+    setAddressLng(null);
   };
 
   const handleStationChange = () => {
@@ -93,6 +103,9 @@ const Checkout = () => {
 
   const handleAddressChange = () => {
     setAddress(null);
+    setAddressDeliveryFee(null);
+    setAddressLat(null);
+    setAddressLng(null);
   };
 
   const handleBack = () => {
@@ -119,6 +132,8 @@ const Checkout = () => {
           deliveryMethod: deliveryMethod!,
           pickupStationId: deliveryMethod === 'pickup' ? pickupStation?.id ?? null : null,
           deliveryAddress: deliveryMethod === 'address' ? address : null,
+          deliveryLat: deliveryMethod === 'address' && addressLat != null ? addressLat : undefined,
+          deliveryLng: deliveryMethod === 'address' && addressLng != null ? addressLng : undefined,
           bundleId: bundleId ?? null,
           items: orderItems,
         },
@@ -145,7 +160,7 @@ const Checkout = () => {
     return (
       <CheckoutPaymentView
         orderId={orderNumber}
-        totalAmount={serverTotalAmount ?? totalAmount}
+        totalAmount={serverTotalAmount ?? grandTotal}
         token={session?.access_token ?? ''}
         onPaymentConfirmed={handlePaymentConfirmed}
         onBack={() => setShowPayment(false)}
@@ -184,6 +199,7 @@ const Checkout = () => {
                   selectedMethod={deliveryMethod}
                   onSelectMethod={setDeliveryMethod}
                   onChangeMethod={handleMethodChange}
+                  addressDeliveryFee={addressDeliveryFee}
                 />
 
                 {/* Pickup Section (if pickup selected) */}
@@ -202,7 +218,13 @@ const Checkout = () => {
                   <div className="mt-6 animate-fade-in">
                     <CheckoutAddressSection
                       selectedAddress={address}
-                      onSelectAddress={setAddress}
+                      deliveryFee={addressDeliveryFee}
+                      onSelectAddress={(addr, fee, lat, lng) => {
+                        setAddress(addr);
+                        setAddressDeliveryFee(fee);
+                        setAddressLat(lat);
+                        setAddressLng(lng);
+                      }}
                       onChangeAddress={handleAddressChange}
                     />
                   </div>
@@ -226,7 +248,25 @@ const Checkout = () => {
 
         {/* Footer with CTA */}
         {hasDeliveryDetails && (
-          <div className="p-4 border-t shrink-0 animate-fade-in space-y-2">
+          <div className="p-4 border-t shrink-0 animate-fade-in space-y-3">
+            {/* Order summary */}
+            <div className="bg-primary/5 rounded-lg p-3 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Products</span>
+                <span className="font-medium">{formatPrice(totalAmount)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Delivery</span>
+                <span className="font-medium">
+                  {deliveryFee === 0 ? 'FREE' : formatPrice(deliveryFee)}
+                </span>
+              </div>
+              <div className="border-t border-border/50 pt-2 flex items-center justify-between">
+                <span className="font-semibold">Total</span>
+                <span className="text-xl font-bold">{formatPrice(grandTotal)}</span>
+              </div>
+            </div>
+
             {submitError && (
               <p className="text-sm text-destructive text-center">{submitError}</p>
             )}

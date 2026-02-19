@@ -1,6 +1,6 @@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { BundleTier, BundleItem, Stage, bundleCategoryDescriptions } from "@/data/bundleData";
+import { BundleTier, BundleItem, Stage } from "@/data/bundleData";
 
 interface GiftBundleDetailDrawerProps {
   open: boolean;
@@ -39,7 +39,7 @@ export function GiftBundleDetailDrawer({
                 <div>
                   <p className="font-medium text-foreground">{item.category}</p>
                   <p className="text-sm text-muted-foreground">
-                    {bundleCategoryDescriptions[item.category] || item.quantity}
+                    {item.quantity}
                   </p>
                 </div>
               </div>

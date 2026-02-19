@@ -40,7 +40,7 @@ export function CheckoutSuccessView({ orderId }: CheckoutSuccessViewProps) {
         <Card className="p-4 bg-muted/50 max-w-sm">
           <p className="text-sm text-muted-foreground">
             We'll verify your payment and send a confirmation via{" "}
-            <span className="font-semibold text-emerald-600">WhatsApp</span>.
+            <span className="font-semibold">Email</span>.
             Please keep your phone handy!
           </p>
         </Card>

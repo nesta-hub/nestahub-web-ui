@@ -1,21 +1,85 @@
 /// <reference types="@types/google.maps" />
 import { useState, useEffect, useRef, useCallback } from "react";
-import { MapPin, Search, Loader2 } from "lucide-react";
+import { MapPin, Search, Loader2, Truck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DeliverySummaryCard } from "./DeliverySummaryCard";
+import { formatPrice } from "@/lib/api";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyBBrJpwnxEx42A0Ye1-7hP26HIfm-7myf0";
 
+// Nesta Hub dispatch location — Soluyi, Gbagada, Lagos
+const NESTA_HUB = { lat: 6.553, lng: 3.384 };
+
+// Lagos State bounding box — addresses outside this are blocked
+const LAGOS_BOUNDS = { minLat: 6.38, maxLat: 6.70, minLng: 2.68, maxLng: 3.70 };
+
+// Delivery fees in kobo (matching codebase convention)
+const ZONE_FEES = {
+  zone1: 100000, // ₦1,000 — ≤1.5 km
+  zone2: 150000, // ₦1,500 — 1.5–2.5 km
+  zone3: 200000, // ₦2,000 — 2.5–10 km
+  zone4: 250000, // ₦2,500 — 10–25 km
+  zone5: 300000, // ₦3,000 — 25–70 km
+} as const;
+
+/** Haversine straight-line distance in km between two lat/lng points */
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+/** Returns the delivery fee in kobo for a given lat/lng, or 'unsupported' */
+function getDeliveryFee(lat: number, lng: number): number | "unsupported" {
+  // Block addresses outside Lagos State bounding box
+  if (
+    lat < LAGOS_BOUNDS.minLat ||
+    lat > LAGOS_BOUNDS.maxLat ||
+    lng < LAGOS_BOUNDS.minLng ||
+    lng > LAGOS_BOUNDS.maxLng
+  ) {
+    return "unsupported";
+  }
+
+  const distKm = haversineKm(NESTA_HUB.lat, NESTA_HUB.lng, lat, lng);
+
+  if (distKm <= 1.5) return ZONE_FEES.zone1;
+  if (distKm <= 2.5) return ZONE_FEES.zone2;
+  if (distKm <= 10)  return ZONE_FEES.zone3;
+  if (distKm <= 25)  return ZONE_FEES.zone4;
+  if (distKm <= 70)  return ZONE_FEES.zone5;
+  return "unsupported";
+}
+
 interface CheckoutAddressSectionProps {
   selectedAddress: string | null;
-  onSelectAddress: (address: string) => void;
+  deliveryFee: number | null;
+  onSelectAddress: (address: string, fee: number, lat: number, lng: number) => void;
   onChangeAddress: () => void;
+}
+
+/** Returns "Wed, 23 Apr 2026" for tomorrow */
+function formatNextDay(): string {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 export function CheckoutAddressSection({
   selectedAddress,
+  deliveryFee,
   onSelectAddress,
   onChangeAddress,
 }: CheckoutAddressSectionProps) {
@@ -24,6 +88,16 @@ export function CheckoutAddressSection({
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Per-prediction fee resolution: place_id → fee in kobo | 'unsupported' | 'loading'
+  const [predictionFees, setPredictionFees] = useState<
+    Map<string, number | "unsupported" | "loading">
+  >(new Map());
+
+  // Per-prediction coordinates: place_id → { lat, lng }
+  const [predictionCoords, setPredictionCoords] = useState<
+    Map<string, { lat: number; lng: number }>
+  >(new Map());
 
   const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
@@ -90,6 +164,8 @@ export function CheckoutAddressSection({
   useEffect(() => {
     if (!query || query.length < 3 || !autocompleteServiceRef.current) {
       setPredictions([]);
+      setPredictionFees(new Map());
+      setPredictionCoords(new Map());
       return;
     }
 
@@ -106,8 +182,15 @@ export function CheckoutAddressSection({
           setIsSearching(false);
           if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
             setPredictions(results);
+            // Mark all as loading
+            const initialFees = new Map<string, number | "unsupported" | "loading">();
+            results.forEach((p) => initialFees.set(p.place_id, "loading"));
+            setPredictionFees(initialFees);
+            setPredictionCoords(new Map());
           } else {
             setPredictions([]);
+            setPredictionFees(new Map());
+            setPredictionCoords(new Map());
           }
         },
       );
@@ -116,27 +199,71 @@ export function CheckoutAddressSection({
     return () => clearTimeout(timer);
   }, [query]);
 
+  // Resolve fees for each prediction by fetching geometry
+  useEffect(() => {
+    if (!placesServiceRef.current || predictions.length === 0) return;
+
+    predictions.forEach((prediction) => {
+      placesServiceRef.current!.getDetails(
+        { placeId: prediction.place_id, fields: ["geometry"] },
+        (place, status) => {
+          if (
+            status === window.google.maps.places.PlacesServiceStatus.OK &&
+            place?.geometry?.location
+          ) {
+            const lat = place.geometry.location.lat();
+            const lng = place.geometry.location.lng();
+            const fee = getDeliveryFee(lat, lng);
+
+            setPredictionFees((prev) => {
+              const next = new Map(prev);
+              next.set(prediction.place_id, fee);
+              return next;
+            });
+            if (fee !== "unsupported") {
+              setPredictionCoords((prev) => {
+                const next = new Map(prev);
+                next.set(prediction.place_id, { lat, lng });
+                return next;
+              });
+            }
+          } else {
+            setPredictionFees((prev) => {
+              const next = new Map(prev);
+              next.set(prediction.place_id, "unsupported");
+              return next;
+            });
+          }
+        },
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [predictions]);
+
   const handleSelectPrediction = (prediction: google.maps.places.AutocompletePrediction) => {
+    const fee = predictionFees.get(prediction.place_id);
+    const coords = predictionCoords.get(prediction.place_id);
+    // Don't allow selecting unsupported or still-loading addresses
+    if (!fee || fee === "unsupported" || fee === "loading" || !coords) return;
+
     if (!placesServiceRef.current) return;
 
     setIsSearching(true);
 
     placesServiceRef.current.getDetails(
-      {
-        placeId: prediction.place_id,
-        fields: ["formatted_address"],
-      },
+      { placeId: prediction.place_id, fields: ["formatted_address"] },
       (place, status) => {
         setIsSearching(false);
-        if (status === window.google.maps.places.PlacesServiceStatus.OK && place?.formatted_address) {
-          onSelectAddress(place.formatted_address);
-          setPredictions([]);
-          setQuery("");
-        } else {
-          onSelectAddress(prediction.description);
-          setPredictions([]);
-          setQuery("");
-        }
+        const address =
+          status === window.google.maps.places.PlacesServiceStatus.OK && place?.formatted_address
+            ? place.formatted_address
+            : prediction.description;
+
+        onSelectAddress(address, fee, coords.lat, coords.lng);
+        setPredictions([]);
+        setPredictionFees(new Map());
+        setPredictionCoords(new Map());
+        setQuery("");
       },
     );
   };
@@ -151,6 +278,10 @@ export function CheckoutAddressSection({
           title={selectedAddress}
           onChangeClick={onChangeAddress}
         />
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5 px-1">
+          <Truck className="w-3 h-3 shrink-0" />
+          Next day delivery · {formatNextDay()}
+        </p>
       </div>
     );
   }
@@ -202,24 +333,51 @@ export function CheckoutAddressSection({
           {/* Predictions list */}
           {predictions.length > 0 && (
             <div className="border border-border rounded-lg overflow-hidden bg-card">
-              {predictions.map((prediction) => (
-                <button
-                  key={prediction.place_id}
-                  type="button"
-                  className="w-full px-4 py-3 flex items-start gap-3 hover:bg-muted active:bg-muted/80 text-left border-b border-border last:border-b-0 transition-colors"
-                  onClick={() => handleSelectPrediction(prediction)}
-                >
-                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {prediction.structured_formatting.main_text}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {prediction.structured_formatting.secondary_text}
-                    </p>
-                  </div>
-                </button>
-              ))}
+              {predictions.map((prediction) => {
+                const fee = predictionFees.get(prediction.place_id);
+                const isUnsupported = fee === "unsupported";
+                const isResolvingFee = fee === "loading" || fee === undefined;
+
+                return (
+                  <button
+                    key={prediction.place_id}
+                    type="button"
+                    className={[
+                      "w-full px-4 py-3 flex items-start gap-3 text-left border-b border-border last:border-b-0 transition-colors",
+                      isUnsupported
+                        ? "opacity-60 cursor-not-allowed"
+                        : "hover:bg-muted active:bg-muted/80 cursor-pointer",
+                    ].join(" ")}
+                    onClick={() => !isUnsupported && !isResolvingFee && handleSelectPrediction(prediction)}
+                    disabled={isUnsupported || isResolvingFee}
+                  >
+                    <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {prediction.structured_formatting.main_text}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {prediction.structured_formatting.secondary_text}
+                      </p>
+                    </div>
+                    <div className="shrink-0 ml-2 flex items-center">
+                      {isResolvingFee && (
+                        <Loader2 className="w-3 h-3 text-muted-foreground animate-spin" />
+                      )}
+                      {isUnsupported && (
+                        <span className="text-xs text-muted-foreground text-right leading-tight max-w-[90px]">
+                          We don't deliver here yet
+                        </span>
+                      )}
+                      {!isResolvingFee && !isUnsupported && typeof fee === "number" && (
+                        <span className="text-xs font-medium text-primary">
+                          {formatPrice(fee)}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
 

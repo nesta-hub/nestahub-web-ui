@@ -1,6 +1,7 @@
 import { MapPin, Truck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { DeliverySummaryCard } from "./DeliverySummaryCard";
+import { formatPrice } from "@/lib/api";
 
 type DeliveryMethod = 'pickup' | 'address';
 
@@ -8,15 +9,22 @@ interface CheckoutDeliverySectionProps {
   selectedMethod: DeliveryMethod | null;
   onSelectMethod: (method: DeliveryMethod) => void;
   onChangeMethod: () => void;
+  addressDeliveryFee?: number | null;
 }
 
 export function CheckoutDeliverySection({
   selectedMethod,
   onSelectMethod,
   onChangeMethod,
+  addressDeliveryFee,
 }: CheckoutDeliverySectionProps) {
   // Show summary card if method is selected
   if (selectedMethod) {
+    const addressSubtitle =
+      addressDeliveryFee != null
+        ? `${formatPrice(addressDeliveryFee)} delivery fee`
+        : 'From ₦1,000';
+
     return (
       <div className="space-y-2">
       <h3 className="text-base font-medium text-muted-foreground">
@@ -31,7 +39,7 @@ export function CheckoutDeliverySection({
             )
           }
           title={selectedMethod === 'pickup' ? 'Pickup Station' : 'Deliver to Address'}
-          subtitle={selectedMethod === 'pickup' ? 'FREE pickup' : 'From ₦1,500'}
+          subtitle={selectedMethod === 'pickup' ? 'FREE pickup' : addressSubtitle}
           onChangeClick={onChangeMethod}
         />
       </div>
@@ -71,7 +79,7 @@ export function CheckoutDeliverySection({
             </div>
             <div>
               <p className="text-sm font-medium">Deliver to Address</p>
-              <p className="text-xs text-muted-foreground">From ₦1,500</p>
+              <p className="text-xs text-muted-foreground">From ₦1,000</p>
             </div>
           </div>
         </Card>
