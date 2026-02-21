@@ -27,7 +27,9 @@ const BASE_FREQUENCY_OPTIONS = [
   { weeks: 2, label: "2 weeks" },
   { weeks: 3, label: "3 weeks" },
   { weeks: 4, label: "4 weeks" },
+  { weeks: 5, label: "5 weeks" },
   { weeks: 6, label: "6 weeks" },
+  { weeks: 7, label: "7 weeks" },
   { weeks: 8, label: "8 weeks" },
 ];
 
