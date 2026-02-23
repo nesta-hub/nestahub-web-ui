@@ -1,9 +1,12 @@
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Package, RefreshCw, MessageCircle, LogOut, ChevronRight } from "lucide-react";
+import { Package, RefreshCw, MessageCircle, LogOut, ChevronRight, Phone, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const menuItems = [
   { icon: Package, label: "View Orders", href: "/orders" },
@@ -12,8 +15,11 @@ const menuItems = [
 ];
 
 const Account = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, updatePhone } = useAuth();
   const navigate = useNavigate();
+  const [showPhoneStep, setShowPhoneStep] = useState(false);
+  const [fromBanner, setFromBanner] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
 
   // Generate initials from user name
   const getInitials = (name: string | null | undefined) => {
@@ -56,6 +62,72 @@ const Account = () => {
     );
   }
 
+  if (showPhoneStep) {
+    return (
+      <Layout showNav={false}>
+        <div className="min-h-screen bg-background flex flex-col px-6 pt-16">
+          {fromBanner && (
+            <button
+              onClick={() => {
+                setShowPhoneStep(false);
+                setFromBanner(false);
+              }}
+              className="absolute top-6 left-6 w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-secondary/50 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+          )}
+
+          <div className="flex-1 flex flex-col items-center">
+            <h1 className="text-xl font-semibold text-foreground mb-2 text-center">
+              Complete Your Profile
+            </h1>
+            <p className="text-sm text-muted-foreground mb-8 text-center max-w-xs">
+              Add your phone number so we can keep you updated on your orders
+            </p>
+
+            <div className="w-full max-w-sm space-y-4">
+              <Input
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="08012345678"
+                className="h-12"
+                autoComplete="tel"
+              />
+              <Button
+                variant="shop"
+                className="w-full h-12"
+                onClick={async () => {
+                  try {
+                    await updatePhone(phoneNumber.trim());
+                    setShowPhoneStep(false);
+                    setFromBanner(false);
+                  } catch (error) {
+                    console.error('Failed to update phone:', error);
+                    alert('Failed to update phone number');
+                  }
+                }}
+                disabled={phoneNumber.replace(/\D/g, '').length !== 11}
+              >
+                Continue
+              </Button>
+              {!fromBanner && (
+                <button
+                  type="button"
+                  onClick={() => setShowPhoneStep(false)}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Skip
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="px-6 py-10">
@@ -68,6 +140,20 @@ const Account = () => {
           </Avatar>
           <h2 className="text-lg font-semibold text-foreground">{user.name || 'User'}</h2>
           <p className="text-sm text-muted-foreground">{user.email}</p>
+
+          {!user.phone && (
+            <div
+              onClick={() => {
+                setFromBanner(true);
+                setShowPhoneStep(true);
+              }}
+              className="mt-4 w-full max-w-sm flex items-center gap-3 p-4 rounded-xl bg-primary/5 border border-primary/10 hover:bg-primary/10 cursor-pointer transition-colors text-left"
+            >
+              <Phone className="w-5 h-5 text-primary shrink-0" />
+              <span className="text-sm text-muted-foreground flex-1">Add your phone number to stay updated on orders</span>
+              <ChevronRight className="w-4 h-4 text-primary shrink-0" />
+            </div>
+          )}
         </div>
 
         {/* Menu Items */}

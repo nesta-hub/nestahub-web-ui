@@ -331,6 +331,20 @@ export const api = {
     }
     return response.json();
   },
+
+  async cancelOrder(orderNumber: string, token: string): Promise<OrderResponse> {
+    const response = await fetch(`${API_BASE_URL}/orders/${orderNumber}/cancel`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to cancel order');
+    }
+    return response.json();
+  },
 };
 
 // Helper function to format price
@@ -369,6 +383,8 @@ export interface MyOrder {
   pickupStationName: string | null;
   pickupStationAddress: string | null;
   items: MyOrderItem[];
+  canCancel: boolean;
+  canConfirmPayment: boolean;
 }
 
 export interface MyOrdersResponse {

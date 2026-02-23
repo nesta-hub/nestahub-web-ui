@@ -19,6 +19,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signInWithFacebook: () => Promise<void>;
   signOut: () => Promise<void>;
+  updatePhone: (phone: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -119,6 +120,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setSession(null);
   };
 
+  const updatePhone = async (phone: string) => {
+    if (!session?.access_token) throw new Error('Not authenticated');
+
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/update-phone`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ phone }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update phone number');
+    }
+
+    const updatedUser = await response.json();
+    setUser(updatedUser);
+  };
+
   const value = {
     user,
     session,
@@ -126,6 +147,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signInWithGoogle,
     signInWithFacebook,
     signOut,
+    updatePhone,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
