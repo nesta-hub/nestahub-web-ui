@@ -86,6 +86,7 @@ export function OrdersView({ onBack }: OrdersViewProps) {
         token={session.access_token}
         onPaymentConfirmed={handlePaymentConfirmed}
         onBack={() => setPayingOrder(null)}
+        hideGiftCardRedeem={payingOrder.orderType === 'gift_card'}
       />
     );
   }
@@ -147,46 +148,78 @@ export function OrdersView({ onBack }: OrdersViewProps) {
 
                 {isExpanded && (
                   <div className="pb-4 pl-1 animate-fade-in space-y-2">
-                    {/* Items */}
-                    <div className="bg-secondary/50 rounded-lg p-3 space-y-2">
-                      {order.items.map((item, i) => (
-                        <div key={i} className="flex justify-between text-sm">
-                          <div>
-                            <p className="text-foreground">
-                              {item.productBrand} {item.productName}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {item.variant} · Qty: {item.quantity}
-                            </p>
+                    {order.orderType === 'gift_card' ? (
+                      /* Gift Card Details */
+                      <div className="bg-secondary/50 rounded-lg p-3 space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Gift Card Amount</span>
+                          <span className="text-foreground font-semibold">
+                            {formatPrice(order.giftCardAmount || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Theme</span>
+                          <span className="text-foreground capitalize">
+                            {order.giftCardThemeId?.replace(/-/g, ' ') || '—'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Recipient</span>
+                          <span className="text-foreground font-medium">
+                            {order.giftCardRecipientName || '—'}
+                          </span>
+                        </div>
+                        {order.giftCardMessage && (
+                          <div className="border-t border-border pt-2 mt-2">
+                            <p className="text-xs text-muted-foreground mb-1">Personal Message</p>
+                            <p className="text-sm text-foreground italic">"{order.giftCardMessage}"</p>
                           </div>
-                          <p className="text-foreground font-medium">
-                            {formatPrice(item.unitPrice)}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Delivery info */}
-                    <div className="bg-secondary/50 rounded-lg p-3">
-                      <div className="flex items-start gap-2">
-                        {order.deliveryMethod === "pickup" ? (
-                          <MapPin className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
-                        ) : (
-                          <Truck className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
                         )}
-                        <div className="text-xs space-y-0.5">
-                          <p className="text-foreground font-medium">{order.fullName}</p>
-                          {order.deliveryMethod === "pickup" ? (
-                            <>
-                              <p className="text-muted-foreground">{order.pickupStationName}</p>
-                              <p className="text-muted-foreground">{order.pickupStationAddress}</p>
-                            </>
-                          ) : (
-                            <p className="text-muted-foreground">{order.deliveryAddress}</p>
-                          )}
-                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        {/* Items */}
+                        <div className="bg-secondary/50 rounded-lg p-3 space-y-2">
+                          {order.items.map((item, i) => (
+                            <div key={i} className="flex justify-between text-sm">
+                              <div>
+                                <p className="text-foreground">
+                                  {item.productBrand} {item.productName}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.variant} · Qty: {item.quantity}
+                                </p>
+                              </div>
+                              <p className="text-foreground font-medium">
+                                {formatPrice(item.unitPrice)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Delivery info */}
+                        <div className="bg-secondary/50 rounded-lg p-3">
+                          <div className="flex items-start gap-2">
+                            {order.deliveryMethod === "pickup" ? (
+                              <MapPin className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                            ) : (
+                              <Truck className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                            )}
+                            <div className="text-xs space-y-0.5">
+                              <p className="text-foreground font-medium">{order.fullName}</p>
+                              {order.deliveryMethod === "pickup" ? (
+                                <>
+                                  <p className="text-muted-foreground">{order.pickupStationName}</p>
+                                  <p className="text-muted-foreground">{order.pickupStationAddress}</p>
+                                </>
+                              ) : (
+                                <p className="text-muted-foreground">{order.deliveryAddress}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
 
                     {/* Action Buttons */}
                     {(order.canConfirmPayment || order.canCancel) && (

@@ -285,21 +285,28 @@ export const api = {
   // Orders
   async createOrder(
     data: {
-      orderType: 'shop' | 'bundle';
+      orderType: 'shop' | 'bundle' | 'gift_card';
       fullName: string;
       phoneNumber: string;
-      deliveryMethod: 'pickup' | 'address';
+      deliveryMethod?: 'pickup' | 'address';
       pickupStationId?: string | null;
       deliveryAddress?: string | null;
       deliveryLat?: number;
       deliveryLng?: number;
       bundleId?: string | null;
-      items: Array<{
+      items?: Array<{
         variantId: string;
         quantity: number;
         isAutoRenew: boolean;
         frequencyWeeks?: number | null;
       }>;
+      giftCardDetails?: {
+        themeId: string;
+        message?: string;
+        amount: number;
+        recipientName: string;
+        recipientPhone: string;
+      };
     },
     token: string,
   ): Promise<OrderResponse> {
@@ -375,6 +382,7 @@ export interface MyOrderItem {
 export interface MyOrder {
   orderNumber: string;
   status: string;
+  orderType: string;
   totalAmount: number; // kobo
   createdAt: string;
   deliveryMethod: string;
@@ -385,6 +393,11 @@ export interface MyOrder {
   items: MyOrderItem[];
   canCancel: boolean;
   canConfirmPayment: boolean;
+  // Gift card specific fields
+  giftCardThemeId?: string | null;
+  giftCardAmount?: number | null;
+  giftCardRecipientName?: string | null;
+  giftCardMessage?: string | null;
 }
 
 export interface MyOrdersResponse {
@@ -512,4 +525,111 @@ export async function updateSubscriptionVariant(
   });
   if (!response.ok) throw new Error('Failed to update variant');
   return response.json();
+}
+
+// ─── Gift Cards ───────────────────────────────────────────────────────────
+
+export interface GiftCardPublic {
+  themeId: string;
+  currentBalance: number;
+  senderName: string;
+  recipientName: string;
+  message?: string;
+  status: string;
+}
+
+export interface GiftCardReveal {
+  code: string;
+}
+
+export interface GiftCardValidation {
+  valid: boolean;
+  currentBalance: number; // in kobo
+  status: string;
+  expiresAt: string | null;
+  reason?: string; // 'not_found' | 'expired' | 'exhausted' | 'void'
+}
+
+export async function getGiftCard(giftId: string): Promise<GiftCardPublic> {
+  const response = await fetch(`${API_BASE_URL}/gift-cards/${giftId}`);
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Gift card not found or has expired');
+    }
+    throw new Error('Failed to load gift card');
+  }
+  return response.json();
+}
+
+export async function revealGiftCard(giftId: string, phone: string): Promise<GiftCardReveal> {
+  const response = await fetch(`${API_BASE_URL}/gift-cards/${giftId}/reveal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone }),
+  });
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('Incorrect phone number. Please try again.');
+    }
+    if (response.status === 404) {
+      throw new Error('Gift card not found');
+    }
+    throw new Error('Verification failed. Please try again.');
+  }
+  return response.json();
+}
+
+export async function validateGiftCard(code: string): Promise<GiftCardValidation> {
+  const response = await fetch(`${API_BASE_URL}/gift-cards/validate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to validate gift card');
+  }
+  return response.json();
+}
+
+export interface ApplyGiftCardResponse {
+  code: string;
+  balance: number; // in kobo
+  amountApplied: number; // in kobo
+  adjustedTotal: number; // in kobo
+}
+
+export async function applyGiftCardToOrder(
+  orderNumber: string,
+  code: string,
+  token: string,
+): Promise<ApplyGiftCardResponse> {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderNumber}/apply-gift-card`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ code }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to apply gift card');
+  }
+  return response.json();
+}
+
+export async function removeGiftCardFromOrder(
+  orderNumber: string,
+  token: string,
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderNumber}/gift-card`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to remove gift card');
+  }
 }

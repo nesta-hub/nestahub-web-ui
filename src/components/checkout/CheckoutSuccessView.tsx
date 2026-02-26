@@ -2,18 +2,16 @@ import { CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useCart } from "@/contexts/CartContext";
 
 interface CheckoutSuccessViewProps {
   orderId: string;
+  paidWithGiftCard?: boolean;
 }
 
-export function CheckoutSuccessView({ orderId }: CheckoutSuccessViewProps) {
+export function CheckoutSuccessView({ orderId, paidWithGiftCard }: CheckoutSuccessViewProps) {
   const navigate = useNavigate();
-  const { clearCart } = useCart();
 
   const handleReturnShopping = () => {
-    clearCart();
     navigate("/catalogue");
   };
 
@@ -36,24 +34,31 @@ export function CheckoutSuccessView({ orderId }: CheckoutSuccessViewProps) {
           Order ID: <span className="font-semibold text-foreground">{orderId}</span>
         </p>
 
-        {/* WhatsApp verification message */}
+        {/* Confirmation message */}
         <Card className="p-4 bg-muted/50 max-w-sm">
           <p className="text-sm text-muted-foreground">
-            We'll verify your payment and send a confirmation via{" "}
-            <span className="font-semibold">Email</span>.
-            Please keep your phone handy!
+            {paidWithGiftCard
+              ? "Your order is confirmed! We'll send an email shortly with the details."
+              : "We'll verify your payment and send a confirmation via Email. Please keep your phone handy!"}
           </p>
         </Card>
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t bg-background shrink-0">
+      <div className="p-4 border-t bg-background shrink-0 space-y-2">
+        <Button
+          variant="outline"
+          className="w-full h-12 text-base font-semibold"
+          onClick={() => navigate("/orders")}
+        >
+          View Order Status
+        </Button>
         <Button
           variant="shop"
           className="w-full h-12 text-base font-semibold"
           onClick={handleReturnShopping}
         >
-          Return Shopping
+          Return to Shop
         </Button>
       </div>
     </div>

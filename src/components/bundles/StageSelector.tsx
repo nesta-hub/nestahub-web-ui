@@ -5,6 +5,7 @@ import { Lightbulb, Loader2 } from "lucide-react";
 import { StageCard } from "./StageCard";
 import { api, type AgeGroup } from "@/lib/api";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getStageEmoji } from "@/lib/stageEmojis";
 
 // Map age groups to stage format for the UI
 const mapAgeGroupToStage = (ageGroup: AgeGroup) => ({
@@ -15,7 +16,7 @@ const mapAgeGroupToStage = (ageGroup: AgeGroup) => ({
     : undefined,
   weightRange: undefined, // Age groups don't have weight ranges
   description: ageGroup.description || '',
-  emoji: '👶', // Default emoji, can be customized based on age range
+  emoji: getStageEmoji(ageGroup.slug),
 });
 
 export function StageSelector() {

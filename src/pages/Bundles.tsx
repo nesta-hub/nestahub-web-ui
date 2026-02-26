@@ -6,18 +6,20 @@ import { MobileBundlePage } from "@/components/bundles/mobile";
 const Bundles = () => {
   const isMobile = useIsMobile();
 
-  // Mobile: Single-page experience with slide-in drawer
-  if (isMobile) {
-    return <MobileBundlePage />;
-  }
-
-  // Desktop: Original multi-page experience
   return (
-    <Layout>
-      <div className="container py-8">
-        <StageSelector />
-      </div>
-    </Layout>
+    <div>
+      {/* Mobile: Single-page experience with slide-in drawer */}
+      {isMobile ? (
+        <MobileBundlePage />
+      ) : (
+        /* Desktop: Original multi-page experience */
+        <Layout>
+          <div className="container py-8">
+            <StageSelector />
+          </div>
+        </Layout>
+      )}
+    </div>
   );
 };
 

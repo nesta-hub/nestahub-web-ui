@@ -14,6 +14,7 @@ import {
 import { TierCard } from "@/components/bundles";
 import { api } from "@/lib/api";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getStageEmoji } from "@/lib/stageEmojis";
 
 const BundleOptions = () => {
   const { stageId } = useParams();
@@ -35,7 +36,7 @@ const BundleOptions = () => {
       ? `${ageGroupData.ageGroup.ageRangeStart}-${ageGroupData.ageGroup.ageRangeEnd} months`
       : undefined,
     description: ageGroupData.ageGroup.description || '',
-    emoji: '👶',
+    emoji: getStageEmoji(ageGroupData.ageGroup.slug),
   } : undefined;
 
   // Map bundles to tier format for TierCard component
@@ -43,9 +44,9 @@ const BundleOptions = () => {
     id: bundle.slug,
     name: bundle.name,
     type: bundle.slug as any, // Type for styling purposes
-    summary: bundle.categories.map(c => c.displayName).join(' + '),
+    summary: bundle.categories.map(c => c.name).join(' + '),
     contents: bundle.categories.map(c => ({
-      category: c.displayName,
+      category: c.name,
       quantity: `${c.productCount} ${c.productCount === 1 ? 'product' : 'products'}`,
     })),
     basePrice: bundle.totalPrice,

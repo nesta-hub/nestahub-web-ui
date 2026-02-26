@@ -22,7 +22,7 @@ type DeliveryMethod = 'pickup' | 'address';
 const Checkout = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { items, totalAmount } = useCart();
+  const { items, totalAmount, clearCart } = useCart();
   const { user, session } = useAuth();
 
   // Delivery state
@@ -56,18 +56,19 @@ const Checkout = () => {
   const [serverTotalAmount, setServerTotalAmount] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [paidWithGiftCard, setPaidWithGiftCard] = useState(false);
   const contactRef = useRef<HTMLDivElement>(null);
 
   // Determine order type: 'bundle' if coming from gifting page, else 'shop'
   const orderType = searchParams.get('source') === 'gifting' ? 'bundle' : 'shop';
   const bundleId = searchParams.get('bundleId');
 
-  // Redirect to catalogue if cart is empty
+  // Redirect to catalogue if cart is empty (but not when showing payment/success screens)
   useEffect(() => {
-    if (items.length === 0) {
+    if (items.length === 0 && !showPayment && !showSuccess) {
       navigate('/catalogue');
     }
-  }, [items.length, navigate]);
+  }, [items.length, navigate, showPayment, showSuccess]);
 
   // Delivery fee — dynamic based on address zone
   const deliveryFee = deliveryMethod === 'address' ? (addressDeliveryFee ?? 0) : 0;
@@ -142,6 +143,7 @@ const Checkout = () => {
 
       setOrderNumber(result.orderNumber);
       setServerTotalAmount(result.totalAmount);
+      clearCart(); // Clear cart immediately after successful order creation
       setShowPayment(true);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to place order. Please try again.');
@@ -155,6 +157,19 @@ const Checkout = () => {
     setShowSuccess(true);
   };
 
+  const handleGiftCardFullCoverage = async () => {
+    // Gift card covers full order, mark payment as made immediately
+    if (!session?.access_token || !orderNumber) return;
+    try {
+      await api.markPaymentMade(orderNumber, session.access_token);
+      setPaidWithGiftCard(true);
+      setShowPayment(false);
+      setShowSuccess(true);
+    } catch (err) {
+      console.error('Failed to confirm gift card payment:', err);
+    }
+  };
+
   // Payment overlay
   if (showPayment && orderNumber) {
     return (
@@ -163,6 +178,7 @@ const Checkout = () => {
         totalAmount={serverTotalAmount ?? grandTotal}
         token={session?.access_token ?? ''}
         onPaymentConfirmed={handlePaymentConfirmed}
+        onGiftCardFullCoverage={handleGiftCardFullCoverage}
         onBack={() => setShowPayment(false)}
       />
     );
@@ -170,7 +186,7 @@ const Checkout = () => {
 
   // Success overlay
   if (showSuccess && orderNumber) {
-    return <CheckoutSuccessView orderId={orderNumber} />;
+    return <CheckoutSuccessView orderId={orderNumber} paidWithGiftCard={paidWithGiftCard} />;
   }
 
   return (

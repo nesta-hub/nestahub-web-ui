@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartDrawer } from "@/components/cart/CartDrawer";
+import { Analytics } from "@vercel/analytics/react";
 import Index from "./pages/Index";
 import Shop from "./pages/Shop";
 import Bundles from "./pages/Bundles";
@@ -20,6 +21,10 @@ import Orders from "./pages/Orders";
 import Subscriptions from "./pages/Subscriptions";
 import Catalogue from "./pages/Catalogue";
 import Gifting from "./pages/Gifting";
+import GiftingCards from "./pages/GiftingCards";
+import GiftCardDetails from "./pages/GiftCardDetails";
+import GiftCardRedeem from "./pages/GiftCardRedeem";
+import GiftingBundles from "./pages/GiftingBundles";
 import Subscribe from "./pages/Subscribe";
 import Contact from "./pages/Contact";
 import FAQ from "./pages/FAQ";
@@ -47,6 +52,7 @@ const App = () => (
         <CartProvider>
           <Toaster />
           <Sonner />
+          <Analytics />
           <BrowserRouter>
             <ScrollToTop />
             <CartDrawer />
@@ -58,6 +64,9 @@ const App = () => (
               <Route path="/configure/:bundleId" element={<BundleConfigurator />} />
               <Route path="/catalogue" element={<Catalogue />} />
               <Route path="/gifting" element={<Gifting />} />
+              <Route path="/gifting/cards" element={<GiftingCards />} />
+              <Route path="/gifting/cards/details" element={<GiftCardDetails />} />
+              <Route path="/gifting/bundles" element={<GiftingBundles />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/gift-cards" element={<GiftCards />} />
               <Route path="/cart" element={<Cart />} />
@@ -70,6 +79,7 @@ const App = () => (
               <Route path="/orders" element={<Orders />} />
               <Route path="/subscriptions" element={<Subscriptions />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/gift/:giftId" element={<GiftCardRedeem />} />
               <Route path="/image-preview" element={<ImagePreview />} />
               <Route path="/icon-preview" element={<IconPreview />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
