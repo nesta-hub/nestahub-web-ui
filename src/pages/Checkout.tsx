@@ -10,14 +10,17 @@ import {
   CheckoutDeliverySection,
   CheckoutPickupSection,
   CheckoutAddressSection,
+  CheckoutDeliverySpeedSection,
   ContactForm,
   CheckoutPaymentView,
   CheckoutSuccessView,
 } from "@/components/checkout";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { api, formatPrice } from "@/lib/api";
+import { isZone1Address } from "@/components/checkout/CheckoutAddressSection";
 
 type DeliveryMethod = 'pickup' | 'address';
+type DeliverySpeed = 'standard' | 'weekend';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -32,6 +35,8 @@ const Checkout = () => {
   const [addressDeliveryFee, setAddressDeliveryFee] = useState<number | null>(null);
   const [addressLat, setAddressLat] = useState<number | null>(null);
   const [addressLng, setAddressLng] = useState<number | null>(null);
+  const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed | null>(null);
+  const [isZone1, setIsZone1] = useState<boolean>(false);
 
   // Contact state - pre-fill from user data when available
   const [fullName, setFullName] = useState('');
@@ -70,13 +75,25 @@ const Checkout = () => {
     }
   }, [items.length, navigate, showPayment, showSuccess]);
 
-  // Delivery fee — dynamic based on address zone
-  const deliveryFee = deliveryMethod === 'address' ? (addressDeliveryFee ?? 0) : 0;
+  // Delivery fee — dynamic based on address zone and delivery speed
+  const deliveryFee = (() => {
+    if (deliveryMethod === 'pickup') return 0;
+    if (deliveryMethod === 'address' && deliverySpeed) {
+      if (deliverySpeed === 'standard') {
+        return addressDeliveryFee ?? 0;
+      }
+      // Weekend delivery: ₦500 (50000 kobo) for zone 1 only
+      if (deliverySpeed === 'weekend' && isZone1) {
+        return 50000; // ₦500
+      }
+    }
+    return 0;
+  })();
   const grandTotal = totalAmount + deliveryFee;
 
   // Validation
   const isContactValid = fullName.trim().length >= 2 && phoneNumber.trim().length >= 10;
-  const hasDeliveryDetails = deliveryMethod === 'pickup' ? !!pickupStation : !!address;
+  const hasDeliveryDetails = deliveryMethod === 'pickup' ? !!pickupStation : (!!address && !!deliverySpeed);
   const canProceed = deliveryMethod && isContactValid && hasDeliveryDetails;
 
   // Scroll to contact form when delivery details are confirmed
@@ -96,6 +113,8 @@ const Checkout = () => {
     setAddressDeliveryFee(null);
     setAddressLat(null);
     setAddressLng(null);
+    setDeliverySpeed(null);
+    setIsZone1(false);
   };
 
   const handleStationChange = () => {
@@ -107,6 +126,12 @@ const Checkout = () => {
     setAddressDeliveryFee(null);
     setAddressLat(null);
     setAddressLng(null);
+    setDeliverySpeed(null);
+    setIsZone1(false);
+  };
+
+  const handleSpeedChange = () => {
+    setDeliverySpeed(null);
   };
 
   const handleBack = () => {
@@ -131,6 +156,7 @@ const Checkout = () => {
           fullName: fullName.trim(),
           phoneNumber: phoneNumber.trim(),
           deliveryMethod: deliveryMethod!,
+          deliverySpeed: deliveryMethod === 'address' ? (deliverySpeed ?? undefined) : undefined,
           pickupStationId: deliveryMethod === 'pickup' ? pickupStation?.id ?? null : null,
           deliveryAddress: deliveryMethod === 'address' ? address : null,
           deliveryLat: deliveryMethod === 'address' && addressLat != null ? addressLat : undefined,
@@ -240,8 +266,24 @@ const Checkout = () => {
                         setAddressDeliveryFee(fee);
                         setAddressLat(lat);
                         setAddressLng(lng);
+                        // Determine if address is in Zone 1
+                        setIsZone1(isZone1Address(lat, lng));
                       }}
                       onChangeAddress={handleAddressChange}
+                    />
+                  </div>
+                )}
+
+                {/* Delivery Speed (if address is set) */}
+                {deliveryMethod === 'address' && address && (
+                  <div className="mt-6 animate-fade-in">
+                    <CheckoutDeliverySpeedSection
+                      selectedSpeed={deliverySpeed}
+                      onSelectSpeed={setDeliverySpeed}
+                      onChangeSpeed={handleSpeedChange}
+                      address={address}
+                      standardDeliveryFee={addressDeliveryFee ?? 0}
+                      isZone1={isZone1}
                     />
                   </div>
                 )}

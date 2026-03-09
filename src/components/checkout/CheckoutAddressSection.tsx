@@ -10,13 +10,13 @@ import { formatPrice } from "@/lib/api";
 const GOOGLE_MAPS_API_KEY = "AIzaSyBBrJpwnxEx42A0Ye1-7hP26HIfm-7myf0";
 
 // Nesta Hub dispatch location — Soluyi, Gbagada, Lagos
-const NESTA_HUB = { lat: 6.553, lng: 3.384 };
+export const NESTA_HUB = { lat: 6.553, lng: 3.384 };
 
 // Lagos State bounding box — addresses outside this are blocked
 const LAGOS_BOUNDS = { minLat: 6.38, maxLat: 6.70, minLng: 2.68, maxLng: 3.70 };
 
 // Delivery fees in kobo (matching codebase convention)
-const ZONE_FEES = {
+export const ZONE_FEES = {
   zone1: 100000, // ₦1,000 — ≤1.5 km
   zone2: 150000, // ₦1,500 — 1.5–2.5 km
   zone3: 200000, // ₦2,000 — 2.5–10 km
@@ -25,7 +25,7 @@ const ZONE_FEES = {
 } as const;
 
 /** Haversine straight-line distance in km between two lat/lng points */
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
   const toRad = (d: number) => (d * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
@@ -37,7 +37,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 }
 
 /** Returns the delivery fee in kobo for a given lat/lng, or 'unsupported' */
-function getDeliveryFee(lat: number, lng: number): number | "unsupported" {
+export function getDeliveryFee(lat: number, lng: number): number | "unsupported" {
   // Block addresses outside Lagos State bounding box
   if (
     lat < LAGOS_BOUNDS.minLat ||
@@ -56,6 +56,12 @@ function getDeliveryFee(lat: number, lng: number): number | "unsupported" {
   if (distKm <= 25)  return ZONE_FEES.zone4;
   if (distKm <= 70)  return ZONE_FEES.zone5;
   return "unsupported";
+}
+
+/** Returns true if the address is in Zone 1 (≤1.5 km from Nesta Hub) */
+export function isZone1Address(lat: number, lng: number): boolean {
+  const distKm = haversineKm(NESTA_HUB.lat, NESTA_HUB.lng, lat, lng);
+  return distKm <= 1.5;
 }
 
 interface CheckoutAddressSectionProps {
@@ -278,10 +284,6 @@ export function CheckoutAddressSection({
           title={selectedAddress}
           onChangeClick={onChangeAddress}
         />
-        <p className="text-xs text-muted-foreground flex items-center gap-1.5 px-1">
-          <Truck className="w-3 h-3 shrink-0" />
-          Next day delivery · {formatNextDay()}
-        </p>
       </div>
     );
   }
@@ -367,11 +369,6 @@ export function CheckoutAddressSection({
                       {isUnsupported && (
                         <span className="text-xs text-muted-foreground text-right leading-tight max-w-[90px]">
                           We don't deliver here yet
-                        </span>
-                      )}
-                      {!isResolvingFee && !isUnsupported && typeof fee === "number" && (
-                        <span className="text-xs font-medium text-primary">
-                          {formatPrice(fee)}
                         </span>
                       )}
                     </div>

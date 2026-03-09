@@ -3,6 +3,7 @@ export { ContactForm } from "./ContactForm";
 export { CheckoutDeliverySection } from "./CheckoutDeliverySection";
 export { CheckoutPickupSection } from "./CheckoutPickupSection";
 export { CheckoutAddressSection } from "./CheckoutAddressSection";
+export { CheckoutDeliverySpeedSection } from "./CheckoutDeliverySpeedSection";
 export { CheckoutPaymentView } from "./CheckoutPaymentView";
 export { CheckoutSuccessView } from "./CheckoutSuccessView";
 export { CheckoutOrderTypeSection } from "./CheckoutOrderTypeSection";

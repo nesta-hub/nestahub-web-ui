@@ -23,7 +23,7 @@ export function CheckoutDeliverySection({
     const addressSubtitle =
       addressDeliveryFee != null
         ? `${formatPrice(addressDeliveryFee)} delivery fee`
-        : 'From ₦1,000';
+        : 'From ₦500';
 
     return (
       <div className="space-y-2">
@@ -79,7 +79,7 @@ export function CheckoutDeliverySection({
             </div>
             <div>
               <p className="text-sm font-medium">Deliver to Address</p>
-              <p className="text-xs text-muted-foreground">From ₦1,000</p>
+              <p className="text-xs text-muted-foreground">From ₦500</p>
             </div>
           </div>
         </Card>

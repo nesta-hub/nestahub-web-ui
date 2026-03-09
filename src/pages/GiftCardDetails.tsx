@@ -6,7 +6,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, Send, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import desktopPlaceholder from "@/assets/desktop-placeholder.jpg";
 import { GiftCardPreview } from "@/components/gifting/GiftCardPreview";
@@ -422,6 +422,12 @@ const GiftCardDetails = () => {
             onChange={(e) => setRecipientPhone(e.target.value.replace(/\D/g, "").slice(0, 11))}
             maxLength={11}
           />
+          <div className="flex gap-2 items-start">
+            <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              The recipient's phone number is used to verify their identity before they can view the gift card code.
+            </p>
+          </div>
         </div>
 
         {/* Proceed CTA */}
@@ -467,6 +473,12 @@ const GiftCardDetails = () => {
                 </div>
               )}
             </Card>
+          </div>
+          <div className="px-4 pt-2 pb-1 flex gap-2 items-start">
+            <Send className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              After payment is confirmed, we'll email the gift card link to <span className="font-semibold text-foreground">you</span>, so you can personally share it with {recipientName.trim()}.
+            </p>
           </div>
           <DrawerFooter>
             {createOrderError && (
