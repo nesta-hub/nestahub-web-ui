@@ -82,9 +82,9 @@ const Checkout = () => {
       if (deliverySpeed === 'standard') {
         return addressDeliveryFee ?? 0;
       }
-      // Weekend delivery: ₦500 (50000 kobo) for zone 1 only
-      if (deliverySpeed === 'weekend' && isZone1) {
-        return 50000; // ₦500
+      // Weekend delivery: FREE for zone 1 only (not available for other zones yet)
+      if (deliverySpeed === 'weekend') {
+        return isZone1 ? 0 : 0; // FREE for Zone 1, unavailable for others (should not reach here)
       }
     }
     return 0;

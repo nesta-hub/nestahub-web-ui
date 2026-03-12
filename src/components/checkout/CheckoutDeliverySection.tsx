@@ -20,10 +20,7 @@ export function CheckoutDeliverySection({
 }: CheckoutDeliverySectionProps) {
   // Show summary card if method is selected
   if (selectedMethod) {
-    const addressSubtitle =
-      addressDeliveryFee != null
-        ? `${formatPrice(addressDeliveryFee)} delivery fee`
-        : 'From ₦500';
+    const addressSubtitle = 'From ₦500';
 
     return (
       <div className="space-y-2">

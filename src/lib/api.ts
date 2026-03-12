@@ -289,6 +289,7 @@ export const api = {
       fullName: string;
       phoneNumber: string;
       deliveryMethod?: 'pickup' | 'address';
+      deliverySpeed?: 'standard' | 'weekend';
       pickupStationId?: string | null;
       deliveryAddress?: string | null;
       deliveryLat?: number;

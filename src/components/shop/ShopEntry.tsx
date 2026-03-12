@@ -167,7 +167,7 @@ function ValueBlock({ heading, description, image, imageAlt, reverse }: ValueBlo
 const instaImages = [instaGrid1, instaGrid2, instaGrid3, instaGrid4, instaGrid5, instaGrid6];
 
 const brandPromises = [
-  { icon: Users, label: "Trusted by 500+ Parents" },
+  { icon: Users, label: "Trusted by 100+ Parents" },
   { icon: Heart, label: "Dermatologist Approved" },
   { icon: Truck, label: "Fast Lagos Delivery" },
   { icon: Award, label: "Premium Brands Only" },

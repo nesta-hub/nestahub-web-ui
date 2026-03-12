@@ -14,8 +14,9 @@ interface CheckoutDeliverySpeedSectionProps {
   isZone1: boolean;
 }
 
-// Weekend delivery fee: ₦500 (50000 kobo)
-const WEEKEND_DELIVERY_FEE = 50000;
+// Weekend delivery fee: FREE for Zone 1, coming soon for other zones at ₦500
+const WEEKEND_DELIVERY_FEE_ZONE1 = 0; // FREE
+const WEEKEND_DELIVERY_FEE_COMING_SOON = 50000; // ₦500 in kobo (not available yet)
 
 /** Returns "This Saturday" or "Next Saturday" based on current day */
 function getNextSaturday(): string {
@@ -58,7 +59,14 @@ export function CheckoutDeliverySpeedSection({
   standardDeliveryFee,
   isZone1,
 }: CheckoutDeliverySpeedSectionProps) {
+  const weekendDeliveryFee = isZone1 ? WEEKEND_DELIVERY_FEE_ZONE1 : WEEKEND_DELIVERY_FEE_COMING_SOON;
+
   if (selectedSpeed) {
+    // Determine subtitle for delivery speed summary
+    const deliverySubtitle = selectedSpeed === 'standard'
+      ? formatPrice(standardDeliveryFee)
+      : (isZone1 ? 'FREE' : formatPrice(weekendDeliveryFee));
+
     return (
       <div className="space-y-2">
         <h3 className="text-base font-medium text-muted-foreground">Delivery Option</h3>
@@ -71,7 +79,7 @@ export function CheckoutDeliverySpeedSection({
             )
           }
           title={selectedSpeed === 'standard' ? 'Standard Delivery' : 'Weekend Drop-off'}
-          subtitle={formatPrice(selectedSpeed === 'standard' ? standardDeliveryFee : WEEKEND_DELIVERY_FEE)}
+          subtitle={deliverySubtitle}
           onChangeClick={onChangeSpeed}
         />
         <p className="text-xs text-muted-foreground flex items-center gap-1.5 px-1">
@@ -120,9 +128,13 @@ export function CheckoutDeliverySpeedSection({
             <div>
               <p className="text-sm font-medium">Weekend Drop-off</p>
               {isZone1 ? (
-                <p className="text-xs text-muted-foreground">{getNextSaturday()} · {formatPrice(WEEKEND_DELIVERY_FEE)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {getNextSaturday()} · <span className="text-green-600 font-medium">FREE</span>
+                </p>
               ) : (
-                <p className="text-xs text-muted-foreground">{formatPrice(WEEKEND_DELIVERY_FEE)} · Coming soon to your address</p>
+                <p className="text-xs text-muted-foreground">
+                  ₦500 · Coming soon to your address
+                </p>
               )}
             </div>
           </div>
