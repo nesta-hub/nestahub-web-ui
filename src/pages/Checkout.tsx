@@ -17,7 +17,7 @@ import {
 } from "@/components/checkout";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { api, formatPrice } from "@/lib/api";
-import { isZone1Address } from "@/components/checkout/CheckoutAddressSection";
+import { isZone1Address, isZone1Or2Address } from "@/components/checkout/CheckoutAddressSection";
 
 type DeliveryMethod = 'pickup' | 'address';
 type DeliverySpeed = 'standard' | 'weekend';
@@ -37,6 +37,7 @@ const Checkout = () => {
   const [addressLng, setAddressLng] = useState<number | null>(null);
   const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed | null>(null);
   const [isZone1, setIsZone1] = useState<boolean>(false);
+  const [isZone1Or2, setIsZone1Or2] = useState<boolean>(false); // For weekend delivery eligibility
 
   // Contact state - pre-fill from user data when available
   const [fullName, setFullName] = useState('');
@@ -82,9 +83,9 @@ const Checkout = () => {
       if (deliverySpeed === 'standard') {
         return addressDeliveryFee ?? 0;
       }
-      // Weekend delivery: FREE for zone 1 only (not available for other zones yet)
+      // Weekend delivery: ₦500 for all zones
       if (deliverySpeed === 'weekend') {
-        return isZone1 ? 0 : 0; // FREE for Zone 1, unavailable for others (should not reach here)
+        return 50000; // ₦500 in kobo
       }
     }
     return 0;
@@ -266,8 +267,9 @@ const Checkout = () => {
                         setAddressDeliveryFee(fee);
                         setAddressLat(lat);
                         setAddressLng(lng);
-                        // Determine if address is in Zone 1
+                        // Determine if address is in Zone 1 and Zone 1 or 2
                         setIsZone1(isZone1Address(lat, lng));
+                        setIsZone1Or2(isZone1Or2Address(lat, lng));
                       }}
                       onChangeAddress={handleAddressChange}
                     />
@@ -283,7 +285,7 @@ const Checkout = () => {
                       onChangeSpeed={handleSpeedChange}
                       address={address}
                       standardDeliveryFee={addressDeliveryFee ?? 0}
-                      isZone1={isZone1}
+                      isZone1Or2={isZone1Or2}
                     />
                   </div>
                 )}

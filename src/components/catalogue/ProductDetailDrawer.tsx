@@ -4,7 +4,7 @@ import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CatalogueProduct, formatPrice as formatPriceOld } from "@/data/catalogueData";
-import { api, ProductDetail, formatPrice as formatPriceAPI } from "@/lib/api";
+import { api, ProductDetail, ProductVariant, formatPrice as formatPriceAPI } from "@/lib/api";
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import { QuantityControl } from "@/components/cart/QuantityControl";
 import { useCart } from "@/contexts/CartContext";
@@ -18,6 +18,9 @@ interface ProductDetailDrawerProps {
   mode?: 'cart' | 'select';
   onSelect?: (variant: any, quantity: number) => void;
   preferSubscriptionPrice?: boolean;
+  initialAttributes?: Record<string, string>;
+  initialVariantId?: string; // Variant ID to auto-select attributes from
+  initialQuantity?: number; // Initial quantity to pre-populate
 }
 
 type DrawerStep = "configure" | "details" | "purchase-type";
@@ -33,7 +36,7 @@ const BASE_FREQUENCY_OPTIONS = [
   { weeks: 8, label: "8 weeks" },
 ];
 
-export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, mode = 'cart', onSelect, preferSubscriptionPrice = false }: ProductDetailDrawerProps) {
+export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, mode = 'cart', onSelect, preferSubscriptionPrice = false, initialAttributes, initialVariantId, initialQuantity }: ProductDetailDrawerProps) {
   const { addToCart } = useCart();
 
   // Fetch API product if slug is provided
@@ -273,29 +276,90 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
       setFrequencyWeeks(1);
       setCapturedHeight(null);
     } else if (apiProduct) {
-      // API product type - initialize with first value of each attribute
-      const initialAttributes: Record<string, string> = {};
-      Object.entries(apiProduct.availableAttributes).forEach(([attrName, values]) => {
-        if (values.length > 0) {
-          initialAttributes[attrName] = values[0];
-        }
-      });
-      setSelectedAttributes(initialAttributes);
+      console.log('🔍 ProductDetailDrawer useEffect triggered');
+      console.log('📦 apiProduct:', apiProduct.name);
+      console.log('🎯 initialVariantId passed in:', initialVariantId);
+      console.log('🎯 initialAttributes passed in:', initialAttributes);
+      console.log('📋 availableAttributes:', apiProduct.availableAttributes);
 
-      // Find the first variant to get recommended frequency
-      const firstVariant = apiProduct.variants.find(v =>
-        Object.entries(initialAttributes).every(([attrName, attrValue]) =>
+      // API product type - initialize with initialVariantId or initialAttributes if provided, else first values
+      let attributesToSet: Record<string, string> = {};
+
+      if (initialVariantId) {
+        console.log('✅ initialVariantId exists, looking up variant...');
+
+        // Find the variant by ID
+        const initialVariant = apiProduct.variants.find(v => v.id === initialVariantId);
+
+        if (initialVariant) {
+          console.log('✅ Found variant:', initialVariant.sku);
+          console.log('📋 Variant attributes:', initialVariant.attributes);
+
+          // Extract the 'value' field from each attribute (NOT displayValue)
+          initialVariant.attributes.forEach((attr) => {
+            console.log(`Setting ${attr.attributeName} = ${attr.value} (displayValue: ${attr.displayValue})`);
+            attributesToSet[attr.attributeName] = attr.value;
+          });
+        } else {
+          console.log('❌ Variant not found, falling back to first values');
+          // Fall back to first values
+          Object.entries(apiProduct.availableAttributes).forEach(([attrName, values]) => {
+            if (values.length > 0) {
+              attributesToSet[attrName] = values[0];
+            }
+          });
+        }
+      } else if (initialAttributes) {
+        console.log('✅ initialAttributes exists, using them...');
+
+        // Use provided initialAttributes, but validate they exist in availableAttributes
+        Object.entries(apiProduct.availableAttributes).forEach(([attrName, values]) => {
+          console.log(`\n--- Processing attribute: ${attrName} ---`);
+          console.log(`Available values:`, values);
+
+          if (values.length > 0) {
+            // Use initialAttribute value if valid, otherwise fall back to first value
+            const initialValue = initialAttributes[attrName];
+            console.log(`Initial value from subscription:`, initialValue);
+
+            if (initialValue && values.includes(initialValue)) {
+              console.log(`✅ Match found! Setting ${attrName} = ${initialValue}`);
+              attributesToSet[attrName] = initialValue;
+            } else {
+              console.log(`❌ No match. Falling back to first value: ${values[0]}`);
+              console.log(`Reason: ${!initialValue ? 'initialValue is undefined' : 'initialValue not in values array'}`);
+              attributesToSet[attrName] = values[0];
+            }
+          }
+        });
+      } else {
+        console.log('❌ No initialVariantId or initialAttributes provided, using first values');
+
+        // Default behavior: use first value of each attribute
+        Object.entries(apiProduct.availableAttributes).forEach(([attrName, values]) => {
+          if (values.length > 0) {
+            attributesToSet[attrName] = values[0];
+          }
+        });
+      }
+
+      console.log('🎨 Final attributesToSet:', attributesToSet);
+      setSelectedAttributes(attributesToSet);
+
+      // Find the matching variant to get recommended frequency
+      const matchingVariant = apiProduct.variants.find(v =>
+        Object.entries(attributesToSet).every(([attrName, attrValue]) =>
           v.attributes.some(attr => attr.attributeName === attrName && attr.value === attrValue)
         )
       );
 
-      setQuantity(1);
+      setQuantity(initialQuantity || 1);
       setStep("configure");
       setPurchaseType("one-time");
-      setFrequencyWeeks(firstVariant?.recommendedFrequencyWeeks || 1);
+      setFrequencyWeeks(matchingVariant?.recommendedFrequencyWeeks || 1);
       setCapturedHeight(null);
     }
-  }, [product, apiProduct]);
+  }, [product, apiProduct?.id, initialQuantity]);
 
   // Update frequency when variant changes (if variant has recommended frequency)
   useEffect(() => {

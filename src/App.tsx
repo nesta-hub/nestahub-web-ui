@@ -19,6 +19,7 @@ import Checkout from "./pages/Checkout";
 import Account from "./pages/Account";
 import Orders from "./pages/Orders";
 import Subscriptions from "./pages/Subscriptions";
+import SubscriptionReorder from "./pages/SubscriptionReorder";
 import Catalogue from "./pages/Catalogue";
 import Gifting from "./pages/Gifting";
 import GiftingCards from "./pages/GiftingCards";
@@ -78,6 +79,7 @@ const App = () => (
               <Route path="/account" element={<Account />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/subscriptions" element={<Subscriptions />} />
+              <Route path="/subscriptions/reorder" element={<SubscriptionReorder />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/gift/:giftId" element={<GiftCardRedeem />} />
               <Route path="/image-preview" element={<ImagePreview />} />

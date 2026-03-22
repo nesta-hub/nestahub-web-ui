@@ -11,12 +11,11 @@ interface CheckoutDeliverySpeedSectionProps {
   onChangeSpeed: () => void;
   address?: string | null;
   standardDeliveryFee: number; // in kobo
-  isZone1: boolean;
+  isZone1Or2: boolean; // Weekend delivery only available for Zone 1 & 2
 }
 
-// Weekend delivery fee: FREE for Zone 1, coming soon for other zones at ₦500
-const WEEKEND_DELIVERY_FEE_ZONE1 = 0; // FREE
-const WEEKEND_DELIVERY_FEE_COMING_SOON = 50000; // ₦500 in kobo (not available yet)
+// Weekend delivery fee: ₦500 for all zones
+const WEEKEND_DELIVERY_FEE = 50000; // ₦500 in kobo
 
 /** Returns "This Saturday" or "Next Saturday" based on current day */
 function getNextSaturday(): string {
@@ -57,15 +56,13 @@ export function CheckoutDeliverySpeedSection({
   onChangeSpeed,
   address,
   standardDeliveryFee,
-  isZone1,
+  isZone1Or2,
 }: CheckoutDeliverySpeedSectionProps) {
-  const weekendDeliveryFee = isZone1 ? WEEKEND_DELIVERY_FEE_ZONE1 : WEEKEND_DELIVERY_FEE_COMING_SOON;
-
   if (selectedSpeed) {
     // Determine subtitle for delivery speed summary
     const deliverySubtitle = selectedSpeed === 'standard'
       ? formatPrice(standardDeliveryFee)
-      : (isZone1 ? 'FREE' : formatPrice(weekendDeliveryFee));
+      : formatPrice(WEEKEND_DELIVERY_FEE);
 
     return (
       <div className="space-y-2">
@@ -115,11 +112,11 @@ export function CheckoutDeliverySpeedSection({
 
         <Card
           className={`p-4 transition-colors ${
-            isZone1
+            isZone1Or2
               ? 'cursor-pointer hover:border-primary active:scale-[0.98]'
               : 'opacity-60 cursor-not-allowed'
           }`}
-          onClick={() => isZone1 && onSelectSpeed('weekend')}
+          onClick={() => isZone1Or2 && onSelectSpeed('weekend')}
         >
           <div className="flex flex-col items-center gap-2 text-center">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -127,13 +124,13 @@ export function CheckoutDeliverySpeedSection({
             </div>
             <div>
               <p className="text-sm font-medium">Weekend Drop-off</p>
-              {isZone1 ? (
+              {isZone1Or2 ? (
                 <p className="text-xs text-muted-foreground">
-                  {getNextSaturday()} · <span className="text-green-600 font-medium">FREE</span>
+                  {getNextSaturday()} · {formatPrice(WEEKEND_DELIVERY_FEE)}
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  ₦500 · Coming soon to your address
+                  Coming soon to your area
                 </p>
               )}
             </div>

@@ -422,9 +422,19 @@ export interface MySubscription {
   variantAttributes: MySubscriptionAttribute[];
   frequencyWeeks: number;
   nextRenewalDate: string | null;
-  unitPrice: number; // kobo
+  unitPrice: number; // kobo - subscription price
+  regularPrice: number; // kobo - original price before discount
   quantity: number;
   imageUrl: string | null;
+  lastSkipped: boolean; // Indicates if user has already skipped recently
+  lastMoved: boolean; // Indicates if user has already moved date recently
+  lastDeliveryMethod: string | null; // 'pickup' | 'address' from original order
+  lastDeliverySpeed: string | null; // 'standard' | 'weekend' from original order
+  lastDeliveryAddress: string | null; // Address from original order
+  lastDeliveryLat: number | null; // Latitude from original order
+  lastDeliveryLng: number | null; // Longitude from original order
+  lastPickupStationId: string | null; // Pickup station ID from original order
+  lastPickupStationName: string | null; // Pickup station name for display
 }
 
 export interface MySubscriptionsResponse {
@@ -525,6 +535,138 @@ export async function updateSubscriptionVariant(
     body: JSON.stringify({ variantId }),
   });
   if (!response.ok) throw new Error('Failed to update variant');
+  return response.json();
+}
+
+export async function moveSubscriptionNextDate(
+  id: string,
+  nextDate: string,
+  resetSchedule: boolean,
+  token: string,
+): Promise<MySubscription> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/${id}/next-date`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nextDate, resetSchedule }),
+  });
+  if (!response.ok) throw new Error('Failed to move next date');
+  return response.json();
+}
+
+export async function skipSubscriptionCycle(id: string, token: string): Promise<MySubscription> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/${id}/skip`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to skip cycle');
+  return response.json();
+}
+
+export async function reactivateSubscription(id: string, token: string): Promise<MySubscription> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/${id}/reactivate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to reactivate subscription');
+  return response.json();
+}
+
+export async function cancelSubscriptionWithReason(
+  id: string,
+  reason: string | undefined,
+  token: string,
+): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  if (!response.ok) throw new Error('Failed to cancel subscription');
+  return response.json();
+}
+
+export async function changeSubscriptionVariant(
+  id: string,
+  variantId: string,
+  token: string,
+  quantity?: number,
+): Promise<MySubscription> {
+  const body: any = { variantId };
+  if (quantity !== undefined) {
+    body.quantity = quantity;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/subscriptions/${id}/variant`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error('Failed to change subscription variant');
+  return response.json();
+}
+
+export async function reorderSubscription(
+  id: string,
+  deliveryMethod: string,
+  deliveryDetails: {
+    addressId?: string;
+    deliveryAddress?: string;
+    deliverySpeed?: string;
+    deliveryLat?: number;
+    deliveryLng?: number;
+    pickupStationId?: string;
+  },
+  paymentReference: string | undefined,
+  token: string,
+): Promise<{ orderId: string; nextRenewalDate: string }> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/${id}/reorder`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      deliveryMethod,
+      deliverySpeed: deliveryDetails.deliverySpeed,
+      deliveryAddress: deliveryDetails.deliveryAddress,
+      deliveryLat: deliveryDetails.deliveryLat,
+      deliveryLng: deliveryDetails.deliveryLng,
+      addressId: deliveryDetails.addressId,
+      pickupStationId: deliveryDetails.pickupStationId,
+      paymentReference,
+    }),
+  });
+  if (!response.ok) throw new Error('Failed to process reorder');
+  return response.json();
+}
+
+export async function reorderMultipleSubscriptions(
+  subscriptionIds: string[],
+  deliveryMethod: string,
+  deliveryDetails: {
+    addressId?: string;
+    deliveryAddress?: string;
+    deliverySpeed?: string;
+    deliveryLat?: number;
+    deliveryLng?: number;
+    pickupStationId?: string;
+  },
+  paymentReference: string | undefined,
+  token: string,
+): Promise<{ orderId: string; nextRenewalDate: string }> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/reorder-multiple`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      subscriptionIds,
+      deliveryMethod,
+      deliverySpeed: deliveryDetails.deliverySpeed,
+      deliveryAddress: deliveryDetails.deliveryAddress,
+      deliveryLat: deliveryDetails.deliveryLat,
+      deliveryLng: deliveryDetails.deliveryLng,
+      addressId: deliveryDetails.addressId,
+      pickupStationId: deliveryDetails.pickupStationId,
+      paymentReference,
+    }),
+  });
+  if (!response.ok) throw new Error('Failed to process consolidated reorder');
   return response.json();
 }
 

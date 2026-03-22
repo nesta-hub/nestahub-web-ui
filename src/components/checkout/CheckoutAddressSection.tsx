@@ -18,7 +18,7 @@ const LAGOS_BOUNDS = { minLat: 6.38, maxLat: 6.70, minLng: 2.68, maxLng: 3.70 };
 // Delivery fees in kobo (matching codebase convention)
 export const ZONE_FEES = {
   zone1: 100000, // ₦1,000 — ≤1.5 km
-  zone2: 150000, // ₦1,500 — 1.5–2.5 km
+  zone2: 200000, // ₦2,000 — 1.5–2.5 km
   zone3: 200000, // ₦2,000 — 2.5–10 km
   zone4: 250000, // ₦2,500 — 10–25 km
   zone5: 300000, // ₦3,000 — 25–70 km
@@ -62,6 +62,12 @@ export function getDeliveryFee(lat: number, lng: number): number | "unsupported"
 export function isZone1Address(lat: number, lng: number): boolean {
   const distKm = haversineKm(NESTA_HUB.lat, NESTA_HUB.lng, lat, lng);
   return distKm <= 1.5;
+}
+
+/** Returns true if the address is in Zone 1 or Zone 2 (≤2.5 km from Nesta Hub) - for weekend delivery eligibility */
+export function isZone1Or2Address(lat: number, lng: number): boolean {
+  const distKm = haversineKm(NESTA_HUB.lat, NESTA_HUB.lng, lat, lng);
+  return distKm <= 2.5;
 }
 
 interface CheckoutAddressSectionProps {
