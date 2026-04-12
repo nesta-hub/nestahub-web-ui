@@ -353,6 +353,24 @@ export const api = {
     }
     return response.json();
   },
+
+  async checkPendingMatch(
+    items: { variantId: string; quantity: number }[],
+    token: string,
+  ): Promise<{ match: true; orderNumber: string; totalAmount: number } | { match: false }> {
+    const response = await fetch(`${API_BASE_URL}/orders/check-pending-match`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ items }),
+    });
+    if (!response.ok) {
+      return { match: false };
+    }
+    return response.json();
+  },
 };
 
 // Helper function to format price
@@ -415,8 +433,10 @@ export interface MySubscriptionAttribute {
 export interface MySubscription {
   id: string;
   status: string;
+  productId: string;
   productName: string;
   productBrand: string;
+  productSlug: string;
   categoryId: string;
   variantId: string;
   variantAttributes: MySubscriptionAttribute[];
@@ -424,6 +444,7 @@ export interface MySubscription {
   nextRenewalDate: string | null;
   unitPrice: number; // kobo - subscription price
   regularPrice: number; // kobo - original price before discount
+  subscriptionPrice: number | null; // kobo - subscription price if available
   quantity: number;
   imageUrl: string | null;
   lastSkipped: boolean; // Indicates if user has already skipped recently
@@ -524,6 +545,20 @@ export async function updateSubscriptionFrequency(
   return response.json();
 }
 
+export async function updateSubscriptionQuantity(
+  id: string,
+  quantity: number,
+  token: string,
+): Promise<MySubscription> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/${id}/quantity`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ quantity }),
+  });
+  if (!response.ok) throw new Error('Failed to update quantity');
+  return response.json();
+}
+
 export async function updateSubscriptionVariant(
   id: string,
   variantId: string,
@@ -543,11 +578,17 @@ export async function moveSubscriptionNextDate(
   nextDate: string,
   resetSchedule: boolean,
   token: string,
+  newFrequencyWeeks?: number,
 ): Promise<MySubscription> {
+  const body: any = { nextDate, resetSchedule };
+  if (newFrequencyWeeks !== undefined) {
+    body.newFrequencyWeeks = newFrequencyWeeks;
+  }
+
   const response = await fetch(`${API_BASE_URL}/subscriptions/${id}/next-date`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nextDate, resetSchedule }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error('Failed to move next date');
   return response.json();

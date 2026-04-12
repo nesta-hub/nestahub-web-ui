@@ -1,14 +1,68 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { CartItemRow } from "@/components/cart/CartItemRow";
-import { formatPrice } from "@/lib/api";
-import { ArrowLeft, ShoppingBag, RefreshCw } from "lucide-react";
+import { ResumeOrderDrawer } from "@/components/cart/ResumeOrderDrawer";
+import { api, formatPrice } from "@/lib/api";
+import { ArrowLeft, ShoppingBag, RefreshCw, Loader2 } from "lucide-react";
 
 const Cart = () => {
   const navigate = useNavigate();
   const { items, itemCount, totalAmount } = useCart();
+  const { user, session } = useAuth();
+  const [isChecking, setIsChecking] = useState(false);
+  const [showResumeDrawer, setShowResumeDrawer] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState<{ orderNumber: string; totalAmount: number } | null>(null);
+
+  const handleCheckout = async () => {
+    if (!user || !session) {
+      navigate('/checkout');
+      return;
+    }
+
+    setIsChecking(true);
+
+    try {
+      const cartItems = items.map((i) => ({
+        variantId: i.variantId,
+        quantity: i.quantity,
+        isAutoRenew: i.isAutoRenew ?? false,
+        frequencyWeeks: i.isAutoRenew ? (i.frequencyWeeks ?? null) : null,
+      }));
+      const result = await api.checkPendingMatch(cartItems, session.access_token);
+
+      if (result.match) {
+        setPendingOrder({ orderNumber: result.orderNumber, totalAmount: result.totalAmount });
+        setShowResumeDrawer(true);
+      } else {
+        navigate('/checkout');
+      }
+    } catch (error) {
+      console.error('[Cart] Failed to check pending orders:', error);
+      navigate('/checkout');
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  const handleResume = () => {
+    setShowResumeDrawer(false);
+    navigate('/checkout', {
+      state: { resumeOrderNumber: pendingOrder!.orderNumber, resumeAmount: pendingOrder!.totalAmount },
+    });
+  };
+
+  const handleCancelAndNew = async () => {
+    setIsCancelling(true);
+    await api.cancelOrder(pendingOrder!.orderNumber, session!.access_token);
+    setIsCancelling(false);
+    setShowResumeDrawer(false);
+    navigate('/checkout');
+  };
 
   const renewalGroups = items
     .filter(item => item.isAutoRenew && item.frequencyWeeks)
@@ -83,9 +137,17 @@ const Cart = () => {
               <Button
                 variant="shop"
                 className="w-full h-12 rounded-xl text-base"
-                onClick={() => navigate("/checkout")}
+                onClick={handleCheckout}
+                disabled={isChecking}
               >
-                Checkout
+                {isChecking ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  'Checkout'
+                )}
               </Button>
             </div>
           </>
@@ -102,6 +164,17 @@ const Cart = () => {
           </div>
         )}
       </div>
+      {pendingOrder && (
+        <ResumeOrderDrawer
+          open={showResumeDrawer}
+          onOpenChange={setShowResumeDrawer}
+          existingOrderNumber={pendingOrder.orderNumber}
+          existingTotalAmount={pendingOrder.totalAmount}
+          onResume={handleResume}
+          onCancelAndNew={handleCancelAndNew}
+          isCancelling={isCancelling}
+        />
+      )}
     </Layout>
   );
 };

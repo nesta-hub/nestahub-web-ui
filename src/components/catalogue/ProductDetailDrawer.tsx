@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,7 @@ import { CloudinaryPresets } from "@/lib/cloudinary";
 import { QuantityControl } from "@/components/cart/QuantityControl";
 import { useCart } from "@/contexts/CartContext";
 import { Check, RefreshCw, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 
 interface ProductDetailDrawerProps {
   open: boolean;
@@ -37,7 +39,8 @@ const BASE_FREQUENCY_OPTIONS = [
 ];
 
 export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, mode = 'cart', onSelect, preferSubscriptionPrice = false, initialAttributes, initialVariantId, initialQuantity }: ProductDetailDrawerProps) {
-  const { addToCart } = useCart();
+  const { addToCart, openCart } = useCart();
+  const navigate = useNavigate();
 
   // Fetch API product if slug is provided
   const { data: apiProduct, isLoading } = useQuery({
@@ -458,6 +461,13 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
       }, quantity);
 
       onOpenChange(false);
+      toast.success("Added to cart", {
+        duration: 3000,
+        action: {
+          label: "Go to Cart",
+          onClick: () => setTimeout(() => navigate('/cart'), 100),
+        },
+      });
       // Reset state
       setStep("configure");
       setPurchaseType("one-time");
@@ -501,6 +511,13 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
     }, quantity);
 
     onOpenChange(false);
+    toast.success("Added to cart", {
+      duration: 3000,
+      action: {
+        label: "Go to Cart",
+        onClick: () => setTimeout(() => navigate('/cart'), 100),
+      },
+    });
     // Reset state
     setStep("configure");
     setPurchaseType("one-time");
@@ -563,10 +580,14 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
                 >
                   {displayProduct.brand} {displayProduct.name}
                 </h2>
-                {(step === "configure" || step === "details") && attributeSummary && (
+                {(step === "configure" || step === "details") && (
                   <div className="flex items-center justify-center gap-1 mt-1 text-sm">
-                    <span className="text-muted-foreground">{attributeSummary}</span>
-                    <span className="text-muted-foreground">·</span>
+                    {attributeSummary && (
+                      <>
+                        <span className="text-muted-foreground">{attributeSummary}</span>
+                        <span className="text-muted-foreground">·</span>
+                      </>
+                    )}
                     <button
                       onClick={() => {
                         if (step === "configure" && contentRef.current) {

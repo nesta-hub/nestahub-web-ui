@@ -1,4 +1,4 @@
-import { ChevronRight, Package, RefreshCw, CalendarDays, SkipForward, XCircle } from "lucide-react";
+import { ChevronRight, RefreshCw, CalendarDays, XCircle, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Drawer,
@@ -22,10 +22,9 @@ interface ManageSubscriptionDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   subscription: MockSubscription | null;
-  onChangeProduct: () => void;
   onChangeFrequency: () => void;
   onMoveDate: () => void;
-  onSkipCycle: () => void;
+  onChangeQuantity: () => void;
   onCancel: () => void;
 }
 
@@ -33,50 +32,37 @@ export function ManageSubscriptionDrawer({
   open,
   onOpenChange,
   subscription,
-  onChangeProduct,
   onChangeFrequency,
   onMoveDate,
-  onSkipCycle,
+  onChangeQuantity,
   onCancel,
 }: ManageSubscriptionDrawerProps) {
   if (!subscription) return null;
 
   const actions: ManageAction[] = [
     {
-      key: "product",
-      icon: Package,
-      label: "Change product",
-      description: "Switch to a different product size or quantity",
+      key: "move",
+      icon: CalendarDays,
+      label: "Move next order date",
+      description: "Push your next order to a later date",
     },
     {
       key: "frequency",
       icon: RefreshCw,
       label: "Change frequency",
-      description: "Adjust how often you receive orders",
+      description: "Adjust how often you order this item",
     },
     {
-      key: "move",
-      icon: CalendarDays,
-      label: "Move order date",
-      description: subscription.lastMoved
-        ? "Already moved — resets after next order"
-        : "Push your next order to a later date",
-      disabled: subscription.lastMoved,
-    },
-    {
-      key: "skip",
-      icon: SkipForward,
-      label: "Skip this order",
-      description: subscription.lastSkipped
-        ? "Already skipped — resume after next order"
-        : "Skip this order, resume next cycle",
-      disabled: subscription.lastSkipped,
+      key: "quantity",
+      icon: Hash,
+      label: "Change quantity",
+      description: "Update how many you receive each time",
     },
     {
       key: "cancel",
       icon: XCircle,
-      label: "Cancel subscription",
-      description: "End your subscription",
+      label: "Cancel Item Subscription",
+      description: "Take this product off your subscription",
       destructive: true,
     },
   ];
@@ -85,10 +71,9 @@ export function ManageSubscriptionDrawer({
     onOpenChange(false);
     setTimeout(() => {
       switch (key) {
-        case "product": onChangeProduct(); break;
         case "frequency": onChangeFrequency(); break;
         case "move": onMoveDate(); break;
-        case "skip": onSkipCycle(); break;
+        case "quantity": onChangeQuantity(); break;
         case "cancel": onCancel(); break;
       }
     }, 200);
@@ -98,10 +83,7 @@ export function ManageSubscriptionDrawer({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>Manage Subscription</DrawerTitle>
-          <DrawerDescription>
-            {subscription.brand} {subscription.productName}
-          </DrawerDescription>
+          <DrawerTitle>Manage {subscription.brand} {subscription.productName}</DrawerTitle>
         </DrawerHeader>
 
         <div className="px-4 pb-6">

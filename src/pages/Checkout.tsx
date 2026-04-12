@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ type DeliverySpeed = 'standard' | 'weekend';
 const Checkout = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { items, totalAmount, clearCart } = useCart();
   const { user, session } = useAuth();
 
@@ -68,6 +69,16 @@ const Checkout = () => {
   // Determine order type: 'bundle' if coming from gifting page, else 'shop'
   const orderType = searchParams.get('source') === 'gifting' ? 'bundle' : 'shop';
   const bundleId = searchParams.get('bundleId');
+
+  // Handle resume flow: if navigated from Cart with an existing order, skip to payment
+  useEffect(() => {
+    const state = location.state as { resumeOrderNumber?: string; resumeAmount?: number } | null;
+    if (state?.resumeOrderNumber) {
+      setOrderNumber(state.resumeOrderNumber);
+      setServerTotalAmount(state.resumeAmount ?? null);
+      setShowPayment(true);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Redirect to catalogue if cart is empty (but not when showing payment/success screens)
   useEffect(() => {
@@ -149,6 +160,7 @@ const Checkout = () => {
         quantity: item.quantity,
         isAutoRenew: item.isAutoRenew ?? false,
         frequencyWeeks: item.isAutoRenew ? (item.frequencyWeeks ?? null) : null,
+        subscriptionId: item.subscriptionId ?? undefined,
       }));
 
       const result = await api.createOrder(

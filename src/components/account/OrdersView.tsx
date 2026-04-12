@@ -16,13 +16,14 @@ import { getMyOrders, formatPrice, MyOrder, api } from "@/lib/api";
 import { toast } from "sonner";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
-  order_submitted: { label: "Pending", className: "bg-blue-100 text-blue-700 border-blue-200" },
+  order_submitted: { label: "Awaiting Payment", className: "bg-blue-100 text-blue-700 border-blue-200" },
   payment_made: { label: "Pending", className: "bg-blue-100 text-blue-700 border-blue-200" },
   payment_confirmed: { label: "Processing", className: "bg-amber-100 text-amber-700 border-amber-200" },
   processing: { label: "Processing", className: "bg-amber-100 text-amber-700 border-amber-200" },
   completed: { label: "Completed", className: "bg-green-100 text-green-700 border-green-200" },
   delivered: { label: "Delivered", className: "bg-green-100 text-green-700 border-green-200" },
   cancelled: { label: "Cancelled", className: "bg-red-100 text-red-700 border-red-200" },
+  expired: { label: "Expired", className: "bg-gray-100 text-gray-500 border-gray-200" },
 };
 
 function formatOrderDate(dateStr: string): string {

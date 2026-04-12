@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -24,7 +23,7 @@ interface CancelSubscriptionDrawerProps {
   onOpenChange: (open: boolean) => void;
   productName: string;
   onConfirm: (reason?: string) => void;
-  onSkipInstead: () => void;
+  onMoveDate: () => void;
   onChangeFrequency: () => void;
 }
 
@@ -33,7 +32,7 @@ export function CancelSubscriptionDrawer({
   onOpenChange,
   productName,
   onConfirm,
-  onSkipInstead,
+  onMoveDate,
   onChangeFrequency,
 }: CancelSubscriptionDrawerProps) {
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
@@ -48,11 +47,8 @@ export function CancelSubscriptionDrawer({
   return (
     <Drawer open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-destructive" />
-            Cancel Subscription
-          </DrawerTitle>
+        <DrawerHeader className="text-center">
+          <DrawerTitle>Cancel Subscription</DrawerTitle>
           <DrawerDescription>
             {showReasons
               ? "Optional: let us know why you're cancelling."
@@ -65,21 +61,21 @@ export function CancelSubscriptionDrawer({
             <div className="space-y-2">
               <button
                 onClick={() => { handleClose(); onChangeFrequency(); }}
-                className="w-full text-left p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/60 transition-colors"
+                className="w-full p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/60 transition-colors text-center"
               >
-                <p className="text-sm font-medium text-foreground">Change order frequency</p>
-                <p className="text-xs text-muted-foreground">Adjust how often you receive orders</p>
+                <p className="text-sm font-medium text-foreground">Change frequency</p>
+                <p className="text-xs text-muted-foreground">Adjust how often you order this item</p>
               </button>
               <button
-                onClick={() => { handleClose(); onSkipInstead(); }}
-                className="w-full text-left p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/60 transition-colors"
+                onClick={() => { handleClose(); onMoveDate(); }}
+                className="w-full p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/60 transition-colors text-center"
               >
-                <p className="text-sm font-medium text-foreground">Skip this order</p>
-                <p className="text-xs text-muted-foreground">Push your next order forward</p>
+                <p className="text-sm font-medium text-foreground">Move next order date</p>
+                <p className="text-xs text-muted-foreground">Push your next order to a later date</p>
               </button>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
               {CANCEL_REASONS.map((reason) => (
                 <button
                   key={reason}

@@ -22,6 +22,7 @@ export interface CartItem {
   frequencyWeeks?: number; // 2-8 weeks
   subscriptionPrice?: number; // Custom subscription price from variant (in kobo)
   recommendedFrequencyWeeks?: number; // Recommended frequency from variant
+  subscriptionId?: string; // ID of subscription being reordered (for preventing duplicates)
 }
 
 interface CartContextType {

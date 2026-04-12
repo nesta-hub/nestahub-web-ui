@@ -1,15 +1,18 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Minus, Plus, Hash, Check } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
+import { FloatingCartIcon } from "@/components/cart/FloatingCartIcon";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   getMySubscriptions,
   updateSubscriptionFrequency,
+  updateSubscriptionQuantity,
   updateSubscriptionVariant,
   moveSubscriptionNextDate,
   skipSubscriptionCycle,
@@ -30,9 +33,46 @@ import { FrequencyStartDateDrawer } from "@/components/subscriptions/FrequencySt
 import { FrequencySelectDrawer } from "@/components/subscriptions/FrequencySelectDrawer";
 import { ProductDetailDrawer } from "@/components/catalogue/ProductDetailDrawer";
 import { toast } from "sonner";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from "@/components/ui/drawer";
+
+const FREQUENCY_OPTIONS = [
+  { weeks: 1, label: "1 wk" },
+  { weeks: 2, label: "2 wks" },
+  { weeks: 3, label: "3 wks" },
+  { weeks: 4, label: "4 wks" },
+  { weeks: 5, label: "5 wks" },
+  { weeks: 6, label: "6 wks" },
+  { weeks: 7, label: "7 wks" },
+  { weeks: 8, label: "8 wks" },
+];
+
+function parseDate(dateStr: string): Date {
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+
+function isWithinDays(dateStr: string, days: number): boolean {
+  const d = parseDate(dateStr);
+  const now = new Date();
+  const diff = (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  return diff >= 0 && diff <= days;
+}
+
+function getEffectiveStatus(sub: MySubscription): string {
+  if (sub.status === "cancelled" || sub.status === "paused") return sub.status;
+  if (isWithinDays(sub.nextRenewalDate ?? "", 3)) return "order_due";
+  return "active";
+}
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   active: { label: "Active", className: "bg-green-100 text-green-700 border-green-200" },
+  order_due: { label: "Order Due", className: "bg-orange-100 text-orange-700 border-orange-200" },
   paused: { label: "Paused", className: "bg-amber-100 text-amber-700 border-amber-200" },
 };
 
@@ -42,6 +82,7 @@ interface SubscriptionsViewProps {
 
 export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
   const { session } = useAuth();
+  const { addToCart, openCart, itemCount, items: cartItems } = useCart();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const token = session?.access_token ?? "";
@@ -63,38 +104,12 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
     });
   }, [subs]);
 
-  // Group subscriptions by nextRenewalDate (only active subs within 7 days)
-  const consolidatedGroups = useMemo(() => {
-    const groups = new Map<string, MySubscription[]>();
-
-    sortedSubs.forEach(sub => {
-      if (sub.status !== 'active' || !sub.nextRenewalDate) return;
-
-      // Use date-only key (YYYY-MM-DD) for grouping
-      const dateKey = new Date(sub.nextRenewalDate).toISOString().split('T')[0];
-      const existing = groups.get(dateKey) || [];
-      groups.set(dateKey, [...existing, sub]);
-    });
-
-    // Filter to only show groups with 2+ subscriptions within 7 days
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const in7Days = new Date(today);
-    in7Days.setDate(today.getDate() + 7);
-
-    return Array.from(groups.entries())
-      .filter(([dateKey, groupSubs]) => {
-        const renewalDate = new Date(dateKey);
-        renewalDate.setHours(0, 0, 0, 0);
-        return groupSubs.length >= 2 && renewalDate <= in7Days;
-      })
-      .map(([dateKey, groupSubs]) => ({
-        renewalDate: dateKey,
-        subscriptions: groupSubs,
-        totalPrice: groupSubs.reduce((sum, s) => sum + (s.unitPrice * s.quantity), 0),
-        totalSavings: groupSubs.reduce((sum, s) => sum + ((s.regularPrice - s.unitPrice) * s.quantity), 0),
-      }));
-  }, [sortedSubs]);
+  // Calculate active subs and total savings
+  const activeSubs = sortedSubs.filter(s => s.status === 'active');
+  const totalSavings = activeSubs.reduce(
+    (sum, s) => sum + ((s.regularPrice - (s.subscriptionPrice || s.unitPrice)) * s.quantity),
+    0,
+  );
 
   // Drawer states
   const [manageSub, setManageSub] = useState<MySubscription | null>(null);
@@ -104,12 +119,20 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
   const [freqConfirmOpen, setFreqConfirmOpen] = useState(false);
   const [freqStartDateOpen, setFreqStartDateOpen] = useState(false);
 
+  // Quantity change drawer states
+  const [quantitySub, setQuantitySub] = useState<MySubscription | null>(null);
+  const [pendingQuantity, setPendingQuantity] = useState(1);
+
   // Product change states
   const [productChangeSub, setProductChangeSub] = useState<MySubscription | null>(null);
   const [productDrawerOpen, setProductDrawerOpen] = useState(false);
   const [selectedProductSlug, setSelectedProductSlug] = useState<string | null>(null);
 
-  // Frequency select drawer states
+  // Frequency change drawer states
+  const [frequencySub, setFrequencySub] = useState<MySubscription | null>(null);
+  const [pendingFrequency, setPendingFrequency] = useState<number | null>(null);
+
+  // Legacy frequency select drawer states (keeping for compatibility)
   const [freqSelectSub, setFreqSelectSub] = useState<MySubscription | null>(null);
   const [freqSelectOpen, setFreqSelectOpen] = useState(false);
 
@@ -119,6 +142,11 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
     currentFreq: number;
     newFreq: number;
   } | null>(null);
+
+  // Helper function to check if a subscription is in cart
+  const isSubscriptionInCart = (subscriptionId: string) => {
+    return cartItems.some(item => item.subscriptionId === subscriptionId);
+  };
 
   // Fetch category products when changing product
   const { data: categoryProductsData } = useQuery({
@@ -133,11 +161,13 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
       subId,
       newDate,
       resetSchedule,
+      newFrequencyWeeks,
     }: {
       subId: string;
       newDate: Date;
       resetSchedule: boolean;
-    }) => moveSubscriptionNextDate(subId, newDate.toISOString(), resetSchedule, token),
+      newFrequencyWeeks?: number;
+    }) => moveSubscriptionNextDate(subId, newDate.toISOString(), resetSchedule, token, newFrequencyWeeks),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-subscriptions"] });
       setMoveDateSub(null);
@@ -189,6 +219,18 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
     },
   });
 
+  const changeQuantityMutation = useMutation({
+    mutationFn: ({ id, quantity }: { id: string; quantity: number }) =>
+      updateSubscriptionQuantity(id, quantity, token),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["my-subscriptions"] });
+      toast.success("Quantity updated", {
+        description: `Now receiving ${variables.quantity} per order`
+      });
+      setQuantitySub(null);
+    },
+  });
+
   const variantChangeMutation = useMutation({
     mutationFn: ({ subId, variantId, quantity }: { subId: string; variantId: string; quantity?: number }) =>
       changeSubscriptionVariant(subId, variantId, token, quantity),
@@ -202,7 +244,7 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
   });
 
   // Handlers
-  const handleMoveDateConfirm = (newDate: Date) => {
+  const handleMoveDateConfirm = (newDate: Date, resetSchedule?: boolean, newFrequencyWeeks?: number) => {
     if (!moveDateSub) return;
     const formatted = newDate.toLocaleDateString("en-GB", {
       day: "numeric",
@@ -212,10 +254,12 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
     moveNextDateMutation.mutate({
       subId: moveDateSub.id,
       newDate,
-      resetSchedule: true, // Always reset - it's what actually happens
+      resetSchedule: resetSchedule ?? true,
+      newFrequencyWeeks,
     });
+    const frequency = newFrequencyWeeks ?? moveDateSub.frequencyWeeks;
     toast.success("Order date updated", {
-      description: `Next order: ${formatted}. Future orders will be every ${moveDateSub.frequencyWeeks} week${moveDateSub.frequencyWeeks !== 1 ? "s" : ""} from this date.`,
+      description: `Next order: ${formatted}. Future orders will be every ${frequency} week${frequency !== 1 ? "s" : ""} from this date.`,
     });
   };
 
@@ -238,6 +282,67 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
     toast.success("Subscription cancelled", {
       description: reason ? `Reason: ${reason}` : "Your subscription has been cancelled.",
     });
+  };
+
+  const handleFrequencySelect = () => {
+    if (!frequencySub || pendingFrequency === null) return;
+    setPendingFreqChange({
+      subId: frequencySub.id,
+      currentFreq: frequencySub.frequencyWeeks,
+      newFreq: pendingFrequency,
+    });
+    setFrequencySub(null);
+    setPendingFrequency(null);
+    setFreqConfirmOpen(true);
+  };
+
+  const handleAddToCart = (sub: MySubscription) => {
+    addToCart(
+      {
+        variantId: sub.variantId,
+        productId: sub.productId,
+        productName: sub.productName,
+        brand: sub.productBrand,
+        slug: sub.productSlug || sub.productId,
+        typeId: sub.variantId,
+        typeName: sub.productName,
+        attributes: sub.variantAttributes.map(attr => ({
+          attributeName: attr.name,
+          value: attr.value,
+          displayValue: attr.value,
+        })),
+        unitPrice: sub.subscriptionPrice || sub.unitPrice,
+        image: sub.imageUrl || undefined,
+        isAutoRenew: true,
+        frequencyWeeks: sub.frequencyWeeks,
+        subscriptionPrice: sub.subscriptionPrice || undefined,
+        subscriptionId: sub.id, // Pass subscription ID to prevent duplicate creation
+      },
+      sub.quantity,
+    );
+    toast.success("Added to cart", {
+      action: {
+        label: "Go to Cart",
+        onClick: () => setTimeout(() => navigate('/cart'), 100),
+      },
+      cancel: {
+        label: "Shop Other Items",
+        onClick: () => setTimeout(() => navigate('/catalogue'), 100),
+      },
+    });
+  };
+
+  const getDateBadgeClass = (dateStr: string | null) => {
+    if (!dateStr) return "bg-emerald-500/15 text-emerald-700";
+    const parsed = parseDate(dateStr);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dueDay = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+    const diffDays = Math.floor((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) return "bg-red-500/15 text-red-700";
+    if (diffDays <= 7) return "bg-amber-500/15 text-amber-700";
+    return "bg-emerald-500/15 text-emerald-700";
   };
 
   const handleChangeFrequency = (sub: MySubscription, newFrequency: number) => {
@@ -329,72 +434,36 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
 
   return (
     <div className="px-6 py-6">
+      {itemCount > 0 && <FloatingCartIcon />}
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4">
         <button onClick={onBack} className="p-1 -ml-1 text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-lg font-semibold text-foreground">
-          My Subscriptions ({subs.length} {subs.length === 1 ? "item" : "items"})
-        </h1>
+        <h1 className="text-lg font-semibold text-foreground">My Subscriptions</h1>
       </div>
+
+      {/* Overview Strip */}
+      {activeSubs.length > 0 && (
+        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 mb-5 flex items-center justify-center gap-2 text-xs">
+          <span className="text-muted-foreground font-medium">
+            {activeSubs.length} {activeSubs.length === 1 ? "item" : "items"}
+          </span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-primary font-semibold">Saving an extra {formatPrice(totalSavings)}</span>
+        </div>
+      )}
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground text-center py-12">Loading...</p>
-      ) : subs.length === 0 ? (
+      ) : activeSubs.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-12">No active subscriptions</p>
       ) : (
         <>
-          {/* Consolidated Order Banners */}
-          {consolidatedGroups.map(group => {
-            const renewalDate = new Date(group.renewalDate);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            renewalDate.setHours(0, 0, 0, 0);
-
-            const daysUntil = Math.ceil((renewalDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            const dateLabel = daysUntil === 0
-              ? 'today'
-              : daysUntil === 1
-              ? 'tomorrow'
-              : `on ${renewalDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
-
-            return (
-              <div key={group.renewalDate} className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                <p className="text-sm font-semibold text-foreground mb-3">
-                  {group.subscriptions.length} items due {dateLabel}
-                </p>
-
-                <div className="flex flex-wrap gap-x-2 gap-y-1 mb-3">
-                  {group.subscriptions.map(sub => (
-                    <span key={sub.id} className="text-xs text-muted-foreground">
-                      {sub.productBrand} {sub.productName} · Qty: {sub.quantity}
-                    </span>
-                  ))}
-                </div>
-
-                <Button
-                  variant="outline"
-                  className="w-full h-9 text-xs"
-                  onClick={() => {
-                    const subIds = group.subscriptions.map(s => s.id).join(',');
-                    navigate(`/subscriptions/reorder?subIds=${subIds}`);
-                  }}
-                >
-                  Order {group.subscriptions.length} items now
-                </Button>
-              </div>
-            );
-          })}
-
           {/* Individual Subscription Cards */}
           <div className="divide-y divide-border">
-            {sortedSubs.map((sub) => {
-            const config = statusConfig[sub.status] ?? {
-              label: sub.status,
-              className: "bg-secondary text-muted-foreground border-border",
-            };
-            const displayName = `${sub.productBrand} ${sub.productName}`;
+            {activeSubs.map((sub) => {
+            const qty = sub.quantity;
             const displayVariant = sub.variantAttributes.map((a) => a.value).join(" · ");
 
             return (
@@ -405,7 +474,7 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
                     {sub.imageUrl ? (
                       <img
                         src={CloudinaryPresets.card(sub.imageUrl)}
-                        alt={displayName}
+                        alt={`${sub.productBrand} ${sub.productName}`}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -415,51 +484,56 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    {/* Row 1: Name + status */}
+                    {/* Row 1: Name + Next date badge */}
                     <div className="flex items-start justify-between mb-1">
-                      <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
-                      <Badge
-                        variant="outline"
-                        className={cn("text-[10px] px-2 py-0 flex-shrink-0 ml-2", config.className)}
-                      >
-                        {config.label}
-                      </Badge>
-                    </div>
-
-                    {/* Row 2: Variant + Quantity */}
-                    {displayVariant && (
-                      <p className="text-xs text-muted-foreground mb-2">
-                        {displayVariant} · Qty: {sub.quantity}
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {sub.productBrand} {sub.productName}
                       </p>
-                    )}
-
-                    {/* Row 3: Frequency + Next */}
-                    <div className="flex items-center gap-2 mb-1 text-xs">
-                      <span className="text-muted-foreground">
-                        Every {sub.frequencyWeeks} week{sub.frequencyWeeks !== 1 ? "s" : ""}
-                      </span>
                       <Badge
                         variant="secondary"
-                        className="bg-primary/10 text-primary text-[10px] px-2 py-0"
+                        className={`${getDateBadgeClass(sub.nextRenewalDate)} text-[10px] px-2 py-0 flex-shrink-0 ml-2`}
                       >
                         Next: {formatNextDelivery(sub.nextRenewalDate)}
                       </Badge>
                     </div>
 
-                    {/* Row 4: Price */}
-                    <p className="text-xs font-semibold text-foreground mb-3">
-                      {formatPrice(sub.unitPrice * sub.quantity)}
+                    {/* Row 2: Variant + Qty */}
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {[displayVariant, `Qty: ${qty}`].filter(Boolean).join(" · ")}
                     </p>
 
-                    {/* Side-by-side CTAs */}
+                    {/* Row 3: Frequency */}
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Every {sub.frequencyWeeks} week{sub.frequencyWeeks !== 1 ? "s" : ""}
+                    </p>
+
+                    {/* Row 4: Pricing */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-xs font-semibold text-foreground">
+                        {formatPrice((sub.subscriptionPrice || sub.unitPrice) * sub.quantity)}
+                      </span>
+                      <span className="text-xs text-muted-foreground line-through">
+                        {formatPrice(sub.regularPrice * sub.quantity)}
+                      </span>
+                    </div>
+
+                    {/* CTAs */}
                     {sub.status === "active" && (
                       <div className="flex gap-2 w-full">
-                        <Button
-                          className="flex-1 h-9 text-xs rounded-lg"
-                          onClick={() => navigate(`/subscriptions/reorder?subId=${sub.id}`)}
-                        >
-                          Order Now
-                        </Button>
+                        {isSubscriptionInCart(sub.id) ? (
+                          <Button className="flex-1 h-9 text-xs rounded-lg gap-1.5" disabled>
+                            <Check className="w-3.5 h-3.5" />
+                            Added to Cart
+                          </Button>
+                        ) : (
+                          <Button
+                            className="flex-1 h-9 text-xs rounded-lg gap-1.5"
+                            onClick={() => handleAddToCart(sub)}
+                          >
+                            <ShoppingCart className="w-3.5 h-3.5" />
+                            Order Now
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           className="flex-1 h-9 text-xs rounded-lg"
@@ -483,17 +557,10 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
         open={!!manageSub}
         onOpenChange={(open) => !open && setManageSub(null)}
         subscription={manageSub}
-        onChangeProduct={() => {
-          if (manageSub) {
-            setProductChangeSub(manageSub);
-            // Note: Product drawer will open when categoryProductsData loads
-          }
-          setManageSub(null);
-        }}
         onChangeFrequency={() => {
           if (manageSub) {
-            setFreqSelectSub(manageSub);
-            setFreqSelectOpen(true);
+            setFrequencySub(manageSub);
+            setPendingFrequency(manageSub.frequencyWeeks);
           }
           setManageSub(null);
         }}
@@ -501,8 +568,11 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
           if (manageSub) setMoveDateSub(manageSub);
           setManageSub(null);
         }}
-        onSkipCycle={() => {
-          if (manageSub) setSkipCycleSub(manageSub);
+        onChangeQuantity={() => {
+          if (manageSub) {
+            setQuantitySub(manageSub);
+            setPendingQuantity(manageSub.quantity);
+          }
           setManageSub(null);
         }}
         onCancel={() => {
@@ -517,7 +587,7 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
         onOpenChange={(open) => !open && setMoveDateSub(null)}
         currentDate={moveDateSub?.nextRenewalDate ?? ""}
         currentFrequency={moveDateSub?.frequencyWeeks ?? 4}
-        lastMoved={moveDateSub?.lastMoved ?? false}
+        alreadyMoved={moveDateSub?.lastMoved ?? false}
         onConfirm={handleMoveDateConfirm}
       />
 
@@ -538,24 +608,16 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
         onOpenChange={(open) => !open && setCancelSub(null)}
         productName={cancelSub ? `${cancelSub.productBrand} ${cancelSub.productName}` : ""}
         onConfirm={handleCancelConfirm}
-        onSkipInstead={() => {
-          setCancelSub(null);
-          if (cancelSub) setSkipCycleSub(cancelSub);
-        }}
         onChangeFrequency={() => {
           setCancelSub(null);
           if (cancelSub) {
-            const newFreq = prompt(
-              `Current frequency: Every ${cancelSub.frequencyWeeks} week(s)\n\nEnter new frequency (1-8 weeks):`,
-              cancelSub.frequencyWeeks.toString()
-            );
-            if (newFreq && !isNaN(parseInt(newFreq))) {
-              const freq = parseInt(newFreq);
-              if (freq >= 1 && freq <= 8) {
-                handleChangeFrequency(cancelSub, freq);
-              }
-            }
+            setFrequencySub(cancelSub);
+            setPendingFrequency(cancelSub.frequencyWeeks);
           }
+        }}
+        onMoveDate={() => {
+          setCancelSub(null);
+          if (cancelSub) setMoveDateSub(cancelSub);
         }}
       />
 
@@ -612,6 +674,78 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
         onConfirm={handleFrequencyStartDateConfirm}
       />
 
+      {/* Quantity Change Drawer */}
+      {quantitySub && (
+        <Drawer open={!!quantitySub} onOpenChange={() => setQuantitySub(null)}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>Change Quantity</DrawerTitle>
+              <DrawerDescription>
+                {quantitySub.productBrand} {quantitySub.productName}
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="px-6 py-4">
+              <div className="flex items-center justify-center gap-4 mb-6">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPendingQuantity(Math.max(1, pendingQuantity - 1))}
+                >
+                  <Minus className="w-4 h-4" />
+                </Button>
+                <span className="text-2xl font-bold w-16 text-center">{pendingQuantity}</span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPendingQuantity(pendingQuantity + 1)}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Price Preview */}
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Current total:</span>
+                  <span className="font-semibold">
+                    {formatPrice((quantitySub.subscriptionPrice || quantitySub.unitPrice) * quantitySub.quantity)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">New total:</span>
+                  <span className="font-semibold text-primary">
+                    {formatPrice((quantitySub.subscriptionPrice || quantitySub.unitPrice) * pendingQuantity)}
+                  </span>
+                </div>
+                {pendingQuantity !== quantitySub.quantity && (
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-border">
+                    <span className="text-muted-foreground">Change:</span>
+                    <span className={pendingQuantity > quantitySub.quantity ? "text-orange-600" : "text-green-600"}>
+                      {pendingQuantity > quantitySub.quantity ? "+" : ""}
+                      {formatPrice(((quantitySub.subscriptionPrice || quantitySub.unitPrice) * (pendingQuantity - quantitySub.quantity)))}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <Button variant="outline" onClick={() => setQuantitySub(null)} className="flex-1">
+                Cancel
+              </Button>
+              <Button
+                variant="shop"
+                className="flex-1"
+                onClick={() => {
+                  changeQuantityMutation.mutate({ id: quantitySub.id, quantity: pendingQuantity });
+                }}
+              >
+                Save
+              </Button>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
+
       {/* Product Change - List products from category */}
       {productChangeSub && productSlugForChange && (
         <ProductDetailDrawer
@@ -640,21 +774,53 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
         />
       )}
 
-      {/* Frequency Select Drawer */}
-      <FrequencySelectDrawer
-        open={freqSelectOpen}
-        onOpenChange={(open) => {
-          setFreqSelectOpen(open);
-          if (!open) setFreqSelectSub(null);
-        }}
-        currentFrequency={freqSelectSub?.frequencyWeeks ?? 4}
-        productName={freqSelectSub ? `${freqSelectSub.productBrand} ${freqSelectSub.productName}` : ""}
-        onConfirm={(newFrequency) => {
-          if (freqSelectSub) {
-            handleChangeFrequency(freqSelectSub, newFrequency);
-          }
-        }}
-      />
+      {/* Change Frequency Drawer */}
+      {frequencySub && (
+        <Drawer open={!!frequencySub} onOpenChange={() => { setFrequencySub(null); setPendingFrequency(null); }}>
+          <DrawerContent className="px-6 pb-8">
+            <DrawerHeader className="px-0 pt-4 pb-2">
+              <DrawerTitle className="text-base font-semibold">Change Frequency</DrawerTitle>
+              <DrawerDescription className="text-sm text-muted-foreground">
+                {frequencySub.productBrand} {frequencySub.productName}
+              </DrawerDescription>
+            </DrawerHeader>
+
+            <div className="space-y-4">
+              {/* Inline frequency selector grid - NO "Current:" text */}
+              <div className="grid grid-cols-4 gap-2">
+                {FREQUENCY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.weeks}
+                    onClick={() => setPendingFrequency(opt.weeks)}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all",
+                      pendingFrequency === opt.weeks ? "border-primary bg-primary/10" : "border-border bg-background"
+                    )}
+                  >
+                    <span className={cn("text-sm font-bold", pendingFrequency === opt.weeks ? "text-primary" : "text-muted-foreground")}>
+                      {opt.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => { setFrequencySub(null); setPendingFrequency(null); }}>
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  disabled={pendingFrequency === null || pendingFrequency === frequencySub.frequencyWeeks}
+                  onClick={handleFrequencySelect}
+                >
+                  Confirm
+                </Button>
+              </div>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
     </div>
   );
 }
