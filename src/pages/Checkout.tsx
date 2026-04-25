@@ -27,7 +27,7 @@ const Checkout = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const { items, totalAmount, clearCart } = useCart();
-  const { user, session } = useAuth();
+  const { user, session, walletBalance } = useAuth();
 
   // Delivery state
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
@@ -216,6 +216,7 @@ const Checkout = () => {
         orderId={orderNumber}
         totalAmount={serverTotalAmount ?? grandTotal}
         token={session?.access_token ?? ''}
+        walletBalance={walletBalance ?? 0}
         onPaymentConfirmed={handlePaymentConfirmed}
         onGiftCardFullCoverage={handleGiftCardFullCoverage}
         onBack={() => setShowPayment(false)}
