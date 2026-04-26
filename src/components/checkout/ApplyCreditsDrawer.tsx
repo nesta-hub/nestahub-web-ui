@@ -26,7 +26,7 @@ interface ApplyCreditsDrawerProps {
   walletBalance: number;
   walletApplied: number;
   appliedGiftCard: AppliedGiftCard | null;
-  minRedemption?: number;
+  minBalanceToShow?: number;
   onApplyWallet: (amountKobo: number) => Promise<void>;
   onRemoveWallet: () => Promise<void>;
   onApplyGiftCard: (code: string, balance: number, amountApplied: number) => Promise<void>;
@@ -43,14 +43,21 @@ export function ApplyCreditsDrawer({
   walletBalance,
   walletApplied,
   appliedGiftCard,
-  minRedemption = 5000,
+  minBalanceToShow = 5000,
   onApplyWallet,
   onRemoveWallet,
   onApplyGiftCard,
   onRemoveGiftCard,
   hideGiftCard,
 }: ApplyCreditsDrawerProps) {
-  const showWallet = walletBalance >= minRedemption;
+  const giftCardAmount = appliedGiftCard?.amountApplied ?? 0;
+  const afterGiftCard = Math.max(0, orderTotal - giftCardAmount);
+  const effectiveWalletApplied = Math.min(walletApplied, walletBalance, afterGiftCard);
+  const remaining = Math.max(0, afterGiftCard - effectiveWalletApplied);
+  const maxWalletApplicable = Math.min(walletBalance, afterGiftCard);
+  const remainingWalletBalance = Math.max(0, walletBalance - effectiveWalletApplied);
+  // Visibility threshold (PRD WR-001 #1, #6). Also hide when nothing left to apply against.
+  const showWallet = walletBalance >= minBalanceToShow && afterGiftCard > 0;
 
   const [view, setView] = useState<View>('picker');
   const [walletAmount, setWalletAmount] = useState<string>('');
@@ -77,38 +84,35 @@ export function ApplyCreditsDrawer({
     }
   }, [open]);
 
-  const giftCardAmount = appliedGiftCard?.amountApplied ?? 0;
-  const afterGiftCard = Math.max(0, orderTotal - giftCardAmount);
-  const effectiveWalletApplied = Math.min(walletApplied, walletBalance, afterGiftCard);
-  const remaining = Math.max(0, afterGiftCard - effectiveWalletApplied);
-  const maxWalletApplicable = Math.min(walletBalance, afterGiftCard);
-
   const parsedWalletKobo = (() => {
     const n = Number(walletAmount);
     if (!Number.isFinite(n) || n <= 0) return 0;
     return Math.round(n * 100);
   })();
 
-  const handleApplyWallet = async () => {
+  const applyWalletAmount = async (kobo: number) => {
     setWalletError('');
-    if (parsedWalletKobo <= 0) return;
-    if (parsedWalletKobo < minRedemption) {
-      setWalletError(`Minimum redemption is ${formatKobo(minRedemption)}`);
-      return;
-    }
-    if (parsedWalletKobo > maxWalletApplicable) {
+    if (kobo <= 0) return;
+    if (kobo > maxWalletApplicable) {
       setWalletError(`Maximum you can apply is ${formatKobo(maxWalletApplicable)}`);
       return;
     }
     setWalletApplying(true);
     try {
-      await onApplyWallet(parsedWalletKobo);
+      await onApplyWallet(kobo);
       setWalletAmount('');
     } catch (err) {
       setWalletError(err instanceof Error ? err.message : 'Failed to apply wallet credit');
     } finally {
       setWalletApplying(false);
     }
+  };
+
+  const handleApplyWallet = () => applyWalletAmount(parsedWalletKobo);
+
+  const handleSetMax = () => {
+    setWalletAmount(String(maxWalletApplicable / 100));
+    setWalletError('');
   };
 
   const handleClearWallet = async () => {
@@ -229,9 +233,14 @@ export function ApplyCreditsDrawer({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground">Nesta Wallet</p>
                     <p className="text-xs text-muted-foreground">
-                      Balance {formatKobo(walletBalance)}
-                      {effectiveWalletApplied > 0 && (
-                        <span className="text-primary"> · Applied −{formatKobo(effectiveWalletApplied)}</span>
+                      {effectiveWalletApplied > 0 ? (
+                        <>
+                          <span className="text-primary">Applied −{formatKobo(effectiveWalletApplied)}</span>
+                          {' · Remaining '}
+                          {formatKobo(remainingWalletBalance)}
+                        </>
+                      ) : (
+                        `Balance ${formatKobo(walletBalance)}`
                       )}
                     </p>
                   </div>
@@ -271,7 +280,7 @@ export function ApplyCreditsDrawer({
                   <p className="text-sm font-medium text-foreground">Nesta Wallet</p>
                   <p className="text-xs text-muted-foreground">
                     {effectiveWalletApplied > 0
-                      ? `Applied −${formatKobo(effectiveWalletApplied)}`
+                      ? `Applied −${formatKobo(effectiveWalletApplied)} · Remaining ${formatKobo(remainingWalletBalance)}`
                       : `${formatKobo(walletBalance)} available`}
                   </p>
                 </div>
@@ -290,19 +299,29 @@ export function ApplyCreditsDrawer({
               {effectiveWalletApplied === 0 && (
                 <div className="mt-3 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      placeholder="Enter amount"
-                      value={walletAmount}
-                      onChange={(e) => {
-                        setWalletAmount(e.target.value);
-                        setWalletError('');
-                      }}
-                      className="h-10 text-base"
-                      max={maxWalletApplicable / 100}
-                      disabled={walletApplying}
-                    />
+                    <div className="relative flex-1">
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        placeholder="Amount to apply"
+                        value={walletAmount}
+                        onChange={(e) => {
+                          setWalletAmount(e.target.value);
+                          setWalletError('');
+                        }}
+                        className="h-10 text-base pr-14"
+                        max={maxWalletApplicable / 100}
+                        disabled={walletApplying}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSetMax}
+                        disabled={walletApplying || maxWalletApplicable <= 0}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 text-xs font-semibold text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-50"
+                      >
+                        Max
+                      </button>
+                    </div>
                     <Button
                       variant="shop"
                       onClick={handleApplyWallet}
@@ -313,7 +332,7 @@ export function ApplyCreditsDrawer({
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Min {formatKobo(minRedemption)} · Max {formatKobo(maxWalletApplicable)}
+                    Up to {formatKobo(maxWalletApplicable)} available
                   </p>
                   {walletError && (
                     <div className="flex items-center gap-2 text-xs text-destructive animate-fade-in">

@@ -1,9 +1,11 @@
 import { Copy, Check, ArrowLeft, CreditCard, ChevronRight, Info } from 'lucide-react';
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { formatPrice, api, applyGiftCardToOrder, removeGiftCardFromOrder, applyWalletToOrder, removeWalletFromOrder } from '@/lib/api';
 import { formatKobo } from '@/utils/wallet';
+import { useAuth } from '@/contexts/AuthContext';
 import { ApplyCreditsDrawer, type AppliedGiftCard } from './ApplyCreditsDrawer';
 
 interface AppliedWallet {
@@ -36,11 +38,21 @@ export function CheckoutPaymentView({
   onPaymentConfirmed, onGiftCardFullCoverage, onBack, hideGiftCardRedeem,
 }: CheckoutPaymentViewProps) {
   const { copied, copy } = useCopyField();
+  const queryClient = useQueryClient();
+  const { refreshWalletBalance } = useAuth();
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [creditsDrawerOpen, setCreditsDrawerOpen] = useState(false);
   const [appliedGiftCard, setAppliedGiftCard] = useState<AppliedGiftCard | null>(null);
   const [appliedWallet, setAppliedWallet] = useState<AppliedWallet | null>(null);
+
+  const refreshWalletData = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['wallet-summary'] }),
+      queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] }),
+      refreshWalletBalance(),
+    ]);
+  };
 
   const totalDiscount = (appliedGiftCard?.amountApplied ?? 0) + (appliedWallet?.amountApplied ?? 0);
   const adjustedTotal = Math.max(0, totalAmount - totalDiscount);
@@ -53,6 +65,8 @@ export function CheckoutPaymentView({
     setConfirmError(null);
     try {
       await api.markPaymentMade(orderId, token);
+      // Wallet is debited inside markPaymentMade — refresh so the pill and wallet page reflect it.
+      await refreshWalletData();
       onPaymentConfirmed();
     } catch (err) {
       setConfirmError(err instanceof Error ? err.message : 'Failed to confirm payment. Please try again.');
@@ -69,6 +83,7 @@ export function CheckoutPaymentView({
   const handleRemoveWallet = async () => {
     try { await removeWalletFromOrder(orderId, token); } catch { /* ignore */ }
     setAppliedWallet(null);
+    await refreshWalletData();
   };
 
   const handleApplyGiftCard = async (code: string, balance: number, amountApplied: number) => {
@@ -78,7 +93,8 @@ export function CheckoutPaymentView({
 
   const handleApplyWallet = async (amount: number) => {
     const response = await applyWalletToOrder(orderId, amount, token);
-    setAppliedWallet({ amountApplied: response.walletAmountApplied });
+    setAppliedWallet({ amountApplied: response.amountApplied });
+    await refreshWalletData();
   };
 
   return (

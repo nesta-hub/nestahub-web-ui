@@ -845,7 +845,8 @@ export interface WalletTransactionsResponse {
 }
 
 export interface ApplyWalletResponse {
-  walletAmountApplied: number;
+  amountApplied: number;
+  walletBalance: number;
   adjustedTotal: number;
 }
 
