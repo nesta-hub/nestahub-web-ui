@@ -17,8 +17,8 @@ const LAGOS_BOUNDS = { minLat: 6.38, maxLat: 6.70, minLng: 2.68, maxLng: 3.70 };
 
 // Delivery fees in kobo (matching codebase convention)
 export const ZONE_FEES = {
-  zone1: 100000, // ₦1,000 — ≤1.5 km
-  zone2: 200000, // ₦2,000 — 1.5–2.5 km
+  zone1: 50000,  // ₦500 — ≤1.5 km
+  zone2: 50000,  // ₦500 — 1.5–2.5 km
   zone3: 200000, // ₦2,000 — 2.5–10 km
   zone4: 250000, // ₦2,500 — 10–25 km
   zone5: 300000, // ₦3,000 — 25–70 km

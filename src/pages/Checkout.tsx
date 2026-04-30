@@ -11,16 +11,20 @@ import {
   CheckoutPickupSection,
   CheckoutAddressSection,
   CheckoutDeliverySpeedSection,
+  CheckoutPaymentOptionSection,
   ContactForm,
   CheckoutPaymentView,
   CheckoutSuccessView,
+  DeliveryConfirmationDrawer,
+  type PaymentOption,
 } from "@/components/checkout";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { api, formatPrice } from "@/lib/api";
 import { isZone1Address, isZone1Or2Address } from "@/components/checkout/CheckoutAddressSection";
+import { calculateDeliveryTiming, type DeliveryTiming } from "@/lib/delivery-timing";
 
 type DeliveryMethod = 'pickup' | 'address';
-type DeliverySpeed = 'standard' | 'weekend';
+type DeliverySpeed = 'standard' | 'weekend' | 'sameday' | 'nextday';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -37,8 +41,13 @@ const Checkout = () => {
   const [addressLat, setAddressLat] = useState<number | null>(null);
   const [addressLng, setAddressLng] = useState<number | null>(null);
   const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed | null>(null);
+  const [paymentOption, setPaymentOption] = useState<PaymentOption | null>(null);
   const [isZone1, setIsZone1] = useState<boolean>(false);
   const [isZone1Or2, setIsZone1Or2] = useState<boolean>(false); // For weekend delivery eligibility
+
+  // Delivery confirmation drawer state
+  const [showDeliveryConfirmation, setShowDeliveryConfirmation] = useState(false);
+  const [calculatedDeliveryTiming, setCalculatedDeliveryTiming] = useState<DeliveryTiming | null>(null);
 
   // Contact state - pre-fill from user data when available
   const [fullName, setFullName] = useState('');
@@ -91,10 +100,15 @@ const Checkout = () => {
   const deliveryFee = (() => {
     if (deliveryMethod === 'pickup') return 0;
     if (deliveryMethod === 'address' && deliverySpeed) {
+      // Same day and next day use zone-based fees
+      if (deliverySpeed === 'sameday' || deliverySpeed === 'nextday') {
+        return addressDeliveryFee ?? 0;
+      }
+      // Legacy: standard delivery uses zone-based fee
       if (deliverySpeed === 'standard') {
         return addressDeliveryFee ?? 0;
       }
-      // Weekend delivery: ₦500 for all zones
+      // Legacy: weekend delivery uses flat ₦500 fee
       if (deliverySpeed === 'weekend') {
         return 50000; // ₦500 in kobo
       }
@@ -106,16 +120,20 @@ const Checkout = () => {
   // Validation
   const isContactValid = fullName.trim().length >= 2 && phoneNumber.trim().length >= 10;
   const hasDeliveryDetails = deliveryMethod === 'pickup' ? !!pickupStation : (!!address && !!deliverySpeed);
-  const canProceed = deliveryMethod && isContactValid && hasDeliveryDetails;
+  // Payment option only applies to address delivery; pickup skips it
+  const isPickup = deliveryMethod === 'pickup';
+  const hasPaymentOption = isPickup || !!paymentOption;
+  const showContactForm = hasDeliveryDetails && hasPaymentOption;
+  const canProceed = deliveryMethod && isContactValid && hasDeliveryDetails && hasPaymentOption;
 
-  // Scroll to contact form when delivery details are confirmed
+  // Scroll to contact form when ready
   useEffect(() => {
-    if (hasDeliveryDetails && contactRef.current) {
+    if (showContactForm && contactRef.current) {
       setTimeout(() => {
         contactRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 150);
     }
-  }, [hasDeliveryDetails]);
+  }, [showContactForm]);
 
   // Delivery Handlers
   const handleMethodChange = () => {
@@ -126,6 +144,7 @@ const Checkout = () => {
     setAddressLat(null);
     setAddressLng(null);
     setDeliverySpeed(null);
+    setPaymentOption(null);
     setIsZone1(false);
   };
 
@@ -140,10 +159,19 @@ const Checkout = () => {
     setAddressLng(null);
     setDeliverySpeed(null);
     setIsZone1(false);
+    setCalculatedDeliveryTiming(null);
+    setShowDeliveryConfirmation(false);
   };
 
   const handleSpeedChange = () => {
     setDeliverySpeed(null);
+  };
+
+  const handleDeliveryConfirm = () => {
+    if (calculatedDeliveryTiming) {
+      setDeliverySpeed(calculatedDeliveryTiming.speed as DeliverySpeed);
+      setShowDeliveryConfirmation(false);
+    }
   };
 
   const handleBack = () => {
@@ -170,6 +198,7 @@ const Checkout = () => {
           phoneNumber: phoneNumber.trim(),
           deliveryMethod: deliveryMethod!,
           deliverySpeed: deliveryMethod === 'address' ? (deliverySpeed ?? undefined) : undefined,
+          paymentOption: deliveryMethod === 'address' ? (paymentOption ?? undefined) : undefined,
           pickupStationId: deliveryMethod === 'pickup' ? pickupStation?.id ?? null : null,
           deliveryAddress: deliveryMethod === 'address' ? address : null,
           deliveryLat: deliveryMethod === 'address' && addressLat != null ? addressLat : undefined,
@@ -183,7 +212,13 @@ const Checkout = () => {
       setOrderNumber(result.orderNumber);
       setServerTotalAmount(result.totalAmount);
       clearCart(); // Clear cart immediately after successful order creation
-      setShowPayment(true);
+
+      // If pay-on-delivery, skip payment view and go directly to success
+      if (paymentOption === 'pay-on-delivery') {
+        setShowSuccess(true);
+      } else {
+        setShowPayment(true);
+      }
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to place order. Please try again.');
     } finally {
@@ -282,28 +317,48 @@ const Checkout = () => {
                         // Determine if address is in Zone 1 and Zone 1 or 2
                         setIsZone1(isZone1Address(lat, lng));
                         setIsZone1Or2(isZone1Or2Address(lat, lng));
+                        // Calculate delivery timing and show confirmation drawer
+                        const timing = calculateDeliveryTiming();
+                        setCalculatedDeliveryTiming(timing);
+                        setShowDeliveryConfirmation(true);
                       }}
                       onChangeAddress={handleAddressChange}
                     />
                   </div>
                 )}
 
-                {/* Delivery Speed (if address is set) */}
-                {deliveryMethod === 'address' && address && (
-                  <div className="mt-6 animate-fade-in">
-                    <CheckoutDeliverySpeedSection
-                      selectedSpeed={deliverySpeed}
-                      onSelectSpeed={setDeliverySpeed}
-                      onChangeSpeed={handleSpeedChange}
-                      address={address}
-                      standardDeliveryFee={addressDeliveryFee ?? 0}
-                      isZone1Or2={isZone1Or2}
+                {/* Delivery Confirmation Drawer (after address selected) */}
+                {deliveryMethod === 'address' && address && calculatedDeliveryTiming && (
+                  <DeliveryConfirmationDrawer
+                    open={showDeliveryConfirmation}
+                    address={address}
+                    deliverySpeed={calculatedDeliveryTiming.speed}
+                    deliveryDate={calculatedDeliveryTiming.deliveryDate}
+                    deliveryFee={addressDeliveryFee ?? 0}
+                    onProceed={handleDeliveryConfirm}
+                    onCancel={() => {
+                      setShowDeliveryConfirmation(false);
+                      // If user closes drawer without confirming, reset address
+                      if (!deliverySpeed) {
+                        handleAddressChange();
+                      }
+                    }}
+                  />
+                )}
+
+                {/* Payment Option (address delivery only) */}
+                {hasDeliveryDetails && deliveryMethod === 'address' && (
+                  <div className="mt-6 animate-fade-in-up">
+                    <CheckoutPaymentOptionSection
+                      selectedOption={paymentOption}
+                      onSelectOption={setPaymentOption}
+                      onChangeOption={() => setPaymentOption(null)}
                     />
                   </div>
                 )}
 
-                {/* Contact Form - shows when station/address is selected */}
-                {hasDeliveryDetails && (
+                {/* Contact Form */}
+                {showContactForm && (
                   <div ref={contactRef} className="mt-6 animate-fade-in-up">
                     <ContactForm
                       fullName={fullName}
@@ -346,9 +401,9 @@ const Checkout = () => {
               variant="shop"
               className="w-full h-12 text-base font-semibold"
               onClick={handleProceedToPayment}
-              disabled={!isContactValid || isSubmitting}
+              disabled={!canProceed || isSubmitting}
             >
-              {isSubmitting ? 'Placing Order...' : 'Proceed to Payment'}
+              {isSubmitting ? 'Placing Order...' : (paymentOption === 'pay-on-delivery' ? 'Place Order' : 'Proceed to Payment')}
             </Button>
           </div>
         )}

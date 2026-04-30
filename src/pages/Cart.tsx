@@ -16,7 +16,7 @@ const Cart = () => {
   const [isChecking, setIsChecking] = useState(false);
   const [showResumeDrawer, setShowResumeDrawer] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [pendingOrder, setPendingOrder] = useState<{ orderNumber: string; totalAmount: number } | null>(null);
+  const [pendingOrder, setPendingOrder] = useState<{ orderNumber: string; totalAmount: number; paymentOption: string | null } | null>(null);
 
   const handleCheckout = async () => {
     if (!user || !session) {
@@ -36,7 +36,7 @@ const Cart = () => {
       const result = await api.checkPendingMatch(cartItems, session.access_token);
 
       if (result.match) {
-        setPendingOrder({ orderNumber: result.orderNumber, totalAmount: result.totalAmount });
+        setPendingOrder({ orderNumber: result.orderNumber, totalAmount: result.totalAmount, paymentOption: result.paymentOption });
         setShowResumeDrawer(true);
       } else {
         navigate('/checkout');
@@ -51,9 +51,18 @@ const Cart = () => {
 
   const handleResume = () => {
     setShowResumeDrawer(false);
-    navigate('/checkout', {
-      state: { resumeOrderNumber: pendingOrder!.orderNumber, resumeAmount: pendingOrder!.totalAmount },
-    });
+    const isPayOnDelivery = pendingOrder!.paymentOption === 'pay-on-delivery';
+
+    if (isPayOnDelivery) {
+      // For pay-on-delivery: user wants to create a NEW duplicate order
+      // Navigate to checkout without resumeOrderNumber - creates new order
+      navigate('/checkout');
+    } else {
+      // For pay-now: resume payment for existing order
+      navigate('/checkout', {
+        state: { resumeOrderNumber: pendingOrder!.orderNumber, resumeAmount: pendingOrder!.totalAmount },
+      });
+    }
   };
 
   const handleCancelAndNew = async () => {
@@ -170,6 +179,7 @@ const Cart = () => {
           onOpenChange={setShowResumeDrawer}
           existingOrderNumber={pendingOrder.orderNumber}
           existingTotalAmount={pendingOrder.totalAmount}
+          paymentOption={pendingOrder.paymentOption}
           onResume={handleResume}
           onCancelAndNew={handleCancelAndNew}
           isCancelling={isCancelling}

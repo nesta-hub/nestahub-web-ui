@@ -214,7 +214,7 @@ function EntryCardsSection() {
     <div className="flex-1 px-4 py-10 md:py-14 md:pb-20">
       <div className="w-full max-w-6xl mx-auto grid gap-5 md:grid-cols-3">
         <EntryCard
-          to="/catalogue"
+          to="/shop"
           image={cardEverything}
           title="Everything You Need"
           description="A wide selection of quality products carefully sourced."
@@ -272,12 +272,12 @@ export function ShopEntry() {
 
             {/* Desktop: Shop Bundles link */}
             <Button asChild size="lg" className="hidden md:inline-flex px-10 py-6 text-lg">
-              <Link to="/catalogue">Shop</Link>
+              <Link to="/shop">Shop</Link>
             </Button>
 
-            {/* Mobile: Shop button navigates to /catalogue */}
+            {/* Mobile: Shop button navigates to /shop */}
             <Button asChild size="lg" className="md:hidden px-10 py-6 text-lg">
-              <Link to="/catalogue">Shop</Link>
+              <Link to="/shop">Shop</Link>
             </Button>
           </div>
         </div>

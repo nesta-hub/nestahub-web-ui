@@ -59,7 +59,7 @@ const App = () => (
             <CartDrawer />
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/shop" element={<Shop />} />
+              <Route path="/shop" element={<Catalogue />} />
               <Route path="/bundles" element={<Bundles />} />
               <Route path="/bundles/:stageId" element={<BundleOptions />} />
               <Route path="/configure/:bundleId" element={<BundleConfigurator />} />

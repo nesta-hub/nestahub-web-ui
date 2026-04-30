@@ -110,10 +110,13 @@ export function OrdersView({ onBack }: OrdersViewProps) {
         <div className="divide-y divide-border">
           {orders.map((order: MyOrder) => {
             const isExpanded = expandedId === order.orderNumber;
-            const config = statusConfig[order.status] ?? {
-              label: order.status,
-              className: "bg-secondary text-muted-foreground border-border",
-            };
+            // Special case: order_submitted + pay-on-delivery should show "Pending"
+            const config = order.status === 'order_submitted' && order.paymentOption === 'pay-on-delivery'
+              ? { label: "Pending", className: "bg-blue-100 text-blue-700 border-blue-200" }
+              : statusConfig[order.status] ?? {
+                  label: order.status,
+                  className: "bg-secondary text-muted-foreground border-border",
+                };
 
             return (
               <div key={order.orderNumber}>

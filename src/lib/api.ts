@@ -289,7 +289,8 @@ export const api = {
       fullName: string;
       phoneNumber: string;
       deliveryMethod?: 'pickup' | 'address';
-      deliverySpeed?: 'standard' | 'weekend';
+      deliverySpeed?: 'standard' | 'weekend' | 'sameday' | 'nextday';
+      paymentOption?: 'pay-now' | 'pay-on-delivery';
       pickupStationId?: string | null;
       deliveryAddress?: string | null;
       deliveryLat?: number;
@@ -357,7 +358,7 @@ export const api = {
   async checkPendingMatch(
     items: { variantId: string; quantity: number }[],
     token: string,
-  ): Promise<{ match: true; orderNumber: string; totalAmount: number } | { match: false }> {
+  ): Promise<{ match: true; orderNumber: string; totalAmount: number; paymentOption: string | null } | { match: false }> {
     const response = await fetch(`${API_BASE_URL}/orders/check-pending-match`, {
       method: 'POST',
       headers: {
@@ -412,6 +413,7 @@ export interface MyOrder {
   items: MyOrderItem[];
   canCancel: boolean;
   canConfirmPayment: boolean;
+  paymentOption: string | null;
   // Gift card specific fields
   giftCardThemeId?: string | null;
   giftCardAmount?: number | null;

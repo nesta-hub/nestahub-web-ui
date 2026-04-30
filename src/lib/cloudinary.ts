@@ -79,6 +79,10 @@ export const CloudinaryPresets = {
   detail: (url: string | null | undefined) =>
     optimizeCloudinaryUrl(url, { width: 500, crop: 'limit' }),
 
+  /** High-resolution image for lightbox/zoom (1200px width, maintain aspect ratio) */
+  highRes: (url: string | null | undefined) =>
+    optimizeCloudinaryUrl(url, { width: 1200, crop: 'limit' }),
+
   /** Small thumbnail (100x100, cropped to fill) */
   thumbnail: (url: string | null | undefined) =>
     optimizeCloudinaryUrl(url, { width: 100, height: 100, crop: 'fill' }),

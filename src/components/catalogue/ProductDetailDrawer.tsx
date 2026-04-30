@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Drawer, DrawerContent } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerPortal } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CatalogueProduct, formatPrice as formatPriceOld } from "@/data/catalogueData";
@@ -9,7 +9,7 @@ import { api, ProductDetail, ProductVariant, formatPrice as formatPriceAPI } fro
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import { QuantityControl } from "@/components/cart/QuantityControl";
 import { useCart } from "@/contexts/CartContext";
-import { Check, RefreshCw, ChevronRight } from "lucide-react";
+import { Check, RefreshCw, ChevronRight, Share2, ZoomIn, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface ProductDetailDrawerProps {
@@ -38,6 +38,29 @@ const BASE_FREQUENCY_OPTIONS = [
   { weeks: 8, label: "8 weeks" },
 ];
 
+const shareProduct = async (productName: string, productSlug: string) => {
+  const url = `${window.location.origin}/catalogue/${productSlug}`;
+  const text = `Check out ${productName} on Nesta Hub`;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: productName, text, url });
+      toast.success("Shared successfully!");
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        toast.error("Failed to share");
+      }
+    }
+  } else {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied to clipboard!");
+    } catch {
+      toast.error("Failed to copy link");
+    }
+  }
+};
+
 export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, mode = 'cart', onSelect, preferSubscriptionPrice = false, initialAttributes, initialVariantId, initialQuantity }: ProductDetailDrawerProps) {
   const { addToCart, openCart } = useCart();
   const navigate = useNavigate();
@@ -65,6 +88,7 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
   const contentRef = useRef<HTMLDivElement>(null);
   const frequencyScrollRef = useRef<HTMLDivElement>(null);
   const [capturedHeight, setCapturedHeight] = useState<number | null>(null);
+  const [imageZoomOpen, setImageZoomOpen] = useState(false);
 
   // Get ordered list of attribute names (determines hierarchy for filtering)
   const attributeOrder = useMemo(() =>
@@ -396,6 +420,7 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
       setStep("configure");
       setPurchaseType("one-time");
       setCapturedHeight(null);
+      setImageZoomOpen(false);
     }
   }, [open]);
 
@@ -544,11 +569,35 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
     ? (matchedVariant?.imageUrl || apiProduct.imageUrl)
     : product?.image;
 
+  // Handle drawer open/close with lightbox protection
+  const handleDrawerOpenChange = (open: boolean) => {
+    // If trying to close the drawer while lightbox is open, just close the lightbox
+    if (!open && imageZoomOpen) {
+      setImageZoomOpen(false);
+      return; // Don't close the drawer
+    }
+    // Otherwise, pass through to the original handler
+    onOpenChange(open);
+  };
+
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
+    <Drawer open={open} onOpenChange={handleDrawerOpenChange}>
       <DrawerContent className="max-h-[90vh]">
         {displayProduct && (
           <div className="flex flex-col max-h-[85vh]">
+            {/* Share button */}
+            <div className="absolute top-3 right-3 z-10">
+              <button
+                onClick={() => shareProduct(
+                  `${displayProduct.brand} ${displayProduct.name}`,
+                  apiProduct?.slug || product?.id || ''
+                )}
+                aria-label="Share product"
+                className="w-9 h-9 rounded-full bg-secondary/80 hover:bg-secondary flex items-center justify-center text-foreground transition-colors"
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
+            </div>
             <div
               ref={contentRef}
               className="flex-1 overflow-y-auto"
@@ -558,12 +607,23 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
               <div className="px-6 pt-2">
                 <div
                   className={cn(
-                    "aspect-square rounded-2xl bg-secondary/50 overflow-hidden mx-auto transition-all duration-300",
+                    "aspect-square rounded-2xl bg-secondary/50 overflow-hidden mx-auto transition-all duration-300 relative group",
                     isPurchaseStep ? "max-w-[80px]" : "max-w-[140px]",
+                    !isPurchaseStep && imageUrl && "cursor-pointer"
                   )}
+                  onClick={() => !isPurchaseStep && imageUrl && setImageZoomOpen(true)}
                 >
                   {imageUrl ? (
-                    <img src={CloudinaryPresets.detail(imageUrl)} alt={displayProduct.name} className="w-full h-full object-cover" />
+                    <>
+                      <img src={CloudinaryPresets.detail(imageUrl)} alt={displayProduct.name} className="w-full h-full object-cover" />
+                      {!isPurchaseStep && (
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-full bg-white/90">
+                            <ZoomIn className="w-5 h-5 text-foreground" />
+                          </div>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-secondary/80 to-secondary/30" />
                   )}
@@ -905,6 +965,41 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
           </div>
         )}
       </DrawerContent>
+
+      {/* Image Zoom Lightbox */}
+      {imageZoomOpen && (
+        <DrawerPortal>
+          <div
+            className="fixed inset-0 z-[100] bg-background backdrop-blur-sm flex items-center justify-center animate-fade-in"
+            onClick={() => setImageZoomOpen(false)}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setImageZoomOpen(false);
+              }}
+              aria-label="Close magnified image"
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-secondary/80 hover:bg-secondary flex items-center justify-center text-foreground transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            {imageUrl ? (
+              <img
+                src={CloudinaryPresets.highRes(imageUrl)}
+                alt={displayProduct?.name || 'Product image'}
+                onClick={(e) => e.stopPropagation()}
+                className="max-w-[92vw] max-h-[80vh] object-contain rounded-2xl shadow-2xl"
+              />
+            ) : (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-[92vw] h-[80vw] max-w-[480px] max-h-[480px] rounded-2xl shadow-2xl bg-gradient-to-br from-secondary/80 to-secondary/30"
+              />
+            )}
+          </div>
+        </DrawerPortal>
+      )}
     </Drawer>
   );
 }
