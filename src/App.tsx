@@ -21,6 +21,7 @@ import Orders from "./pages/Orders";
 import Subscriptions from "./pages/Subscriptions";
 import SubscriptionReorder from "./pages/SubscriptionReorder";
 import Catalogue from "./pages/Catalogue";
+import ProductPage from "./pages/ProductPage";
 import Gifting from "./pages/Gifting";
 import GiftingCards from "./pages/GiftingCards";
 import GiftCardDetails from "./pages/GiftCardDetails";
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="/bundles/:stageId" element={<BundleOptions />} />
               <Route path="/configure/:bundleId" element={<BundleConfigurator />} />
               <Route path="/catalogue" element={<Catalogue />} />
+              <Route path="/catalogue/:slug" element={<ProductPage />} />
               <Route path="/gifting" element={<Gifting />} />
               <Route path="/gifting/cards" element={<GiftingCards />} />
               <Route path="/gifting/cards/details" element={<GiftCardDetails />} />

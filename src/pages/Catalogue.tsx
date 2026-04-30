@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Search, Sparkles, ChevronRight, ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
@@ -11,6 +12,7 @@ import { api, ProductCard as APIProductCard } from "@/lib/api";
 
 const Catalogue = () => {
   const isMobile = useIsMobile();
+  const location = useLocation();
   const [isAssistDrawerOpen, setIsAssistDrawerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -27,6 +29,16 @@ const Catalogue = () => {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Auto-open product drawer if navigated with product slug
+  useEffect(() => {
+    const state = location.state as { openProductSlug?: string } | null;
+    if (state?.openProductSlug) {
+      handleProductClick(state.openProductSlug);
+      // Clear the state after opening to prevent re-opening on re-render
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Search results query — only active when search overlay is open and query is non-empty
   const { data: searchData, isLoading: searchLoading } = useQuery({
