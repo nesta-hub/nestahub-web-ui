@@ -211,7 +211,7 @@ const GiftCardDetails = () => {
   const message = effectiveMessage;
 
   const effectiveAmount = isCustomAmount
-    ? parseInt(customAmount) || 0
+    ? (parseInt(customAmount) || 0) * 100  // Convert naira to kobo
     : selectedAmount || 0;
 
   const isValid =
