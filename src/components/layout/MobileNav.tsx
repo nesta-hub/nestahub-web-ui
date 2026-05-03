@@ -33,7 +33,8 @@ export function MobileNav() {
         {navItems.map((item) => {
           const isActive =
             location.pathname === item.href ||
-            location.pathname.startsWith(item.href + "/");
+            location.pathname.startsWith(item.href + "/") ||
+            (item.href === "/catalogue" && location.pathname === "/shop");
 
           // Special rendering for Account nav item when user is logged in
           const isAccountItem = item.href === "/account";

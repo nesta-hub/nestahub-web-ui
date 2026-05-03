@@ -428,7 +428,12 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
     if (mode === 'select') {
       // Bundle/select mode: skip purchase-type step, select immediately as one-time
       finalizeAddToCart();
+    } else if (matchedVariant && !matchedVariant.isSubscribable) {
+      // Non-subscribable products: skip purchase-type step, add as one-time
+      setPurchaseType("one-time");
+      finalizeAddToCart();
     } else {
+      // Subscribable products: show purchase-type step
       setStep("purchase-type");
     }
   };

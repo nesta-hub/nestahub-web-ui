@@ -20,10 +20,12 @@ export function CartItemRow({ item }: CartItemRowProps) {
     updateQuantity(item.productId, item.typeId, item.sizeId, qty);
   };
 
-  // Build display - prioritize API attributes, fallback to legacy
+  // Build display - prioritize API attributes, show "Default" for simple products
   const variantParts = item.attributes && item.attributes.length > 0
     ? item.attributes.map(attr => attr.displayValue || attr.value)
-    : [item.typeName, item.sizeName].filter(Boolean);
+    : item.attributes // If attributes array exists (even if empty), it's a new API product
+      ? ['Default'] // Show "Default" for simple products with no attributes
+      : [item.typeName, item.sizeName].filter(Boolean); // Legacy fallback
   const variantLabel = variantParts.join(' · ');
 
   // Calculate display price - use subscription price if subscribed

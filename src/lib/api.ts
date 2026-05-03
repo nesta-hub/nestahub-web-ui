@@ -19,6 +19,7 @@ export interface ProductVariant {
   description?: string;
   subscriptionPrice?: number;
   recommendedFrequencyWeeks?: number;
+  isSubscribable: boolean;
   attributes: VariantAttribute[];
   isActive: boolean;
 }
