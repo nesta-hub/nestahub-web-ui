@@ -9,6 +9,7 @@ import desktopPlaceholder from "@/assets/desktop-placeholder.jpg";
 import { api, ProductCard as APIProductCard } from "@/lib/api";
  import { AssistDrawer, ProductCard, ProductDetailDrawer, CategoryView } from "@/components/catalogue";
  import { CatalogueProduct, getProductsByCategory } from "@/data/catalogueData";
+import { WalletBalancePill } from "@/components/wallet/WalletBalancePill";
 
 const Catalogue = () => {
   const isMobile = useIsMobile();
@@ -242,8 +243,9 @@ const Catalogue = () => {
 
       <div className="min-h-screen pb-24">
         {/* Header */}
-        <div className="px-4 pt-6 pb-4">
-          <h1 className="text-2xl font-bold text-foreground">Catalogue</h1>
+        <div className="px-4 pt-6 pb-4 relative flex items-center justify-center">
+          <h1 className="text-2xl font-bold text-foreground absolute left-4">Catalogue</h1>
+          <WalletBalancePill size="sm" />
         </div>
 
         {/* Search bar — tap to open overlay */}

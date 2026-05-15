@@ -35,7 +35,10 @@ import ImagePreview from "./pages/ImagePreview";
 import IconPreview from "./pages/IconPreview";
 import { AuthCallback } from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
+import Wallet from "./pages/Wallet";
+import Referrals from "./pages/Referrals";
 import { useEffect } from "react";
+import { setReferralCookie } from "./utils/wallet";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +47,15 @@ function ScrollToTop() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
   }, [pathname]);
+  return null;
+}
+
+function ReferralCapture() {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) setReferralCookie(ref);
+  }, []);
   return null;
 }
 
@@ -57,6 +69,7 @@ const App = () => (
           <Analytics />
           <BrowserRouter>
             <ScrollToTop />
+            <ReferralCapture />
             <CartDrawer />
             <Routes>
               <Route path="/" element={<Index />} />
@@ -82,6 +95,8 @@ const App = () => (
               <Route path="/orders" element={<Orders />} />
               <Route path="/subscriptions" element={<Subscriptions />} />
               <Route path="/subscriptions/reorder" element={<SubscriptionReorder />} />
+              <Route path="/account/wallet" element={<Wallet />} />
+              <Route path="/referrals" element={<Referrals />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/gift/:giftId" element={<GiftCardRedeem />} />
               <Route path="/image-preview" element={<ImagePreview />} />

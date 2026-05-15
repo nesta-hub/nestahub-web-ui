@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CartItemRow } from "@/components/cart/CartItemRow";
 import { ResumeOrderDrawer } from "@/components/cart/ResumeOrderDrawer";
 import { api, formatPrice } from "@/lib/api";
+import { WalletBalancePill } from "@/components/wallet/WalletBalancePill";
 import { ArrowLeft, ShoppingBag, RefreshCw, Loader2 } from "lucide-react";
 
 const Cart = () => {
@@ -92,13 +93,16 @@ const Cart = () => {
     <Layout showNav={false}>
       <div className="min-h-[calc(100vh-4rem)] flex flex-col">
         {/* Header */}
-        <div className="px-4 pt-4 pb-2 flex items-center gap-3">
+        <div className="px-4 pt-4 pb-2 relative flex items-center justify-center min-h-[2.75rem]">
           <button
             onClick={() => navigate(-1)}
-            className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-secondary/50 transition-colors"
+            className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-secondary/50 transition-colors absolute left-4"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
+          <WalletBalancePill size="sm" />
+        </div>
+        <div className="px-4 pb-2">
           <h1 className="text-lg font-bold text-foreground">
             Your Cart {itemCount > 0 && `(${itemCount} ${itemCount === 1 ? 'item' : 'items'})`}
           </h1>

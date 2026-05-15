@@ -1,7 +1,10 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { api } from '@/lib/api';
+import { api, getWalletSummary, attributeReferral } from '@/lib/api';
+import { getReferralCookie, clearReferralCookie } from '@/utils/wallet';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 interface AuthUser {
   id: string;
@@ -9,6 +12,7 @@ interface AuthUser {
   email: string;
   name?: string;
   phone?: string;
+  referralCode?: string;
   createdAt: string;
 }
 
@@ -16,25 +20,70 @@ interface AuthContextType {
   user: AuthUser | null;
   session: Session | null;
   loading: boolean;
+  walletBalance: number | null;
   signInWithGoogle: () => Promise<void>;
   signInWithFacebook: () => Promise<void>;
   signOut: () => Promise<void>;
   updatePhone: (phone: string) => Promise<void>;
+  refreshWalletBalance: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  const fetchWalletBalance = useCallback(async (token: string) => {
+    try {
+      const summary = await getWalletSummary(token);
+      setWalletBalance(summary.balance);
+    } catch {
+      // Non-critical — silently ignore
+    }
+  }, []);
+
+  const refreshWalletBalance = useCallback(async () => {
+    if (session?.access_token) {
+      await fetchWalletBalance(session.access_token);
+    }
+  }, [session?.access_token, fetchWalletBalance]);
+
+  const handleReferralAttribution = useCallback(async (token: string) => {
+    const code = getReferralCookie();
+    if (!code) return;
+    try {
+      await attributeReferral(code, token);
+    } catch {
+      // Silent — referral attribution is best-effort
+    } finally {
+      clearReferralCookie();
+    }
+  }, []);
+
+  const syncUserToBackend = useCallback(async (accessToken: string) => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/sync-user`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+        // Fire-and-forget: wallet balance + referral attribution
+        fetchWalletBalance(accessToken);
+        handleReferralAttribution(accessToken);
+      }
+    } catch (error) {
+      console.error('Failed to sync user to backend:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchWalletBalance, handleReferralAttribution]);
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
@@ -44,119 +93,71 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     });
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
         syncUserToBackend(session.access_token);
       } else {
         setUser(null);
+        setWalletBalance(null);
         setLoading(false);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  const syncUserToBackend = async (accessToken: string) => {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/sync-user`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      }
-    } catch (error) {
-      console.error('Failed to sync user to backend:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [syncUserToBackend]);
 
   const signInWithGoogle = async () => {
-    const redirectUrl = window.location.origin + '/auth/callback';
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: redirectUrl,
-      },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
-
-    if (error) {
-      console.error('Error signing in with Google:', error);
-      throw error;
-    }
+    if (error) throw error;
   };
 
   const signInWithFacebook = async () => {
-    const redirectUrl = window.location.origin + '/auth/callback';
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'facebook',
-      options: {
-        redirectTo: redirectUrl,
-      },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
-
-    if (error) {
-      console.error('Error signing in with Facebook:', error);
-      throw error;
-    }
+    if (error) throw error;
   };
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error signing out:', error);
-      throw error;
-    }
+    if (error) throw error;
     setUser(null);
     setSession(null);
+    setWalletBalance(null);
   };
 
   const updatePhone = async (phone: string) => {
     if (!session?.access_token) throw new Error('Not authenticated');
-
-    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/update-phone`, {
+    const response = await fetch(`${API_BASE}/auth/update-phone`, {
       method: 'PATCH',
       headers: {
-        'Authorization': `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${session.access_token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ phone }),
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to update phone number');
-    }
-
+    if (!response.ok) throw new Error('Failed to update phone number');
     const updatedUser = await response.json();
     setUser(updatedUser);
   };
 
-  const value = {
-    user,
-    session,
-    loading,
-    signInWithGoogle,
-    signInWithFacebook,
-    signOut,
-    updatePhone,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{
+      user, session, loading, walletBalance,
+      signInWithGoogle, signInWithFacebook, signOut, updatePhone, refreshWalletBalance,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }

@@ -820,3 +820,130 @@ export async function removeGiftCardFromOrder(
     throw new Error(err.message || 'Failed to remove gift card');
   }
 }
+
+// ─── Wallet ──────────────────────────────────────────────────────────────────
+
+export interface WalletSummary {
+  balance: number;
+  totalEarned: number;
+  totalRedeemed: number;
+}
+
+export interface WalletTransaction {
+  id: string;
+  type: 'credit' | 'debit';
+  source: string;
+  amount: number;
+  balanceAfter: number;
+  description?: string;
+  orderNumber?: string;
+  createdAt: string;
+}
+
+export interface WalletTransactionsResponse {
+  transactions: WalletTransaction[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface ApplyWalletResponse {
+  amountApplied: number;
+  walletBalance: number;
+  adjustedTotal: number;
+}
+
+export async function getWalletSummary(token: string): Promise<WalletSummary> {
+  const response = await fetch(`${API_BASE_URL}/wallet/summary`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to fetch wallet summary');
+  return response.json();
+}
+
+export async function getWalletTransactions(
+  token: string,
+  page = 1,
+  limit = 20,
+  type?: 'credit' | 'debit',
+): Promise<WalletTransactionsResponse> {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (type) params.set('type', type);
+  const response = await fetch(
+    `${API_BASE_URL}/wallet/transactions?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!response.ok) throw new Error('Failed to fetch wallet transactions');
+  return response.json();
+}
+
+export async function applyWalletToOrder(
+  orderNumber: string,
+  amount: number,
+  token: string,
+): Promise<ApplyWalletResponse> {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderNumber}/apply-wallet`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ amount }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to apply wallet balance');
+  }
+  return response.json();
+}
+
+export async function removeWalletFromOrder(
+  orderNumber: string,
+  token: string,
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderNumber}/wallet`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to remove wallet credit');
+  }
+}
+
+// ─── Referral ─────────────────────────────────────────────────────────────────
+
+export interface ReferralInfo {
+  referralCode: string;
+  totalReferrals: number;
+  completedReferrals: number;
+  pendingReferrals: number;
+  totalEarned: number;
+}
+
+export async function getReferralInfo(token: string): Promise<ReferralInfo> {
+  const response = await fetch(`${API_BASE_URL}/wallet/referral`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to fetch referral info');
+  return response.json();
+}
+
+export async function attributeReferral(
+  referralCode: string,
+  token: string,
+): Promise<{ attributed: boolean; reason?: string }> {
+  const response = await fetch(`${API_BASE_URL}/wallet/referral/attribute`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ referralCode }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to attribute referral');
+  }
+  return response.json();
+}
