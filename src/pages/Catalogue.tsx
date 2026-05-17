@@ -243,9 +243,11 @@ const Catalogue = () => {
 
       <div className="min-h-screen pb-24">
         {/* Header */}
-        <div className="px-4 pt-6 pb-4 flex items-center justify-between">
+        <div className="px-4 pt-6 pb-4 grid grid-cols-3 items-center">
           <h1 className="text-2xl font-bold text-foreground">Shop</h1>
-          <WalletBalancePill size="sm" />
+          <div className="flex justify-center">
+            <WalletBalancePill size="sm" />
+          </div>
         </div>
 
         {/* Search bar — tap to open overlay */}
