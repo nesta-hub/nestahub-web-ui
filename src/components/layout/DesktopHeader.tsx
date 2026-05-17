@@ -2,7 +2,6 @@ import { Link, useLocation } from "react-router-dom";
 import { ShoppingCart, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { WalletBalancePill } from "@/components/wallet/WalletBalancePill";
 import nestaLogo from "@/assets/nesta-logo.png";
 
 const navLinks = [
@@ -49,11 +48,6 @@ export function DesktopHeader() {
             );
           })}
         </nav>
-
-        {/* Center - Wallet Balance Pill */}
-        <div className="hidden md:flex items-center justify-center flex-1">
-          <WalletBalancePill />
-        </div>
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">

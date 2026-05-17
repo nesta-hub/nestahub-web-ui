@@ -243,8 +243,8 @@ const Catalogue = () => {
 
       <div className="min-h-screen pb-24">
         {/* Header */}
-        <div className="px-4 pt-6 pb-4 relative flex items-center justify-center">
-          <h1 className="text-2xl font-bold text-foreground absolute left-4">Shop</h1>
+        <div className="px-4 pt-6 pb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-foreground">Shop</h1>
           <WalletBalancePill size="sm" />
         </div>
 
