@@ -115,7 +115,7 @@ const Account = () => {
             { icon: Wallet, label: 'My Wallet', href: '/account/wallet', sub: walletBalance !== null ? formatKobo(walletBalance) : '—' },
             { icon: Package, label: 'View Orders', href: '/orders' },
             { icon: RefreshCw, label: 'Manage Subscriptions', href: '/subscriptions' },
-            { icon: Users, label: 'Referrals', href: '/account/referrals' },
+            // { icon: Users, label: 'Referrals', href: '/account/referrals' },
             { icon: MessageCircle, label: 'Contact Us', href: '/contact' },
           ] as MenuItem[]).map(({ icon: Icon, label, href, sub }) => (
             <div

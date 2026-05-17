@@ -36,7 +36,7 @@ import IconPreview from "./pages/IconPreview";
 import { AuthCallback } from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 import Wallet from "./pages/Wallet";
-import Referrals from "./pages/Referrals";
+// import Referrals from "./pages/Referrals";
 import { useEffect } from "react";
 import { setReferralCookie } from "./utils/wallet";
 
@@ -96,7 +96,7 @@ const App = () => (
               <Route path="/subscriptions" element={<Subscriptions />} />
               <Route path="/subscriptions/reorder" element={<SubscriptionReorder />} />
               <Route path="/account/wallet" element={<Wallet />} />
-              <Route path="/account/referrals" element={<Referrals />} />
+              {/* <Route path="/account/referrals" element={<Referrals />} /> */}
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/gift/:giftId" element={<GiftCardRedeem />} />
               <Route path="/image-preview" element={<ImagePreview />} />
