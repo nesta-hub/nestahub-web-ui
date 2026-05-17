@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Wallet as WalletIcon, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Wallet as WalletIcon, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, ReceiptText } from 'lucide-react';
 import { Layout } from '@/components/layout';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SignInForm } from '@/components/auth/SignInForm';
 import { useAuth } from '@/contexts/AuthContext';
@@ -57,21 +56,17 @@ const Wallet = () => {
 
   return (
     <Layout showNav={false}>
-      <div className="min-h-[calc(100vh-4rem)] pb-10">
+      <div className="px-6 py-6">
         {/* Header */}
-        <div className="px-4 pt-4 pb-2 flex items-center gap-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-secondary/50 transition-colors"
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-4 h-4" />
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={() => navigate(-1)} className="p-1 -ml-1 text-foreground">
+            <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-2xl font-bold text-foreground">My Wallet</h1>
+          <h1 className="text-lg font-semibold text-foreground">My Wallet</h1>
         </div>
 
         {/* Balance hero */}
-        <div className="px-4 mt-4">
+        <div className="mt-4">
           <div className="rounded-2xl shadow-lg bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 border border-primary/10 p-6">
             <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
               <WalletIcon className="w-3.5 h-3.5" />
@@ -91,7 +86,7 @@ const Wallet = () => {
         </div>
 
         {/* Transactions */}
-        <div className="px-4 mt-8">
+        <div className="mt-8">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold text-foreground">Transaction History</h2>
           </div>
@@ -105,11 +100,10 @@ const Wallet = () => {
                   key={f.id}
                   type="button"
                   onClick={() => setFilter(f.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                    active
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${active
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
-                  }`}
+                    }`}
                 >
                   {f.label}
                 </button>
@@ -124,9 +118,23 @@ const Wallet = () => {
               ))}
             </div>
           ) : transactions.length === 0 ? (
-            <Card className="p-8 text-center text-sm text-muted-foreground">
-              No transactions yet.
-            </Card>
+            (() => {
+              const copy =
+                filter === 'used'
+                  ? { title: 'No credit used yet', subtitle: "Once you apply wallet credit at checkout, it'll show up here." }
+                  : filter === 'earned'
+                  ? { title: 'No earnings yet', subtitle: 'Get rewarded every time you shop, you earn credits on every completed orders.' }
+                  : { title: 'No transactions yet', subtitle: 'Get rewarded every time you shop, you earn credits on every completed orders.' };
+              return (
+                <div className="rounded-3xl bg-secondary/50 px-8 py-10 flex flex-col items-center text-center">
+                  <div className="w-16 h-16 bg-background rounded-full flex items-center justify-center mb-6 shadow-sm">
+                    <ReceiptText className="w-6 h-6 text-primary" strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-base font-semibold text-foreground mb-2">{copy.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-[280px]">{copy.subtitle}</p>
+                </div>
+              );
+            })()
           ) : (
             <>
               <div className="divide-y divide-border">
@@ -136,9 +144,8 @@ const Wallet = () => {
                     <div key={tx.id} className="flex items-center justify-between gap-3 py-4">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div
-                          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-                            isCredit ? 'bg-emerald-100 text-emerald-700' : 'bg-secondary text-muted-foreground'
-                          }`}
+                          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${isCredit ? 'bg-emerald-100 text-emerald-700' : 'bg-secondary text-muted-foreground'
+                            }`}
                         >
                           {isCredit ? (
                             <ArrowDownLeft className="w-4 h-4" />
@@ -156,9 +163,8 @@ const Wallet = () => {
                         </div>
                       </div>
                       <p
-                        className={`text-sm font-semibold shrink-0 ${
-                          isCredit ? 'text-emerald-700' : 'text-foreground'
-                        }`}
+                        className={`text-sm font-semibold shrink-0 ${isCredit ? 'text-emerald-700' : 'text-foreground'
+                          }`}
                       >
                         {isCredit ? '+' : '−'}
                         {formatKobo(tx.amount)}

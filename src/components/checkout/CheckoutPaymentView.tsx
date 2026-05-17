@@ -1,4 +1,4 @@
-import { Copy, Check, ArrowLeft, CreditCard, ChevronRight, Info } from 'lucide-react';
+import { Copy, Check, ArrowLeft, CreditCard, ChevronRight, Info, X } from 'lucide-react';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -88,7 +88,7 @@ export function CheckoutPaymentView({
 
   const handleApplyGiftCard = async (code: string, balance: number, amountApplied: number) => {
     const response = await applyGiftCardToOrder(orderId, code, token);
-    setAppliedGiftCard({ code: response.code, balance: response.balance, amountApplied: response.amountApplied });
+    setAppliedGiftCard({ code: response.code, balance: response.balance, amountApplied });
   };
 
   const handleApplyWallet = async (amount: number) => {
@@ -132,39 +132,61 @@ export function CheckoutPaymentView({
                 {copied === 'amount' ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
               </button>
             </div>
-            {totalDiscount > 0 && (
-              <p className="text-xs text-emerald-600 mt-1">−{formatKobo(totalDiscount)} applied</p>
+            {(appliedGiftCard || appliedWallet) && (
+              <div className="mt-3 flex flex-col gap-1.5">
+                {appliedGiftCard && (
+                  <div className="flex items-center justify-between gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
+                    <span className="truncate">Gift card applied: −{formatKobo(appliedGiftCard.amountApplied)}</span>
+                    <button type="button" onClick={handleRemoveGiftCard} className="p-1 rounded hover:bg-emerald-100 transition-colors shrink-0" aria-label="Remove gift card">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                {appliedWallet && (
+                  <div className="flex items-center justify-between gap-2 text-sm text-primary bg-primary/5 rounded-lg px-3 py-2">
+                    <span className="truncate">Wallet credit applied: −{formatKobo(appliedWallet.amountApplied)}</span>
+                    <button type="button" onClick={handleRemoveWallet} className="p-1 rounded hover:bg-primary/10 transition-colors shrink-0" aria-label="Remove wallet credit">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </Card>
 
         {/* Apply other payment methods */}
-        {(walletBalance > 0 || !hideGiftCardRedeem) && (
-          <button
-            type="button"
-            onClick={() => setCreditsDrawerOpen(true)}
-            className="w-full flex items-center justify-between rounded-xl border px-4 py-3 hover:bg-muted/50 transition-colors"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <CreditCard className="w-4 h-4" />
+        {(walletBalance > 0 || !hideGiftCardRedeem) && (() => {
+          const walletAvailable = walletBalance > 0 && !appliedWallet;
+          const giftAvailable = !hideGiftCardRedeem && !appliedGiftCard;
+          const hasAny = !!appliedWallet || !!appliedGiftCard;
+          const canAddMore = walletAvailable || giftAvailable;
+          if (!canAddMore && hasAny) return null;
+          const remainingLabel = [
+            walletAvailable ? 'Wallet' : null,
+            giftAvailable ? 'Gift card' : null,
+          ].filter(Boolean).join(' · ');
+          return (
+            <button
+              type="button"
+              onClick={() => setCreditsDrawerOpen(true)}
+              className="w-full flex items-center justify-between rounded-xl border px-4 py-3 hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <CreditCard className="w-4 h-4" />
+                </div>
+                <div className="text-left min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    {hasAny ? 'Apply another payment method' : 'Apply other payment methods'}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">{remainingLabel}</p>
+                </div>
               </div>
-              <div className="text-left min-w-0">
-                <p className="text-sm font-medium text-foreground">Apply other payment methods</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {totalDiscount > 0
-                    ? `Applied −${formatKobo(totalDiscount)}`
-                    : hideGiftCardRedeem
-                    ? 'Wallet'
-                    : walletBalance > 0
-                    ? 'Wallet · Gift card'
-                    : 'Gift card'}
-                </p>
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-          </button>
-        )}
+              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+            </button>
+          );
+        })()}
 
         {/* Bank details */}
         {!isFullCoverage && (
@@ -195,7 +217,7 @@ export function CheckoutPaymentView({
         {isFullCoverage && (
           <Card className="p-4 text-center">
             <p className="text-sm text-foreground font-medium">
-              Your credits cover the full order amount. No bank transfer needed!
+              Your {appliedWallet && appliedGiftCard ? 'wallet & gift card cover' : appliedWallet ? 'wallet credit covers' : 'gift card covers'} the full order. No bank transfer needed!
             </p>
           </Card>
         )}

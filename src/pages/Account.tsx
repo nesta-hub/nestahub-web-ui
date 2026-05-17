@@ -113,15 +113,15 @@ const Account = () => {
         <div className="border-t border-border">
           {([
             { icon: Wallet, label: 'My Wallet', href: '/account/wallet', sub: walletBalance !== null ? formatKobo(walletBalance) : '—' },
-            { icon: Users, label: 'Refer & Earn', href: '/referrals', sub: '₦500 per friend' },
             { icon: Package, label: 'View Orders', href: '/orders' },
             { icon: RefreshCw, label: 'Manage Subscriptions', href: '/subscriptions' },
+            { icon: Users, label: 'Referrals', href: '/account/referrals' },
             { icon: MessageCircle, label: 'Contact Us', href: '/contact' },
           ] as MenuItem[]).map(({ icon: Icon, label, href, sub }) => (
             <div
               key={label}
               onClick={() => navigate(href)}
-              className="flex items-center justify-between px-2 py-3 border-b border-border hover:bg-accent/50 cursor-pointer transition-colors"
+              className="flex items-center justify-between px-2 py-3 min-h-[56px] border-b border-border hover:bg-accent/50 cursor-pointer transition-colors"
             >
               <div className="flex items-center gap-3">
                 <Icon className="w-5 h-5 text-muted-foreground" />

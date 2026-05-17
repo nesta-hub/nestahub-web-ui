@@ -191,7 +191,7 @@ export function OrdersView({ onBack }: OrdersViewProps) {
                                   {item.productBrand} {item.productName}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {item.variant} · Qty: {item.quantity}
+                                  {item.variant || 'Default'} · Qty: {item.quantity}
                                 </p>
                               </div>
                               <p className="text-foreground font-medium">

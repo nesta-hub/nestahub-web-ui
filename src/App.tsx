@@ -96,7 +96,7 @@ const App = () => (
               <Route path="/subscriptions" element={<Subscriptions />} />
               <Route path="/subscriptions/reorder" element={<SubscriptionReorder />} />
               <Route path="/account/wallet" element={<Wallet />} />
-              <Route path="/referrals" element={<Referrals />} />
+              <Route path="/account/referrals" element={<Referrals />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/gift/:giftId" element={<GiftCardRedeem />} />
               <Route path="/image-preview" element={<ImagePreview />} />

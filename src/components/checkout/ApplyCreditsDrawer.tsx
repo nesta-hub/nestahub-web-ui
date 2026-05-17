@@ -26,7 +26,7 @@ interface ApplyCreditsDrawerProps {
   walletBalance: number;
   walletApplied: number;
   appliedGiftCard: AppliedGiftCard | null;
-  minBalanceToShow?: number;
+
   onApplyWallet: (amountKobo: number) => Promise<void>;
   onRemoveWallet: () => Promise<void>;
   onApplyGiftCard: (code: string, balance: number, amountApplied: number) => Promise<void>;
@@ -43,7 +43,7 @@ export function ApplyCreditsDrawer({
   walletBalance,
   walletApplied,
   appliedGiftCard,
-  minBalanceToShow = 5000,
+
   onApplyWallet,
   onRemoveWallet,
   onApplyGiftCard,
@@ -56,8 +56,7 @@ export function ApplyCreditsDrawer({
   const remaining = Math.max(0, afterGiftCard - effectiveWalletApplied);
   const maxWalletApplicable = Math.min(walletBalance, afterGiftCard);
   const remainingWalletBalance = Math.max(0, walletBalance - effectiveWalletApplied);
-  // Visibility threshold (PRD WR-001 #1, #6). Also hide when nothing left to apply against.
-  const showWallet = walletBalance >= minBalanceToShow && afterGiftCard > 0;
+  const walletDisabled = walletBalance === 0 || afterGiftCard === 0;
 
   const [view, setView] = useState<View>('picker');
   const [walletAmount, setWalletAmount] = useState<string>('');
@@ -110,10 +109,6 @@ export function ApplyCreditsDrawer({
 
   const handleApplyWallet = () => applyWalletAmount(parsedWalletKobo);
 
-  const handleSetMax = () => {
-    setWalletAmount(String(maxWalletApplicable / 100));
-    setWalletError('');
-  };
 
   const handleClearWallet = async () => {
     try {
@@ -143,7 +138,8 @@ export function ApplyCreditsDrawer({
         return;
       }
       setAppliedFlash(true);
-      const amountApplied = Math.min(validation.currentBalance, orderTotal);
+      const remainingAfterWallet = Math.max(0, orderTotal - walletApplied);
+      const amountApplied = Math.min(validation.currentBalance, remainingAfterWallet);
       setTimeout(async () => {
         try {
           await onApplyGiftCard(code.trim().toUpperCase(), validation.currentBalance, amountApplied);
@@ -221,11 +217,11 @@ export function ApplyCreditsDrawer({
         <div className="px-4 pb-4 space-y-5 overflow-y-auto">
           {view === 'picker' && (
             <div className="rounded-xl border divide-y overflow-hidden">
-              {showWallet && (
-                <button
+              <button
                   type="button"
-                  onClick={() => setView('wallet')}
-                  className="w-full flex items-center gap-3 px-4 py-4 hover:bg-muted/50 transition-colors text-left"
+                  onClick={() => !walletDisabled && setView('wallet')}
+                  disabled={walletDisabled}
+                  className={`w-full flex items-center gap-3 px-4 py-4 transition-colors text-left ${walletDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/50'}`}
                 >
                   <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
                     <Wallet className="w-4 h-4" />
@@ -246,7 +242,6 @@ export function ApplyCreditsDrawer({
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                 </button>
-              )}
               {!hideGiftCard && (
                 <button
                   type="button"
@@ -270,7 +265,7 @@ export function ApplyCreditsDrawer({
             </div>
           )}
 
-          {view === 'wallet' && showWallet && (
+          {view === 'wallet' && !walletDisabled && (
             <section className="rounded-xl border p-4 animate-fade-in">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -303,24 +298,15 @@ export function ApplyCreditsDrawer({
                       <Input
                         type="number"
                         inputMode="numeric"
-                        placeholder="Amount to apply"
+                        placeholder="Enter amount"
                         value={walletAmount}
                         onChange={(e) => {
                           setWalletAmount(e.target.value);
                           setWalletError('');
                         }}
-                        className="h-10 text-base pr-14"
-                        max={maxWalletApplicable / 100}
+                        className="h-10 text-base"
                         disabled={walletApplying}
                       />
-                      <button
-                        type="button"
-                        onClick={handleSetMax}
-                        disabled={walletApplying || maxWalletApplicable <= 0}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-0.5 text-xs font-semibold text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-50"
-                      >
-                        Max
-                      </button>
                     </div>
                     <Button
                       variant="shop"
@@ -331,9 +317,6 @@ export function ApplyCreditsDrawer({
                       {walletApplying ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Up to {formatKobo(maxWalletApplicable)} available
-                  </p>
                   {walletError && (
                     <div className="flex items-center gap-2 text-xs text-destructive animate-fade-in">
                       <XCircle className="w-3.5 h-3.5" />

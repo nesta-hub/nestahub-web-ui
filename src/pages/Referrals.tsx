@@ -4,10 +4,13 @@ import { ReferralCard } from '@/components/referral/ReferralCard';
 import { ReferralStats } from '@/components/referral/ReferralStats';
 import { useAuth } from '@/contexts/AuthContext';
 import { useReferralData } from '@/hooks/useReferralData';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 const Referrals = () => {
   const { user, session, loading: authLoading } = useAuth();
   const { info, loading, share } = useReferralData(session?.access_token);
+  const navigate = useNavigate();
 
   if (authLoading) {
     return (
@@ -32,15 +35,17 @@ const Referrals = () => {
   }
 
   return (
-    <Layout>
-      <div className="px-4 py-8 max-w-lg mx-auto space-y-6">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Refer & Earn</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Invite friends to Nesta Hub and earn wallet credit for every successful referral.
-          </p>
+    <Layout showNav={false}>
+      <div className="px-6 py-6">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={() => navigate(-1)} className="p-1 -ml-1 text-foreground">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="text-lg font-semibold text-foreground">Referrals</h1>
         </div>
 
+      <div className="space-y-6">
         {loading ? (
           <div className="space-y-4">
             <div className="h-48 rounded-xl bg-muted animate-pulse" />
@@ -61,6 +66,7 @@ const Referrals = () => {
             <li className="flex gap-2"><span className="font-semibold text-foreground shrink-0">3.</span> You earn ₦500 in wallet credit after delivery</li>
           </ol>
         </div>
+      </div>
       </div>
     </Layout>
   );
