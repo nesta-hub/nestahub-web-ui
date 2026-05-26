@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WalletProvider } from "@/contexts/WalletContext";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import { Analytics } from "@vercel/analytics/react";
 import Index from "./pages/Index";
@@ -36,7 +37,9 @@ import IconPreview from "./pages/IconPreview";
 import { AuthCallback } from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 import Wallet from "./pages/Wallet";
-// import Referrals from "./pages/Referrals";
+import Referrals from "./pages/Referrals";
+import AccountReferrals from "./pages/AccountReferrals";
+import ReferralActivity from "./pages/ReferralActivity";
 import { useEffect } from "react";
 import { setReferralCookie } from "./utils/wallet";
 
@@ -63,6 +66,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
+        <WalletProvider>
         <CartProvider>
           <Toaster />
           <Sonner />
@@ -96,7 +100,11 @@ const App = () => (
               <Route path="/subscriptions" element={<Subscriptions />} />
               <Route path="/subscriptions/reorder" element={<SubscriptionReorder />} />
               <Route path="/account/wallet" element={<Wallet />} />
-              {/* <Route path="/account/referrals" element={<Referrals />} /> */}
+              <Route path="/referrals" element={<Referrals />} />
+              <Route path="/share" element={<Referrals />} />
+              <Route path="/referrals/activity" element={<ReferralActivity />} />
+              <Route path="/share/activity" element={<ReferralActivity />} />
+              <Route path="/account/referrals" element={<AccountReferrals />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/gift/:giftId" element={<GiftCardRedeem />} />
               <Route path="/image-preview" element={<ImagePreview />} />
@@ -106,6 +114,7 @@ const App = () => (
             </Routes>
           </BrowserRouter>
         </CartProvider>
+        </WalletProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

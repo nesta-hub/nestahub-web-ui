@@ -1,75 +1,71 @@
-import { Layout } from '@/components/layout';
-import { SignInForm } from '@/components/auth/SignInForm';
-import { ReferralCard } from '@/components/referral/ReferralCard';
-import { ReferralStats } from '@/components/referral/ReferralStats';
-import { useAuth } from '@/contexts/AuthContext';
-import { useReferralData } from '@/hooks/useReferralData';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Layout } from "@/components/layout/Layout";
 
-const Referrals = () => {
-  const { user, session, loading: authLoading } = useAuth();
-  const { info, loading, share } = useReferralData(session?.access_token);
-  const navigate = useNavigate();
+import { ReferralHero } from "@/components/referrals/ReferralHero";
+import { PullQuote } from "@/components/referrals/PullQuote";
+import { ParticipationPaths } from "@/components/referrals/ParticipationPaths";
+import { SimpleSteps } from "@/components/referrals/SimpleSteps";
+import { RewardsCatalogue } from "@/components/referrals/RewardsCatalogue";
+import { WhatSheFinds } from "@/components/referrals/WhatSheFinds";
+import { SampleMessages } from "@/components/referrals/SampleMessages";
+import { ReferralFAQ } from "@/components/referrals/ReferralFAQ";
+import { JoinCTA } from "@/components/referrals/JoinCTA";
+import { BalanceLookupDrawer } from "@/components/referrals/BalanceLookupDrawer";
+import { SignupDrawer } from "@/components/referrals/SignupDrawer";
 
-  if (authLoading) {
-    return (
-      <Layout>
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </Layout>
-    );
-  }
+export default function Referrals() {
+  const [signupOpen, setSignupOpen] = useState(false);
+  const [balanceOpen, setBalanceOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-  if (!user) {
-    return (
-      <Layout>
-        <SignInForm
-          title="Sign in to refer friends"
-          description="Earn ₦500 for every friend who completes their first order"
-          containerClassName="flex-1 flex flex-col items-center justify-center px-6 py-16"
-        />
-      </Layout>
-    );
-  }
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 80);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <Layout showNav={false}>
-      <div className="px-6 py-6">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate(-1)} className="p-1 -ml-1 text-foreground">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-lg font-semibold text-foreground">Referrals</h1>
-        </div>
-
-      <div className="space-y-6">
-        {loading ? (
-          <div className="space-y-4">
-            <div className="h-48 rounded-xl bg-muted animate-pulse" />
-            <div className="h-28 rounded-xl bg-muted animate-pulse" />
-          </div>
-        ) : info ? (
-          <>
-            <ReferralCard referralCode={info.referralCode} onShare={share} />
-            <ReferralStats info={info} />
-          </>
-        ) : null}
-
-        <div className="rounded-xl border border-border p-5 space-y-3">
-          <p className="text-sm font-medium text-foreground">How it works</p>
-          <ol className="space-y-2 text-sm text-muted-foreground">
-            <li className="flex gap-2"><span className="font-semibold text-foreground shrink-0">1.</span> Share your code or link with a friend</li>
-            <li className="flex gap-2"><span className="font-semibold text-foreground shrink-0">2.</span> They sign up and complete their first order</li>
-            <li className="flex gap-2"><span className="font-semibold text-foreground shrink-0">3.</span> You earn ₦500 in wallet credit after delivery</li>
-          </ol>
-        </div>
+    <Layout>
+      {/* Fixed scroll indicator — pinned to bottom of viewport, fades out once scrolled */}
+      <div
+        className={`hidden md:flex fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex-col items-center gap-1 text-nesta-sage animate-bounce transition-opacity duration-500 ${scrolled ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+        aria-hidden
+      >
+        <div className="w-0.5 h-5 bg-nesta-sage rounded-full" />
+        <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+          <path d="M1 1l7 7 7-7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </div>
+
+      <div className="container max-w-6xl px-4 md:px-6 py-6 md:py-10 space-y-12 md:space-y-20">
+
+        <ReferralHero
+          onJoin={() => setSignupOpen(true)}
+          onCheckBalance={() => setBalanceOpen(true)}
+        />
+
+        <PullQuote />
+
+        <WhatSheFinds />
+
+        <ParticipationPaths onSignup={() => setSignupOpen(true)} />
+
+        <SimpleSteps />
+
+        <RewardsCatalogue />
+
+        <SampleMessages />
+
+        <ReferralFAQ />
+
+        <JoinCTA
+          onJoin={() => setSignupOpen(true)}
+          onCheckBalance={() => setBalanceOpen(true)}
+        />
       </div>
+
+      <BalanceLookupDrawer open={balanceOpen} onOpenChange={setBalanceOpen} />
+      <SignupDrawer open={signupOpen} onOpenChange={setSignupOpen} />
     </Layout>
   );
-};
-
-export default Referrals;
+}

@@ -8,6 +8,7 @@ const navLinks = [
   { href: "/", label: "Home" },
   { href: "/catalogue", label: "Shop" },
   { href: "/gifting", label: "Gifting" },
+  { href: "/share", label: "Share" },
   { href: "/contact", label: "Contact Us" },
 ];
 
@@ -26,8 +27,8 @@ export function DesktopHeader() {
           />
         </Link>
 
-        {/* Center Navigation */}
-        <nav className="hidden md:flex items-center gap-1">
+        {/* Center Navigation — editorial style */}
+        <nav className="hidden md:flex items-center gap-10">
           {navLinks.map((link) => {
             const isActive = location.pathname === link.href ||
               (link.href !== "/" && location.pathname.startsWith(link.href));
@@ -37,10 +38,11 @@ export function DesktopHeader() {
                 key={link.href}
                 to={link.href}
                 className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                  "relative text-sm font-medium transition-colors",
+                  "after:absolute after:left-1/2 after:-translate-x-1/2 after:-bottom-2 after:h-px after:bg-nesta-sage after:transition-all after:duration-300",
                   isActive
-                    ? "bg-secondary text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                    ? "text-nesta-sage after:w-6"
+                    : "text-foreground/70 hover:text-nesta-sage after:w-0 hover:after:w-6",
                 )}
               >
                 {link.label}

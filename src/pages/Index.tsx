@@ -1,4 +1,5 @@
-import { Layout, HomeHeader } from "@/components/layout";
+import { Layout } from "@/components/layout";
+import { MobileScrollHeader } from "@/components/layout/MobileScrollHeader";
 import { ShopEntry } from "@/components/shop";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -7,7 +8,7 @@ const Index = () => {
 
   return (
     <Layout showNav={!isMobile}>
-      {isMobile && <HomeHeader />}
+      {isMobile && <MobileScrollHeader />}
       <ShopEntry />
     </Layout>
   );

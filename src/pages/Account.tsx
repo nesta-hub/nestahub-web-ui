@@ -8,6 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { formatKobo } from '@/utils/wallet';
+import { useIsMobile } from '@/hooks/use-mobile';
+import desktopPlaceholder from '@/assets/desktop-placeholder.jpg';
 
 interface MenuItem {
   icon: typeof Wallet;
@@ -54,8 +56,24 @@ function PhoneStep({ onSave, onSkip, showBack, onBack }: { onSave: (p: string) =
 const Account = () => {
   const { user, loading, signOut, updatePhone, walletBalance } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [showPhoneStep, setShowPhoneStep] = useState(false);
   const [fromBanner, setFromBanner] = useState(false);
+
+  if (!isMobile) {
+    return (
+      <Layout>
+        <div className="relative min-h-[calc(100vh-5rem)] flex items-center justify-center">
+          <img src={desktopPlaceholder} alt="Baby care essentials" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" />
+          <div className="relative z-10 text-center px-4">
+            <h1 className="text-4xl font-bold text-foreground mb-4">Desktop Experience Coming Soon</h1>
+            <p className="text-muted-foreground max-w-md mx-auto text-lg font-medium">Browse on a mobile device or a tablet to shop.</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   const handleLogout = async () => {
     try { await signOut(); } catch (error) { console.error('Error signing out:', error); }
@@ -115,7 +133,7 @@ const Account = () => {
             { icon: Wallet, label: 'My Wallet', href: '/account/wallet', sub: walletBalance !== null ? formatKobo(walletBalance) : '—' },
             { icon: Package, label: 'View Orders', href: '/orders' },
             { icon: RefreshCw, label: 'Manage Subscriptions', href: '/subscriptions' },
-            // { icon: Users, label: 'Referrals', href: '/account/referrals' },
+            { icon: Users, label: 'Referrals', href: '/account/referrals' },
             { icon: MessageCircle, label: 'Contact Us', href: '/contact' },
           ] as MenuItem[]).map(({ icon: Icon, label, href, sub }) => (
             <div

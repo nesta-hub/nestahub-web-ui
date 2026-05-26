@@ -5,12 +5,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Layout } from '@/components/layout/Layout';
+import { getReferralCookie, setReferralCookie } from '@/utils/wallet';
 
 export function AuthCallback() {
   const navigate = useNavigate();
   const { user, updatePhone } = useAuth();
   const [showPhoneCollection, setShowPhoneCollection] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [referralCode, setReferralCode] = useState("");
+  const [referralFromCookie, setReferralFromCookie] = useState(false);
   const [redirectUrl, setRedirectUrl] = useState("/checkout");
 
   useEffect(() => {
@@ -24,7 +27,9 @@ export function AuthCallback() {
     // Once user is synced, check if phone is needed
     if (user) {
       if (!user.phone) {
-        // User doesn't have phone, show collection screen
+        // Pre-fill referral code from cookie if present
+        const existing = getReferralCookie();
+        if (existing) { setReferralCode(existing); setReferralFromCookie(true); }
         setShowPhoneCollection(true);
       } else {
         // User has phone, redirect to destination
@@ -33,7 +38,13 @@ export function AuthCallback() {
     }
   }, [user, redirectUrl, navigate]);
 
+  const persistReferralCode = () => {
+    const trimmed = referralCode.trim().toUpperCase();
+    if (trimmed) setReferralCookie(trimmed);
+  };
+
   const handlePhoneContinue = async () => {
+    persistReferralCode();
     try {
       await updatePhone(phoneNumber.trim());
       navigate(redirectUrl, { replace: true });
@@ -44,6 +55,7 @@ export function AuthCallback() {
   };
 
   const handleSkip = () => {
+    persistReferralCode();
     navigate(redirectUrl, { replace: true });
   };
 
@@ -53,22 +65,40 @@ export function AuthCallback() {
       <Layout showNav={false}>
         <div className="min-h-screen flex flex-col items-center bg-background px-6 pt-16">
           <div className="w-full max-w-md">
-            <h1 className="text-xl font-semibold text-foreground mb-2 text-center">
+            <h1 className="text-xl font-semibold text-foreground mb-8 text-center">
               Complete Your Profile
             </h1>
-            <p className="text-sm text-muted-foreground mb-8 text-center">
-              Add your phone number so we can keep you updated on your orders
-            </p>
 
             <div className="w-full space-y-4">
-              <Input
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="08012345678"
-                className="h-12"
-                autoComplete="tel"
-              />
+              <div className="space-y-1.5">
+                <Input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="08012345678"
+                  className="h-12"
+                  autoComplete="tel"
+                />
+                <p className="text-xs text-muted-foreground px-1">Enter your phone number,so we can keep you updated on your orders</p>
+              </div>
+              {referralFromCookie ? (
+                <div className="flex items-center gap-2 px-1 text-xs text-nesta-sage">
+                  <span className="font-medium">Referral code applied:</span>
+                  <span className="font-mono font-bold">{referralCode}</span>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Input
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    placeholder="Referral code (optional)"
+                    className="h-12"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                  />
+                  <p className="text-xs text-muted-foreground px-1">Enter a friend's referral code if you have one</p>
+                </div>
+              )}
               <Button
                 variant="shop"
                 className="w-full h-12"
@@ -77,13 +107,6 @@ export function AuthCallback() {
               >
                 Continue
               </Button>
-              <button
-                type="button"
-                onClick={handleSkip}
-                className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Skip
-              </button>
             </div>
           </div>
         </div>

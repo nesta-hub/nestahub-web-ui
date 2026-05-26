@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { MobileNav } from "./MobileNav";
 import { DesktopHeader } from "./DesktopHeader";
+import { MobileScrollHeader } from "./MobileScrollHeader";
 import { Footer } from "./Footer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { FloatingCartIcon } from "@/components/cart/FloatingCartIcon";
@@ -24,11 +25,16 @@ export function Layout({ children, showNav = true }: LayoutProps) {
       {/* Desktop Header */}
       {!isMobile && showNav && <DesktopHeader />}
 
+      {/* Mobile header w/ hamburger — only on home & referrals/share */}
+      {isMobile && showNav && (location.pathname === "/" || location.pathname === "/referrals" || location.pathname === "/referrals/activity" || location.pathname === "/share" || location.pathname === "/share/activity") && (
+        <MobileScrollHeader alwaysVisible={location.pathname === "/referrals" || location.pathname === "/referrals/activity" || location.pathname === "/share" || location.pathname === "/share/activity"} />
+      )}
+
       {/* Floating Cart Icon for Mobile (except home) */}
       {showFloatingCart && <FloatingCartIcon />}
 
       {/* Main Content */}
-      <main className={`${!isMobile && showNav ? "pt-20" : ""}`}>
+      <main className={`${!isMobile && showNav ? "pt-20" : ""}${isMobile && showNav && (location.pathname === "/referrals" || location.pathname === "/referrals/activity" || location.pathname === "/share" || location.pathname === "/share/activity") ? "pt-14" : ""}`}>
         {children}
       </main>
 
@@ -39,8 +45,8 @@ export function Layout({ children, showNav = true }: LayoutProps) {
         </div>
       )}
 
-      {/* Mobile Bottom Nav */}
-      {isMobile && showNav && <MobileNav />}
+      {/* Mobile Bottom Nav (hidden on referrals/share) */}
+      {isMobile && showNav && location.pathname !== "/referrals" && location.pathname !== "/referrals/activity" && location.pathname !== "/share" && location.pathname !== "/share/activity" && <MobileNav />}
     </div>
   );
 }
