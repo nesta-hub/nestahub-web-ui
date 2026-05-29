@@ -88,7 +88,7 @@ export function SignupDrawer({ open, onOpenChange }: Props) {
     <div className="space-y-4">
       <div className="space-y-2">
         <label className="text-sm font-medium text-foreground">Your name</label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ama" className="text-base" />
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ama Mabel" className="text-base" />
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium text-foreground">Email address</label>
