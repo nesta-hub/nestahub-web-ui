@@ -104,7 +104,7 @@ export function AddressView({ onSubmit, onBack }: AddressViewProps) {
         {
           input: query,
           componentRestrictions: { country: 'ng' },
-          types: ['address'],
+          types: ['geocode'],
         },
         (results, status) => {
           setIsSearching(false);

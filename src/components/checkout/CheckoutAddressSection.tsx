@@ -188,7 +188,7 @@ export function CheckoutAddressSection({
         {
           input: query,
           componentRestrictions: { country: "ng" },
-          types: ["address"],
+          types: ["geocode"],
         },
         (results, status) => {
           setIsSearching(false);
