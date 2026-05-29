@@ -262,13 +262,17 @@ export function CheckoutAddressSection({
     setIsSearching(true);
 
     placesServiceRef.current.getDetails(
-      { placeId: prediction.place_id, fields: ["formatted_address"] },
+      { placeId: prediction.place_id, fields: ["name", "formatted_address"] },
       (place, status) => {
         setIsSearching(false);
-        const address =
+        const formatted =
           status === window.google.maps.places.PlacesServiceStatus.OK && place?.formatted_address
             ? place.formatted_address
             : prediction.description;
+        const address =
+          place?.name && !formatted.includes(place.name)
+            ? `${place.name}, ${formatted}`
+            : formatted;
 
         onSelectAddress(address, fee, coords.lat, coords.lng);
         setPredictions([]);
