@@ -142,6 +142,7 @@ export function AddressView({ onSubmit, onBack }: AddressViewProps) {
         setSelectedAddress(address);
         setPredictions([]);
         setQuery("");
+      }
     );
   };
 
