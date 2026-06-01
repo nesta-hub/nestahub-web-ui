@@ -42,7 +42,6 @@ interface GiftBundleItemsViewProps {
   open: boolean;
   onClose: () => void;
   bundleId: string;
-  ageGroupSlug: string;
   onProceed: (items: SelectedProduct[]) => void;
 }
 
@@ -70,7 +69,6 @@ export function GiftBundleItemsView({
   open,
   onClose,
   bundleId,
-  ageGroupSlug,
   onProceed,
 }: GiftBundleItemsViewProps) {
   // Fetch bundle details by ID instead of slug
@@ -98,8 +96,8 @@ export function GiftBundleItemsView({
 
   // Initialize items from bundle data
   useEffect(() => {
-    // Extract categories from the first bundleAgeGroup (since we're viewing one age group)
-    const categories = bundleData?.bundleAgeGroups?.[0]?.categories;
+    // Bundle sections (was previously nested under an age group)
+    const categories = bundleData?.categories;
 
     if (categories && open) {
       const initialItems: SelectedProduct[] = [];
@@ -227,7 +225,9 @@ export function GiftBundleItemsView({
         </button>
         <div>
           <h1 className="font-semibold text-lg">{bundleData?.name || 'Gift Bundle'}</h1>
-          <p className="text-sm text-muted-foreground">{ageGroupSlug}</p>
+          <p className="text-sm text-muted-foreground">
+            {bundleData ? `${bundleData.giftCategory.name} · ${bundleData.size.name}` : ''}
+          </p>
         </div>
       </div>
 

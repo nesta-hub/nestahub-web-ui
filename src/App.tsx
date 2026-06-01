@@ -28,6 +28,7 @@ import GiftingCards from "./pages/GiftingCards";
 import GiftCardDetails from "./pages/GiftCardDetails";
 import GiftCardRedeem from "./pages/GiftCardRedeem";
 import GiftingBundles from "./pages/GiftingBundles";
+import CustomGiftBuilder from "./pages/CustomGiftBuilder";
 import Subscribe from "./pages/Subscribe";
 import Contact from "./pages/Contact";
 import FAQ from "./pages/FAQ";
@@ -87,6 +88,7 @@ const App = () => (
               <Route path="/gifting/cards" element={<GiftingCards />} />
               <Route path="/gifting/cards/details" element={<GiftCardDetails />} />
               <Route path="/gifting/bundles" element={<GiftingBundles />} />
+              <Route path="/gifting/build" element={<CustomGiftBuilder />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/gift-cards" element={<GiftCards />} />
               <Route path="/cart" element={<Cart />} />

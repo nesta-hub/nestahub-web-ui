@@ -75,9 +75,12 @@ const Checkout = () => {
   const [paidWithGiftCard, setPaidWithGiftCard] = useState(false);
   const contactRef = useRef<HTMLDivElement>(null);
 
-  // Determine order type: 'bundle' if coming from gifting page, else 'shop'
-  const orderType = searchParams.get('source') === 'gifting' ? 'bundle' : 'shop';
+  // Determine order type from the entry source
+  const source = searchParams.get('source');
+  const orderType: 'shop' | 'bundle' | 'custom_gift' =
+    source === 'gifting' ? 'bundle' : source === 'custom-gift' ? 'custom_gift' : 'shop';
   const bundleId = searchParams.get('bundleId');
+  const giftSizeId = searchParams.get('giftSizeId');
 
   // Handle resume flow: if navigated from Cart with an existing order, skip to payment
   useEffect(() => {
@@ -193,7 +196,7 @@ const Checkout = () => {
 
       const result = await api.createOrder(
         {
-          orderType: orderType as 'shop' | 'bundle',
+          orderType,
           fullName: fullName.trim(),
           phoneNumber: phoneNumber.trim(),
           deliveryMethod: deliveryMethod!,
@@ -203,7 +206,8 @@ const Checkout = () => {
           deliveryAddress: deliveryMethod === 'address' ? address : null,
           deliveryLat: deliveryMethod === 'address' && addressLat != null ? addressLat : undefined,
           deliveryLng: deliveryMethod === 'address' && addressLng != null ? addressLng : undefined,
-          bundleId: bundleId ?? null,
+          bundleId: orderType === 'bundle' ? (bundleId ?? null) : null,
+          giftSizeId: orderType === 'custom_gift' ? (giftSizeId ?? null) : null,
           items: orderItems,
         },
         session.access_token,

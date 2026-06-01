@@ -146,15 +146,13 @@ const BundleConfigurator = () => {
       ? totalPrice
       : getSubscriptionPrice(totalPrice);
 
-  // Find stage info
-  const ageGroupData = bundlesData?.ageGroups.find(ag => ag.ageGroup.slug === stageId);
-  const stage = ageGroupData ? {
-    id: ageGroupData.ageGroup.slug,
-    name: ageGroupData.ageGroup.name,
-    ageRange: ageGroupData.ageGroup.ageRangeStart !== undefined && ageGroupData.ageGroup.ageRangeEnd !== undefined
-      ? `${ageGroupData.ageGroup.ageRangeStart}-${ageGroupData.ageGroup.ageRangeEnd} months`
-      : undefined,
-    emoji: '👶',
+  // Find stage info (now a gift category)
+  const giftCategoryData = bundlesData?.giftCategories.find(gc => gc.giftCategory.slug === stageId);
+  const stage = giftCategoryData ? {
+    id: giftCategoryData.giftCategory.slug,
+    name: giftCategoryData.giftCategory.name,
+    ageRange: undefined,
+    emoji: '🎁',
   } : undefined;
 
   const tier = bundleData ? {

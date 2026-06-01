@@ -87,13 +87,19 @@ export interface CategoriesResponse {
 }
 
 // Gift Bundle Types
-export interface AgeGroup {
+export interface GiftCategorySummary {
   id: string;
   name: string;
   slug: string;
   description?: string;
-  ageRangeStart?: number;
-  ageRangeEnd?: number;
+  imageUrl?: string;
+}
+
+export interface SizeSummary {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
 }
 
 export interface BundleCategory {
@@ -112,16 +118,27 @@ export interface Bundle {
   slug: string;
   totalPrice: number;
   sortOrder: number;
+  size: SizeSummary;
   categories: BundleCategory[];
 }
 
-export interface BundlesByAgeGroup {
-  ageGroup: AgeGroup;
+export interface BundlesByGiftCategory {
+  giftCategory: GiftCategorySummary;
   bundles: Bundle[];
 }
 
 export interface BundlesGroupedResponse {
-  ageGroups: BundlesByAgeGroup[];
+  giftCategories: BundlesByGiftCategory[];
+}
+
+export interface GiftCategoriesListResponse {
+  giftCategories: (GiftCategorySummary & { sortOrder: number; isActive: boolean })[];
+  total: number;
+}
+
+export interface GiftPackageSizesListResponse {
+  sizes: (SizeSummary & { sortOrder: number; isActive: boolean })[];
+  total: number;
 }
 
 export interface BundleProductVariant {
@@ -164,29 +181,18 @@ export interface BundleCategoryDetail {
   updatedAt: string;
 }
 
-export interface BundleAgeGroupDetail {
-  id: string;
-  bundleId: string;
-  ageGroupId: string;
-  sortOrder: number;
-  ageGroup: AgeGroup;
-  categories: BundleCategoryDetail[];
-  categoryCount: number;
-  productCount: number;
-  totalPrice: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface BundleDetail {
   id: string;
   name: string;
   slug: string;
   isActive: boolean;
   sortOrder: number;
-  ageGroupCount: number;
+  giftCategory: GiftCategorySummary;
+  size: SizeSummary;
+  categories: BundleCategoryDetail[];
+  categoryCount: number;
+  productCount: number;
   calculatedPrice: number;
-  bundleAgeGroups: BundleAgeGroupDetail[];
   createdAt: string;
   updatedAt: string;
 }
@@ -283,10 +289,22 @@ export const api = {
     return response.json();
   },
 
+  async getGiftCategories(): Promise<GiftCategoriesListResponse> {
+    const response = await fetch(`${API_BASE_URL}/gift-categories`);
+    if (!response.ok) throw new Error('Failed to fetch gift categories');
+    return response.json();
+  },
+
+  async getGiftPackageSizes(): Promise<GiftPackageSizesListResponse> {
+    const response = await fetch(`${API_BASE_URL}/gift-package-sizes`);
+    if (!response.ok) throw new Error('Failed to fetch gift package sizes');
+    return response.json();
+  },
+
   // Orders
   async createOrder(
     data: {
-      orderType: 'shop' | 'bundle' | 'gift_card';
+      orderType: 'shop' | 'bundle' | 'custom_gift' | 'gift_card';
       fullName: string;
       phoneNumber: string;
       deliveryMethod?: 'pickup' | 'address';
@@ -297,6 +315,10 @@ export const api = {
       deliveryLat?: number;
       deliveryLng?: number;
       bundleId?: string | null;
+      giftSizeId?: string | null;
+      giftRecipientName?: string;
+      giftRecipientPhone?: string;
+      giftMessage?: string;
       items?: Array<{
         variantId: string;
         quantity: number;

@@ -3,20 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Lightbulb, Loader2 } from "lucide-react";
 import { StageCard } from "./StageCard";
-import { api, type AgeGroup } from "@/lib/api";
+import { api, type GiftCategorySummary } from "@/lib/api";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getStageEmoji } from "@/lib/stageEmojis";
 
-// Map age groups to stage format for the UI
-const mapAgeGroupToStage = (ageGroup: AgeGroup) => ({
-  id: ageGroup.slug,
-  name: ageGroup.name,
-  ageRange: ageGroup.ageRangeStart !== undefined && ageGroup.ageRangeEnd !== undefined
-    ? `${ageGroup.ageRangeStart}-${ageGroup.ageRangeEnd} months`
-    : undefined,
-  weightRange: undefined, // Age groups don't have weight ranges
-  description: ageGroup.description || '',
-  emoji: getStageEmoji(ageGroup.slug),
+// Map gift categories to stage format for the UI
+const mapGiftCategoryToStage = (giftCategory: GiftCategorySummary) => ({
+  id: giftCategory.slug,
+  name: giftCategory.name,
+  ageRange: undefined,
+  weightRange: undefined,
+  description: giftCategory.description || '',
+  emoji: getStageEmoji(giftCategory.slug),
 });
 
 export function StageSelector() {
@@ -51,8 +49,8 @@ export function StageSelector() {
     );
   }
 
-  // Map age groups to stages (using "age" view for now)
-  const stagesByAge = bundlesData?.ageGroups.map(ag => mapAgeGroupToStage(ag.ageGroup)) || [];
+  // Map gift categories to stages
+  const stagesByAge = bundlesData?.giftCategories.map(gc => mapGiftCategoryToStage(gc.giftCategory)) || [];
   const stagesByWeight = []; // Weight-based view not supported yet
 
   if (isMobile) {

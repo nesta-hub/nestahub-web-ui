@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/contexts/CartContext";
 import { cn } from "@/lib/utils";
@@ -16,23 +16,18 @@ const formatPrice = (priceInKobo: number) => {
   return `₦${naira.toLocaleString()}`;
 };
 
-// Tier colour config (same as nesting-essentials)
-const tierVisuals: Record<string, { gradient: string; overlayColor: string }> = {
-  "clean-care": { gradient: "from-[hsl(30,40%,85%)] to-[hsl(30,32%,92%)]", overlayColor: "bg-[hsl(30,40%,85%)]/60" },
-  "essentials": { gradient: "from-[hsl(210,32%,80%)] to-[hsl(210,25%,88%)]", overlayColor: "bg-[hsl(210,32%,80%)]/60" },
-  "essentials-plus": { gradient: "from-[hsl(90,15%,75%)] to-[hsl(90,12%,85%)]", overlayColor: "bg-[hsl(90,15%,75%)]/60" },
-  "care-plus": { gradient: "from-[hsl(25,28%,77%)] to-[hsl(25,22%,86%)]", overlayColor: "bg-[hsl(25,28%,77%)]/60" },
+// Size colour config keyed by size slug
+const sizeVisuals: Record<string, { gradient: string; overlayColor: string }> = {
+  small: { gradient: "from-[hsl(30,40%,85%)] to-[hsl(30,32%,92%)]", overlayColor: "bg-[hsl(30,40%,85%)]/40" },
+  medium: { gradient: "from-[hsl(350,45%,86%)] to-[hsl(350,35%,92%)]", overlayColor: "bg-[hsl(350,45%,86%)]/40" },
+  large: { gradient: "from-[hsl(90,15%,75%)] to-[hsl(90,12%,85%)]", overlayColor: "bg-[hsl(90,15%,75%)]/40" },
 };
 
-
-function GiftBundleCard({
-  bundle,
-  onClick,
-}: {
-  bundle: Bundle;
-  onClick: () => void;
-}) {
-  const visuals = tierVisuals[bundle.slug] ?? { gradient: "from-secondary/60 to-secondary/20", overlayColor: "bg-secondary/60" };
+function GiftBundleCard({ bundle, onClick }: { bundle: Bundle; onClick: () => void }) {
+  const visuals = sizeVisuals[bundle.size?.slug] ?? {
+    gradient: "from-secondary/60 to-secondary/20",
+    overlayColor: "bg-secondary/40",
+  };
   const maxVisible = 3;
   const remaining = bundle.categories.length - maxVisible;
 
@@ -41,14 +36,16 @@ function GiftBundleCard({
       onClick={onClick}
       className={cn(
         "flex-shrink-0 w-36 rounded-2xl text-left snap-start flex flex-col overflow-hidden",
-        "bg-card border border-border",
-        "shadow-sm hover:shadow-md hover:border-primary/30",
+        "bg-card border border-border shadow-sm hover:shadow-md hover:border-primary/30",
         "transition-all duration-200 active:scale-[0.98]"
       )}
     >
       <div className={cn("w-full aspect-[2/1] bg-gradient-to-br relative overflow-hidden", visuals.gradient)}>
         <span className="absolute inset-0 flex items-center justify-center text-4xl opacity-[0.50]">🎁</span>
-        <div className={cn("absolute inset-0", visuals.overlayColor.replace("/60", "/40"))} />
+        <span className="absolute top-1.5 left-1.5 text-[10px] font-semibold bg-card/80 text-foreground rounded-full px-2 py-0.5">
+          {bundle.size?.name}
+        </span>
+        <div className={cn("absolute inset-0", visuals.overlayColor)} />
       </div>
       <div className="p-2.5 flex flex-col flex-1">
         <h3 className="font-semibold text-foreground text-sm mb-1.5 leading-tight">{bundle.name}</h3>
@@ -75,59 +72,64 @@ function GiftBundleCard({
   );
 }
 
-interface AgeGroupSectionProps {
-  id: string;
+interface GiftCategorySectionProps {
   name: string;
-  ageRange: string;
+  description: string;
   emoji: string;
   bundles: Bundle[];
-  onSelectBundle: (bundleId: string, ageGroupSlug: string) => void;
+  onSelectBundle: (bundleId: string) => void;
   isExpanded: boolean;
   onToggle: () => void;
 }
 
-function AgeGroupSection({
-  id,
+function GiftCategorySection({
   name,
-  ageRange,
+  description,
   emoji,
   bundles,
   onSelectBundle,
   isExpanded,
   onToggle,
-}: AgeGroupSectionProps) {
+}: GiftCategorySectionProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   return (
     <div>
-      <button onClick={onToggle} className="w-full flex items-center justify-between px-4 mb-3">
-        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <span className="text-xl">{emoji}</span>
-          <span>{name}</span>
-          <span className="bg-secondary text-muted-foreground font-normal text-sm rounded-full px-2.5 py-0.5">
-            {ageRange}
-          </span>
-        </h2>
-        <ChevronDown className={cn(
-          "w-5 h-5 text-muted-foreground transition-transform duration-200",
-          isExpanded && "rotate-180"
-        )} />
+      <button onClick={onToggle} className="w-full px-4 mb-3 text-left">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 min-w-0">
+            <span className="text-xl shrink-0">{emoji}</span>
+            <span className="truncate">{name}</span>
+          </h2>
+          <ChevronDown
+            className={cn(
+              "w-5 h-5 text-muted-foreground transition-transform duration-200 shrink-0",
+              isExpanded && "rotate-180"
+            )}
+          />
+        </div>
+        {description && (
+          <p className="text-sm text-muted-foreground mt-0.5 ml-8 leading-snug">
+            {description}
+          </p>
+        )}
       </button>
 
-      <div className={cn(
-        "transition-all duration-300 ease-in-out overflow-hidden",
-        isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
-      )}>
-        <div ref={scrollRef} className={cn(
-          "flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide ml-4",
-          isExpanded && "animate-fade-in"
-        )}>
+      <div
+        className={cn(
+          "transition-all duration-300 ease-in-out overflow-hidden",
+          isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+        )}
+      >
+        <div
+          ref={scrollRef}
+          className={cn(
+            "flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide ml-4",
+            isExpanded && "animate-fade-in"
+          )}
+        >
           {bundles.map((bundle) => (
-            <GiftBundleCard
-              key={bundle.id}
-              bundle={bundle}
-              onClick={() => onSelectBundle(bundle.id, id)}
-            />
+            <GiftBundleCard key={bundle.id} bundle={bundle} onClick={() => onSelectBundle(bundle.id)} />
           ))}
           <div className="w-4 flex-shrink-0" />
         </div>
@@ -140,36 +142,31 @@ export function GiftBundlesTab() {
   const navigate = useNavigate();
   const { addToCart, clearCart } = useCart();
 
-  // Fetch bundles from API
   const { data: bundlesData, isLoading } = useQuery({
     queryKey: ['bundles'],
     queryFn: api.getBundles,
   });
 
-  // Map API data to display stages
-  const displayStages = bundlesData?.ageGroups.slice(0, 3).map(ag => ({
-    id: ag.ageGroup.slug,
-    name: ag.ageGroup.name,
-    ageRange: ag.ageGroup.ageRangeStart !== undefined && ag.ageGroup.ageRangeEnd !== undefined
-      ? `${ag.ageGroup.ageRangeStart}-${ag.ageGroup.ageRangeEnd} months`
-      : '',
-    emoji: getStageEmoji(ag.ageGroup.slug),
-    bundles: ag.bundles,
+  // Map API data to display sections (one per gift category)
+  const sections = bundlesData?.giftCategories.map((gc) => ({
+    id: gc.giftCategory.slug,
+    name: gc.giftCategory.name,
+    description: gc.giftCategory.description ?? '',
+    emoji: getStageEmoji(gc.giftCategory.slug),
+    bundles: gc.bundles,
   })) || [];
 
-  const [expandedStage, setExpandedStage] = useState<number>(0);
-  const toggleStage = useCallback((index: number) => {
-    setExpandedStage(prev => prev === index ? -1 : index);
+  const [expandedSection, setExpandedSection] = useState<number>(0);
+  const toggleSection = useCallback((index: number) => {
+    setExpandedSection((prev) => (prev === index ? -1 : index));
   }, []);
 
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [selectedBundleId, setSelectedBundleId] = useState<string | null>(null);
-  const [selectedAgeGroupSlug, setSelectedAgeGroupSlug] = useState<string | null>(null);
   const [itemsViewOpen, setItemsViewOpen] = useState(false);
 
-  const handleSelectBundle = (bundleId: string, ageGroupSlug: string) => {
+  const handleSelectBundle = (bundleId: string) => {
     setSelectedBundleId(bundleId);
-    setSelectedAgeGroupSlug(ageGroupSlug);
     setDetailDrawerOpen(true);
   };
 
@@ -188,12 +185,10 @@ export function GiftBundlesTab() {
           productName: item.variant.product.name,
           brand: item.variant.product.brand,
           slug: item.variant.product.slug,
-          // Legacy fields for backwards compatibility
           typeId: item.variant.id,
           typeName: item.categoryName,
           sizeId: undefined,
           sizeName: undefined,
-          // API fields
           attributes: item.variant.attributes,
           unitPrice: item.variant.price,
           image: item.variant.imageUrl,
@@ -202,7 +197,7 @@ export function GiftBundlesTab() {
       );
     });
 
-    navigate("/checkout?source=gifting");
+    navigate(`/checkout?source=gifting&bundleId=${selectedBundleId ?? ''}`);
     setTimeout(() => setItemsViewOpen(false), 100);
   };
 
@@ -217,17 +212,30 @@ export function GiftBundlesTab() {
   return (
     <>
       <div className="space-y-8 py-4">
-        {displayStages.map((stage, index) => (
-          <AgeGroupSection
-            key={stage.id}
-            id={stage.id}
-            name={stage.name}
-            ageRange={stage.ageRange}
-            emoji={stage.emoji}
-            bundles={stage.bundles}
+        {/* Build-your-own entry point */}
+        <button
+          onClick={() => navigate("/gifting/build")}
+          className="mx-4 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-left transition-colors hover:bg-primary/10"
+        >
+          <span className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5 text-primary" />
+          </span>
+          <span>
+            <span className="block font-semibold text-foreground">Build your own gift set</span>
+            <span className="block text-sm text-muted-foreground">Pick a box and fill it with anything you like</span>
+          </span>
+        </button>
+
+        {sections.map((section, index) => (
+          <GiftCategorySection
+            key={section.id}
+            name={section.name}
+            description={section.description}
+            emoji={section.emoji}
+            bundles={section.bundles}
             onSelectBundle={handleSelectBundle}
-            isExpanded={expandedStage === index}
-            onToggle={() => toggleStage(index)}
+            isExpanded={expandedSection === index}
+            onToggle={() => toggleSection(index)}
           />
         ))}
       </div>
@@ -236,16 +244,14 @@ export function GiftBundlesTab() {
         open={detailDrawerOpen}
         onOpenChange={setDetailDrawerOpen}
         bundleId={selectedBundleId}
-        ageGroupSlug={selectedAgeGroupSlug}
         onContinue={handleDetailContinue}
       />
 
-      {selectedBundleId && selectedAgeGroupSlug && (
+      {selectedBundleId && (
         <GiftBundleItemsView
           open={itemsViewOpen}
           onClose={() => setItemsViewOpen(false)}
           bundleId={selectedBundleId}
-          ageGroupSlug={selectedAgeGroupSlug}
           onProceed={handleProceed}
         />
       )}

@@ -66,31 +66,32 @@ const Gifting = () => {
           </button>
 
           {/* Gift Bundles Card */}
-          <div
+          <button
+            onClick={() => navigate("/gifting/bundles")}
             className={cn(
               "w-full rounded-2xl overflow-hidden text-left",
-              "bg-muted/40 border border-border opacity-70"
+              "bg-muted/40 border border-border",
+              "transition-all duration-200 active:scale-[0.99]"
             )}
           >
-            <div className="p-5 pb-3 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-extrabold uppercase tracking-tight text-foreground">
-                  Gift Bundles
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                  Expertly curated baby care packages, perfect for any stage.
-                </p>
-              </div>
-              <span className="shrink-0 mt-0.5 text-[10px] font-semibold uppercase tracking-widest text-nesta-sage bg-nesta-sage/10 px-2.5 py-1 rounded-full">
-                <strong>Coming Soon</strong>
-              </span>
+            <div className="p-5 pb-3">
+              <h2 className="text-lg font-extrabold uppercase tracking-tight text-foreground">
+                Gift Bundles
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                Expertly curated baby care packages — or build your own gift set.
+              </p>
             </div>
-            <div className="px-5 pb-5">
+            <div className="px-5 pb-3">
               <div className="w-full aspect-[16/10] max-w-[280px] mx-auto rounded-2xl bg-gradient-to-br from-[hsl(25,28%,82%)] to-[hsl(30,35%,90%)] flex items-center justify-center shadow-lg overflow-hidden">
-                <img src={nestaBoxRect} alt="Nestahub gift box" className="w-full object-contain opacity-80" />
+                <img src={nestaBoxRect} alt="Nestahub gift box" className="w-full object-contain" />
               </div>
             </div>
-          </div>
+            <div className="px-5 pb-4 flex items-center gap-1.5 text-primary">
+              <span className="text-sm font-semibold">Shop gift bundles</span>
+              <ArrowRight className="w-4 h-4" />
+            </div>
+          </button>
         </div>
       </div>
     </Layout>
