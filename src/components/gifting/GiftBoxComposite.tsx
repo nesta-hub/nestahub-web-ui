@@ -16,6 +16,20 @@ const BACKDROPS: Record<string, string> = {
 };
 const DEFAULT_BACKDROP = "from-[hsl(350,55%,92%)] to-[hsl(350,45%,85%)]";
 
+// Per-size backdrop + box scale, so picking a different box visibly changes
+// both the colour and how large the box reads.
+const SIZE_BACKDROPS: Record<string, string> = {
+  small: "from-[hsl(35,45%,91%)] to-[hsl(35,38%,82%)]",   // warm sand
+  medium: "from-[hsl(350,55%,92%)] to-[hsl(350,45%,85%)]", // blush
+  large: "from-[hsl(95,28%,90%)] to-[hsl(95,22%,82%)]",    // sage
+};
+const SIZE_BOX_WIDTH: Record<string, string> = {
+  small: "w-[42%] max-w-[140px]",
+  medium: "w-[56%] max-w-[195px]",
+  large: "w-[72%] max-w-[250px]",
+};
+const DEFAULT_BOX_WIDTH = "w-[58%] max-w-[200px]";
+
 /**
  * Lightweight 2.5D "what's inside" preview — the Nesta box with the contents
  * fanned above it as tilted, overlapping cards. Pure DOM/CSS + <img> (no WebGL),
@@ -24,13 +38,19 @@ const DEFAULT_BACKDROP = "from-[hsl(350,55%,92%)] to-[hsl(350,45%,85%)]";
 export function GiftBoxComposite({
   items,
   categorySlug,
+  sizeSlug,
   className,
 }: {
   items: GiftBoxItem[];
   categorySlug?: string;
+  sizeSlug?: string;
   className?: string;
 }) {
-  const backdrop = (categorySlug && BACKDROPS[categorySlug]) || DEFAULT_BACKDROP;
+  const backdrop =
+    (sizeSlug && SIZE_BACKDROPS[sizeSlug]) ||
+    (categorySlug && BACKDROPS[categorySlug]) ||
+    DEFAULT_BACKDROP;
+  const boxWidth = (sizeSlug && SIZE_BOX_WIDTH[sizeSlug]) || DEFAULT_BOX_WIDTH;
   const shown = items.slice(0, 5);
   const n = shown.length;
 
@@ -44,7 +64,10 @@ export function GiftBoxComposite({
       <img
         src={nestaBoxRect}
         alt="Nesta gift box"
-        className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-[58%] max-w-[200px] object-contain drop-shadow-xl pointer-events-none select-none"
+        className={cn(
+          "absolute -bottom-3 left-1/2 -translate-x-1/2 object-contain drop-shadow-xl pointer-events-none select-none transition-all duration-300",
+          boxWidth
+        )}
       />
 
       {/* contents fanned above the box */}

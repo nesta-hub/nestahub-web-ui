@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Sparkles } from "lucide-react";
+import { ChevronDown, Sparkles, Baby, Heart, Gift, Package } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/contexts/CartContext";
 import { cn } from "@/lib/utils";
@@ -8,7 +9,15 @@ import { api, type Bundle } from "@/lib/api";
 import { GiftBundleDetailDrawer } from "./GiftBundleDetailDrawer";
 import { GiftBundleItemsView } from "./GiftBundleItemsView";
 import type { SelectedProduct } from "./GiftBundleItemsView";
-import { getStageEmoji } from "@/lib/stageEmojis";
+
+// Family icon by gift-category slug (replaces the old age-group emojis)
+const FAMILY_ICONS: Record<string, LucideIcon> = {
+  baby: Baby,
+  mom: Heart,
+  mum: Heart,
+  complete: Package,
+  "complete-set": Package,
+};
 
 // Helper to format price from kobo
 const formatPrice = (priceInKobo: number) => {
@@ -41,7 +50,7 @@ function GiftBundleCard({ bundle, onClick }: { bundle: Bundle; onClick: () => vo
       )}
     >
       <div className={cn("w-full aspect-[2/1] bg-gradient-to-br relative overflow-hidden", visuals.gradient)}>
-        <span className="absolute inset-0 flex items-center justify-center text-4xl opacity-[0.50]">🎁</span>
+        <Gift className="absolute inset-0 m-auto w-9 h-9 text-foreground/25" strokeWidth={1.5} />
         <span className="absolute top-1.5 left-1.5 text-[10px] font-semibold bg-card/80 text-foreground rounded-full px-2 py-0.5">
           {bundle.size?.name}
         </span>
@@ -75,7 +84,7 @@ function GiftBundleCard({ bundle, onClick }: { bundle: Bundle; onClick: () => vo
 interface GiftCategorySectionProps {
   name: string;
   description: string;
-  emoji: string;
+  Icon: LucideIcon;
   bundles: Bundle[];
   onSelectBundle: (bundleId: string) => void;
   isExpanded: boolean;
@@ -85,7 +94,7 @@ interface GiftCategorySectionProps {
 function GiftCategorySection({
   name,
   description,
-  emoji,
+  Icon,
   bundles,
   onSelectBundle,
   isExpanded,
@@ -98,7 +107,7 @@ function GiftCategorySection({
       <button onClick={onToggle} className="w-full px-4 mb-3 text-left">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 min-w-0">
-            <span className="text-xl shrink-0">{emoji}</span>
+            <Icon className="w-5 h-5 text-primary shrink-0" strokeWidth={1.75} />
             <span className="truncate">{name}</span>
           </h2>
           <ChevronDown
@@ -152,7 +161,7 @@ export function GiftBundlesTab() {
     id: gc.giftCategory.slug,
     name: gc.giftCategory.name,
     description: gc.giftCategory.description ?? '',
-    emoji: getStageEmoji(gc.giftCategory.slug),
+    Icon: FAMILY_ICONS[gc.giftCategory.slug] ?? Gift,
     bundles: gc.bundles,
   })) || [];
 
@@ -231,7 +240,7 @@ export function GiftBundlesTab() {
             key={section.id}
             name={section.name}
             description={section.description}
-            emoji={section.emoji}
+            Icon={section.Icon}
             bundles={section.bundles}
             onSelectBundle={handleSelectBundle}
             isExpanded={expandedSection === index}

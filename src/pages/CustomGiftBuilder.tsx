@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Search, Trash2, Sparkles } from "lucide-react";
@@ -8,7 +8,8 @@ import { QuantityControl } from "@/components/cart/QuantityControl";
 import { ProductDetailDrawer } from "@/components/catalogue/ProductDetailDrawer";
 import { useCart } from "@/contexts/CartContext";
 import { api } from "@/lib/api";
-import { GiftBoxComposite } from "@/components/gifting/GiftBoxComposite";
+import { GiftBox3DLazy } from "@/components/gifting/GiftBox3DLazy";
+import { GIFT_DRAFT_KEY } from "@/lib/giftDraft";
 
 const formatPrice = (kobo: number) => `₦${(kobo / 100).toLocaleString()}`;
 
@@ -22,6 +23,21 @@ interface CustomItem {
   quantity: number;
 }
 
+// Persist the in-progress build so navigating to checkout and back doesn't wipe it.
+// Cleared on successful order placement (see Checkout / lib/giftDraft).
+function loadDraft(): { sizeId: string; items: CustomItem[] } {
+  try {
+    const raw = sessionStorage.getItem(GIFT_DRAFT_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { sizeId: parsed.sizeId ?? "", items: Array.isArray(parsed.items) ? parsed.items : [] };
+    }
+  } catch {
+    /* ignore malformed draft */
+  }
+  return { sizeId: "", items: [] };
+}
+
 export default function CustomGiftBuilder() {
   const navigate = useNavigate();
   const { addToCart, clearCart } = useCart();
@@ -31,11 +47,20 @@ export default function CustomGiftBuilder() {
     queryFn: api.getGiftPackageSizes,
   });
 
-  const [sizeId, setSizeId] = useState<string>("");
+  const [sizeId, setSizeId] = useState<string>(() => loadDraft().sizeId);
   const [search, setSearch] = useState("");
-  const [items, setItems] = useState<CustomItem[]>([]);
+  const [items, setItems] = useState<CustomItem[]>(() => loadDraft().items);
   const [selectProductSlug, setSelectProductSlug] = useState<string | null>(null);
   const [selectDrawerOpen, setSelectDrawerOpen] = useState(false);
+
+  // Save the draft on every change so the build survives navigation/reload.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(GIFT_DRAFT_KEY, JSON.stringify({ sizeId, items }));
+    } catch {
+      /* storage full / unavailable — non-fatal */
+    }
+  }, [sizeId, items]);
 
   const { data: productsData } = useQuery({
     queryKey: ['customGiftProducts', search],
@@ -131,10 +156,13 @@ export default function CustomGiftBuilder() {
           </div>
 
           {selectedSize && (
-            <div className="h-44 rounded-2xl overflow-hidden">
-              <GiftBoxComposite
-                categorySlug={selectedSize.slug}
-                items={items.map((it) => ({ name: `${it.product.brand} ${it.product.name}`, imageUrl: it.imageUrl }))}
+            <div className="h-44 rounded-2xl overflow-hidden touch-none">
+              <GiftBox3DLazy
+                sizeSlug={selectedSize.slug}
+                items={items.map((it) => ({
+                  name: `${it.product.brand} ${it.product.name}`,
+                  imageUrl: it.imageUrl,
+                }))}
               />
             </div>
           )}

@@ -1,8 +1,9 @@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import { Package } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { GiftBoxComposite } from "./GiftBoxComposite";
+import { GiftBox3DLazy } from "./GiftBox3DLazy";
 
 interface GiftBundleDetailDrawerProps {
   open: boolean;
@@ -44,16 +45,23 @@ export function GiftBundleDetailDrawer({
             </DrawerDescription>
           </DrawerHeader>
 
-          {/* "What's inside" preview (The Nesta Petit) */}
-          <div className="shrink-0 h-48 mx-6 rounded-2xl overflow-hidden">
-            <GiftBoxComposite categorySlug={bundleData.giftCategory.slug} items={boxItems} />
+          {/* Interactive 3D box preview — drag to rotate (no-drag stops the drawer from grabbing the gesture) */}
+          <div
+            data-vaul-no-drag
+            className="shrink-0 h-48 mx-6 rounded-2xl overflow-hidden touch-none"
+          >
+            <GiftBox3DLazy
+              categorySlug={bundleData.giftCategory.slug}
+              sizeSlug={bundleData.size.slug}
+              items={boxItems}
+            />
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
             {categories.map((category, i) => (
               <div key={i} className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                  <span className="text-lg">📦</span>
+                  <Package className="w-5 h-5 text-muted-foreground" strokeWidth={1.75} />
                 </div>
                 <div>
                   <p className="font-medium text-foreground">{category.category.name}</p>
