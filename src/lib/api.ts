@@ -35,6 +35,9 @@ export interface ProductCard {
   categoryName: string;
   categoryDisplayName: string;
   categorySlug: string;
+  subcategoryId?: string;
+  subcategoryName?: string;
+  subcategorySlug?: string;
   minPrice: number;
   maxPrice: number;
   variantCount: number;
@@ -49,6 +52,14 @@ export interface ProductDetail extends ProductCard {
   updatedAt: string;
 }
 
+export interface Subcategory {
+  id: string;
+  name: string;
+  slug: string;
+  categoryId: string;
+  sortOrder: number;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -56,9 +67,41 @@ export interface Category {
   slug: string;
   description?: string;
   imageUrl?: string;
+  iconKey?: string;
+  tint?: string;
+  groupId?: string;
   sortOrder: number;
   productCount: number;
   isActive: boolean;
+  subcategories?: Subcategory[];
+}
+
+export interface CategoryGroup {
+  id: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+  categories: Category[];
+}
+
+export interface CategoryTreeResponse {
+  groups: CategoryGroup[];
+  ungrouped: Category[];
+}
+
+export interface RecentVariant {
+  productId: string;
+  productName: string;
+  brand: string;
+  slug: string;
+  imageUrl?: string;
+  lastOrderedAt: string;
+  variant: ProductVariant;
+}
+
+export interface RecentVariantsResponse {
+  variants: RecentVariant[];
+  total: number;
 }
 
 export interface CategoryWithProducts {
@@ -247,6 +290,7 @@ export const api = {
   // Browse products with filters
   async getProducts(params: {
     category?: string;
+    subcategory?: string;
     brand?: string;
     search?: string;
     page?: number;
@@ -263,10 +307,30 @@ export const api = {
     return response.json();
   },
 
+  // Buy-again: the authenticated customer's recently purchased variants
+  async getRecentVariants(
+    token: string,
+    limit = 8,
+  ): Promise<RecentVariantsResponse> {
+    const response = await fetch(
+      `${API_BASE_URL}/products/recent-variants?limit=${limit}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!response.ok) throw new Error('Failed to fetch recent variants');
+    return response.json();
+  },
+
   // Categories
   async getCategories(): Promise<CategoriesResponse> {
     const response = await fetch(`${API_BASE_URL}/categories`);
     if (!response.ok) throw new Error('Failed to fetch categories');
+    return response.json();
+  },
+
+  // Full catalogue taxonomy tree: groups -> categories -> subcategories
+  async getCategoryTree(): Promise<CategoryTreeResponse> {
+    const response = await fetch(`${API_BASE_URL}/categories/tree`);
+    if (!response.ok) throw new Error('Failed to fetch category tree');
     return response.json();
   },
 
