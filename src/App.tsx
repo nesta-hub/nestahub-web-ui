@@ -21,7 +21,9 @@ import Account from "./pages/Account";
 import Orders from "./pages/Orders";
 import Subscriptions from "./pages/Subscriptions";
 import SubscriptionReorder from "./pages/SubscriptionReorder";
-import Catalogue from "./pages/Catalogue";
+import CatalogueLegacy from "./pages/Catalogue";
+import CatalogueV2 from "./pages/CatalogueV2";
+import { SHOP_V2_ENABLED } from "@/lib/shopV2";
 import ProductPage from "./pages/ProductPage";
 import Gifting from "./pages/Gifting";
 import GiftingCards from "./pages/GiftingCards";
@@ -45,6 +47,10 @@ import { useEffect } from "react";
 import { setReferralCookie } from "./utils/wallet";
 
 const queryClient = new QueryClient();
+
+// Render the redesigned (v2) catalogue behind the feature flag; fall back to
+// the legacy catalogue otherwise.
+const CataloguePage = SHOP_V2_ENABLED ? CatalogueV2 : CatalogueLegacy;
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -78,11 +84,11 @@ const App = () => (
             <CartDrawer />
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/shop" element={<Catalogue />} />
+              <Route path="/shop" element={<CataloguePage />} />
               <Route path="/bundles" element={<Bundles />} />
               <Route path="/bundles/:stageId" element={<BundleOptions />} />
               <Route path="/configure/:bundleId" element={<BundleConfigurator />} />
-              <Route path="/catalogue" element={<Catalogue />} />
+              <Route path="/catalogue" element={<CataloguePage />} />
               <Route path="/catalogue/:slug" element={<ProductPage />} />
               <Route path="/gifting" element={<Gifting />} />
               <Route path="/gifting/cards" element={<GiftingCards />} />

@@ -11,6 +11,7 @@
 import type {
   ProductDetail,
   ProductVariant,
+  ProductCard as ApiProductCard,
   Category as ApiCategory,
   CategoryGroup as ApiCategoryGroup,
 } from '@/lib/api';
@@ -116,6 +117,36 @@ export function apiProductToCatalogue(detail: ProductDetail): CatalogueProduct {
     image: detail.imageUrl,
     types,
     sizes,
+  };
+}
+
+/**
+ * Map a lightweight API ProductCard (list shape) onto the CatalogueProduct
+ * view-model the redesigned list/card components consume.
+ *
+ * The card components only need identity, image and a min–max price RANGE.
+ * We encode the range as two synthetic "types" (min and max) so the existing
+ * `getProductPriceRange` helper renders "from ₦min" correctly. The product id
+ * is reused as the detail lookup key (api.getProduct accepts slug OR id), and
+ * the API slug is carried on `id` is avoided — callers needing the slug should
+ * read it from the source ProductCard. Here we keep `id` = product id.
+ */
+export function apiCardToCatalogue(card: ApiProductCard): CatalogueProduct {
+  const types: ProductType[] =
+    card.minPrice === card.maxPrice
+      ? [{ id: '_min', name: '', price: card.minPrice }]
+      : [
+          { id: '_min', name: '', price: card.minPrice },
+          { id: '_max', name: '', price: card.maxPrice },
+        ];
+  return {
+    id: card.id,
+    name: card.name,
+    brand: card.brand,
+    categoryId: card.categoryId,
+    subcategoryId: card.subcategoryId,
+    image: card.imageUrl,
+    types,
   };
 }
 
