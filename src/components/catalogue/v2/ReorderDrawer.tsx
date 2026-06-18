@@ -79,7 +79,7 @@ export function ReorderDrawer({ open, onOpenChange, onProductClick }: ReorderDra
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[85vh]">
+      <DrawerContent aria-describedby={undefined} className="max-h-[85vh]">
         <DrawerHeader className="text-left px-4 pb-2">
           <DrawerTitle className="text-lg font-bold">Reorder essentials</DrawerTitle>
           <p className="text-xs text-muted-foreground">

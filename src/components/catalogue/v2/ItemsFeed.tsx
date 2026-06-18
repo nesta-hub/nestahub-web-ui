@@ -15,7 +15,7 @@ interface ItemsFeedProps {
 export function ItemsFeed({ groups, onProductClick }: ItemsFeedProps) {
   const { data, isLoading } = useQuery({
     queryKey: ["catalogue", "items-feed"],
-    queryFn: () => api.getProducts({ limit: 200 }),
+    queryFn: () => api.getProducts({ limit: 100 }),
     staleTime: 5 * 60 * 1000,
   });
 

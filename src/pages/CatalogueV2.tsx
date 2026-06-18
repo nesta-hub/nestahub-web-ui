@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/layout";
-import { FloatingCartIcon } from "@/components/cart";
+import { HeaderCartIcon } from "@/components/cart";
 import { useIsMobile } from "@/hooks/use-mobile";
 import desktopPlaceholder from "@/assets/desktop-placeholder.jpg";
 import {
@@ -18,7 +18,8 @@ import {
   type DrawerCategory,
 } from "@/components/catalogue/v2";
 import { WalletBalancePill } from "@/components/wallet/WalletBalancePill";
-import { useCategoryTree } from "@/hooks/useCatalogue";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCategoryTree, useRecentVariants } from "@/hooks/useCatalogue";
 import { apiGroupToCatalogue, apiCategoryToCatalogue } from "@/lib/catalogueAdapter";
 import type { Category as ApiCategory, CategoryGroup as ApiGroup } from "@/lib/api";
 
@@ -38,6 +39,10 @@ const CatalogueV2 = () => {
   const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: tree } = useCategoryTree();
+  // Reorder/buy-again is only meaningful for signed-in users with past orders.
+  const { session } = useAuth();
+  const { data: recent } = useRecentVariants(session?.access_token);
+  const hasReorder = (recent?.variants.length ?? 0) > 0;
 
   const [selectedProductKey, setSelectedProductKey] = useState<string | null>(null);
   const [isProductDrawerOpen, setIsProductDrawerOpen] = useState(false);
@@ -117,13 +122,14 @@ const CatalogueV2 = () => {
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pt-[6px]">
             <WalletBalancePill size="sm" />
           </div>
-          <div className="w-10" aria-hidden />
+          <HeaderCartIcon />
         </div>
 
         {/* Search bar with attached Buy Again row */}
         <CatalogueSearchBar
           onSearchClick={() => setIsSearchOpen(true)}
           onReorderClick={() => setIsReorderDrawerOpen(true)}
+          showReorder={hasReorder}
         />
 
         {/* Sticky tabs */}
@@ -151,9 +157,6 @@ const CatalogueV2 = () => {
           </div>
         )}
       </div>
-
-      {/* Cart FAB */}
-      <FloatingCartIcon />
 
       {/* Search overlay */}
       <SearchOverlay

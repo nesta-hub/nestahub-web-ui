@@ -17,7 +17,7 @@ interface ShopProductDrawerProps {
 export function ShopProductDrawer({ open, onOpenChange, productKey }: ShopProductDrawerProps) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[92vh]">
+      <DrawerContent aria-describedby={undefined} className="max-h-[92vh]">
         <VisuallyHidden.Root>
           <DrawerTitle>Product details</DrawerTitle>
         </VisuallyHidden.Root>

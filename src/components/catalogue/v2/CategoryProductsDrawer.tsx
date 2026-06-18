@@ -84,6 +84,7 @@ export function CategoryProductsDrawer({
   return (
     <Drawer open={open} onOpenChange={onOpenChange} shouldScaleBackground={false}>
       <DrawerContent
+        aria-describedby={undefined}
         className={
           mode === "product"
             ? "max-h-[92vh] transition-[height] duration-300 ease-out"
