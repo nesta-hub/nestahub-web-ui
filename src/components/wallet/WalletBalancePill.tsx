@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { getWalletSummary } from '@/lib/api';
@@ -38,6 +39,7 @@ export function WalletBalancePill({ className = '', size = 'md' }: WalletBalance
     >
       <span className={cn('rounded-full bg-primary', size === 'sm' ? 'h-1.5 w-1.5' : 'h-2 w-2')} />
       <span>Wallet: {formatKobo(balance)}</span>
+      <ChevronRight className={cn('opacity-70', size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5')} strokeWidth={2.5} />
     </button>
   );
 }

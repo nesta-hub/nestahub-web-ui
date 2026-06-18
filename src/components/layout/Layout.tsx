@@ -6,6 +6,7 @@ import { MobileScrollHeader } from "./MobileScrollHeader";
 import { Footer } from "./Footer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { FloatingCartIcon } from "@/components/cart/FloatingCartIcon";
+import { SHOP_V2_ENABLED } from "@/lib/shopV2";
 
 interface LayoutProps {
   children: ReactNode;
@@ -16,9 +17,11 @@ export function Layout({ children, showNav = true }: LayoutProps) {
   const isMobile = useIsMobile();
   const location = useLocation();
   
-  // Only show floating cart on shop-related pages (catalogue, shop)
+  // Only show floating cart on shop-related pages (catalogue, shop).
+  // The v2 shop renders its own in-header cart, so suppress the floating one
+  // there to avoid a duplicate (and the position shift it caused).
   const isShopPage = location.pathname === "/catalogue" || location.pathname === "/shop";
-  const showFloatingCart = isMobile && showNav && isShopPage;
+  const showFloatingCart = isMobile && showNav && isShopPage && !SHOP_V2_ENABLED;
 
   return (
     <div className="min-h-screen bg-background bg-nesta-pattern">
