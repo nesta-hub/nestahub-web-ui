@@ -21,6 +21,7 @@ import {
 } from "@/components/checkout";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { api, formatPrice } from "@/lib/api";
+import { useGiftBundle, usePackagingOptions } from "@/hooks/useGifting";
 import { isZone1Address, isZone1Or2Address } from "@/components/checkout/CheckoutAddressSection";
 import { calculateDeliveryTiming, type DeliveryTiming } from "@/lib/delivery-timing";
 
@@ -33,6 +34,19 @@ const Checkout = () => {
   const location = useLocation();
   const { items, totalAmount, clearCart } = useCart();
   const { user, session, walletBalance } = useAuth();
+
+  // Curated gift-bundle checkout (source=gift-bundle): priced from the bundle +
+  // packaging, with no cart items. Gated so the shop/legacy flow is untouched.
+  const isGiftBundle = searchParams.get('source') === 'gift-bundle';
+  const giftBundleId = searchParams.get('bundleId');
+  const giftPackagingId = searchParams.get('packagingId');
+  const { data: giftBundle } = useGiftBundle(isGiftBundle ? giftBundleId : null);
+  const { data: packagingOptionsData } = usePackagingOptions();
+  const giftPackaging = isGiftBundle
+    ? packagingOptionsData?.find((p) => p.id === giftPackagingId) ?? null
+    : null;
+  const giftBundleProductsTotal =
+    (giftBundle?.pkg.price ?? 0) + (giftPackaging?.price ?? 0);
 
   // Delivery state
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
@@ -95,10 +109,10 @@ const Checkout = () => {
 
   // Redirect to catalogue if cart is empty (but not when showing payment/success screens)
   useEffect(() => {
-    if (items.length === 0 && !showPayment && !showSuccess) {
+    if (items.length === 0 && !showPayment && !showSuccess && !isGiftBundle) {
       navigate('/catalogue');
     }
-  }, [items.length, navigate, showPayment, showSuccess]);
+  }, [items.length, navigate, showPayment, showSuccess, isGiftBundle]);
 
   // Delivery fee — dynamic based on address zone and delivery speed
   const deliveryFee = (() => {
@@ -119,7 +133,8 @@ const Checkout = () => {
     }
     return 0;
   })();
-  const grandTotal = totalAmount + deliveryFee;
+  const productsTotal = isGiftBundle ? giftBundleProductsTotal : totalAmount;
+  const grandTotal = productsTotal + deliveryFee;
 
   // Validation
   const isContactValid = fullName.trim().length >= 2 && phoneNumber.trim().length >= 10;
@@ -184,6 +199,43 @@ const Checkout = () => {
 
   const handleProceedToPayment = async () => {
     if (!session?.access_token) return;
+
+    // Curated gift bundle: dedicated endpoint, no item list.
+    if (isGiftBundle && giftBundleId) {
+      setIsSubmitting(true);
+      setSubmitError(null);
+      try {
+        const result = await api.createGiftBundleOrder(
+          {
+            bundleId: giftBundleId,
+            fullName: fullName.trim(),
+            phoneNumber: phoneNumber.trim() || undefined,
+            deliveryMethod: deliveryMethod!,
+            deliverySpeed: deliveryMethod === 'address' ? (deliverySpeed ?? undefined) : undefined,
+            paymentOption: deliveryMethod === 'address' ? (paymentOption ?? undefined) : undefined,
+            pickupStationId: deliveryMethod === 'pickup' ? (pickupStation?.id ?? null) : null,
+            deliveryAddress: deliveryMethod === 'address' ? address : null,
+            deliveryLat: deliveryMethod === 'address' && addressLat != null ? addressLat : undefined,
+            deliveryLng: deliveryMethod === 'address' && addressLng != null ? addressLng : undefined,
+            packagingOptionId: giftPackagingId ?? undefined,
+          },
+          session.access_token,
+        );
+        setOrderNumber(result.orderNumber);
+        setServerTotalAmount(result.totalAmount);
+        if (paymentOption === 'pay-on-delivery') {
+          setShowSuccess(true);
+        } else {
+          setShowPayment(true);
+        }
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : 'Failed to place order. Please try again.');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError(null);
     try {
@@ -383,6 +435,33 @@ const Checkout = () => {
         {/* Footer with CTA */}
         {hasDeliveryDetails && (
           <div className="p-4 border-t shrink-0 animate-fade-in space-y-3">
+            {/* Gift bundle review (no cart items for a curated bundle) */}
+            {isGiftBundle && giftBundle && (
+              <div className="rounded-lg border border-border/50 divide-y divide-border/50">
+                <div className="flex items-center gap-3 px-3 py-2">
+                  <div className="w-10 h-10 rounded-md bg-secondary/50 overflow-hidden shrink-0">
+                    <img src={giftBundle.pkg.heroImage} alt={giftBundle.pkg.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{giftBundle.pkg.name}</p>
+                    <p className="text-xs text-muted-foreground">{giftBundle.pkg.items.length} items</p>
+                  </div>
+                  <p className="text-sm font-semibold shrink-0">{formatPrice(giftBundle.pkg.price)}</p>
+                </div>
+                {giftPackaging && (
+                  <div className="flex items-center gap-3 px-3 py-2">
+                    <div className="w-10 h-10 rounded-md bg-secondary/50 overflow-hidden shrink-0">
+                      <img src={giftPackaging.image} alt={giftPackaging.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{giftPackaging.name}</p>
+                    </div>
+                    <p className="text-sm font-semibold shrink-0">+ {formatPrice(giftPackaging.price)}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Itemized review — what's actually in the order/gift box */}
             {items.length > 0 && (
               <div className="rounded-lg border border-border/50 divide-y divide-border/50 max-h-44 overflow-y-auto">
@@ -421,7 +500,7 @@ const Checkout = () => {
             <div className="bg-primary/5 rounded-lg p-3 space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Products</span>
-                <span className="font-medium">{formatPrice(totalAmount)}</span>
+                <span className="font-medium">{formatPrice(productsTotal)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Delivery</span>

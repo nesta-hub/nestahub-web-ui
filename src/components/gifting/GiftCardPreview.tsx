@@ -1,16 +1,20 @@
 import { cn } from "@/lib/utils";
 import { GiftCardTheme } from "./GiftCardThemes";
 import nestaLogo from "@/assets/nesta-logo.png";
+import { formatPrice } from "@/lib/api";
 
 interface GiftCardPreviewProps {
   theme: GiftCardTheme | null;
   recipientName: string;
   compact?: boolean;
+  /** Amount in kobo (minor units); when set, renders on the card bottom-right. */
+  amount?: number;
 }
 
-export function GiftCardPreview({ theme, recipientName, compact = false }: GiftCardPreviewProps) {
+export function GiftCardPreview({ theme, recipientName, compact = false, amount }: GiftCardPreviewProps) {
   const displayName = recipientName.trim() || "Recipient";
   const hasName = recipientName.trim().length > 0;
+  const hasAmount = typeof amount === "number" && amount > 0;
 
   const gradient = theme?.gradient ?? "from-secondary/60 to-secondary/30";
   const emoji = theme?.emoji ?? "🎁";
@@ -30,9 +34,11 @@ export function GiftCardPreview({ theme, recipientName, compact = false }: GiftC
       <span className={cn("absolute top-4 right-5 opacity-30 select-none", compact ? "text-2xl" : "text-4xl")}>
         {emoji}
       </span>
-      <span className={cn("absolute bottom-4 right-5 opacity-20 select-none", compact ? "text-xl" : "text-3xl")}>
-        {emoji}
-      </span>
+      {!hasAmount && (
+        <span className={cn("absolute bottom-4 right-5 opacity-20 select-none", compact ? "text-xl" : "text-3xl")}>
+          {emoji}
+        </span>
+      )}
 
       {/* Nesta logo */}
       <div className="absolute top-4 left-5">
@@ -72,6 +78,21 @@ export function GiftCardPreview({ theme, recipientName, compact = false }: GiftC
           For {displayName}
         </p>
       </div>
+
+      {/* Amount bottom-right (kobo → naira) */}
+      {hasAmount && (
+        <div className="absolute bottom-4 right-5">
+          <p
+            className={cn(
+              "font-semibold opacity-80 tabular-nums",
+              compact ? "text-xs" : "text-sm",
+              textColor
+            )}
+          >
+            {formatPrice(amount!)}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

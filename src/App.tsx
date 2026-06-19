@@ -21,15 +21,14 @@ import Account from "./pages/Account";
 import Orders from "./pages/Orders";
 import Subscriptions from "./pages/Subscriptions";
 import SubscriptionReorder from "./pages/SubscriptionReorder";
-import CatalogueLegacy from "./pages/Catalogue";
 import CatalogueV2 from "./pages/CatalogueV2";
-import { SHOP_V2_ENABLED } from "@/lib/shopV2";
 import ProductPage from "./pages/ProductPage";
-import Gifting from "./pages/Gifting";
-import GiftingCards from "./pages/GiftingCards";
-import GiftCardDetails from "./pages/GiftCardDetails";
 import GiftCardRedeem from "./pages/GiftCardRedeem";
-import GiftingBundles from "./pages/GiftingBundles";
+import GiftingBundlesV2 from "./pages/GiftingBundlesV2";
+import GiftingV2 from "./pages/GiftingV2";
+import GiftingCardsV2 from "./pages/GiftingCardsV2";
+import GiftCardDetailsV2 from "./pages/GiftCardDetailsV2";
+import GiftBundleDetail from "./pages/GiftBundleDetail";
 import CustomGiftBuilder from "./pages/CustomGiftBuilder";
 import Subscribe from "./pages/Subscribe";
 import Contact from "./pages/Contact";
@@ -48,9 +47,14 @@ import { setReferralCookie } from "./utils/wallet";
 
 const queryClient = new QueryClient();
 
-// Render the redesigned (v2) catalogue behind the feature flag; fall back to
-// the legacy catalogue otherwise.
-const CataloguePage = SHOP_V2_ENABLED ? CatalogueV2 : CatalogueLegacy;
+// The redesigned (v2) catalogue and gifting flows are now the live experience.
+// The legacy pages (./pages/Catalogue, Gifting, GiftingCards, GiftCardDetails,
+// GiftingBundles) are kept in the tree for reference but are no longer routed.
+const CataloguePage = CatalogueV2;
+const GiftingPage = GiftingV2;
+const GiftingCardsPage = GiftingCardsV2;
+const GiftCardDetailsPage = GiftCardDetailsV2;
+const GiftingBundlesPage = GiftingBundlesV2;
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -90,10 +94,11 @@ const App = () => (
               <Route path="/configure/:bundleId" element={<BundleConfigurator />} />
               <Route path="/catalogue" element={<CataloguePage />} />
               <Route path="/catalogue/:slug" element={<ProductPage />} />
-              <Route path="/gifting" element={<Gifting />} />
-              <Route path="/gifting/cards" element={<GiftingCards />} />
-              <Route path="/gifting/cards/details" element={<GiftCardDetails />} />
-              <Route path="/gifting/bundles" element={<GiftingBundles />} />
+              <Route path="/gifting" element={<GiftingPage />} />
+              <Route path="/gifting/cards" element={<GiftingCardsPage />} />
+              <Route path="/gifting/cards/details" element={<GiftCardDetailsPage />} />
+              <Route path="/gifting/bundles" element={<GiftingBundlesPage />} />
+              <Route path="/gifting/bundles/:packageId" element={<GiftBundleDetail />} />
               <Route path="/gifting/build" element={<CustomGiftBuilder />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/gift-cards" element={<GiftCards />} />

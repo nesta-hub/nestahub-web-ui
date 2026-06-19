@@ -155,6 +155,14 @@ export interface BundleCategory {
   sortOrder: number;
 }
 
+/** Curated display item shown in the gifting UI (verbatim from the design). */
+export interface BundleDisplayItem {
+  name: string;
+  detail: string;
+  qty: string;
+  emoji: string;
+}
+
 export interface Bundle {
   id: string;
   name: string;
@@ -163,6 +171,12 @@ export interface Bundle {
   sortOrder: number;
   size: SizeSummary;
   categories: BundleCategory[];
+  /** Curated copy (present once the bundle carries design content). */
+  badge?: string | null;
+  tagline?: string | null;
+  description?: string | null;
+  heroImageUrl?: string | null;
+  items?: BundleDisplayItem[];
 }
 
 export interface BundlesByGiftCategory {
@@ -236,6 +250,12 @@ export interface BundleDetail {
   categoryCount: number;
   productCount: number;
   calculatedPrice: number;
+  priceOverride?: number | null;
+  badge?: string | null;
+  tagline?: string | null;
+  description?: string | null;
+  heroImageUrl?: string | null;
+  items?: BundleDisplayItem[];
   createdAt: string;
   updatedAt: string;
 }
@@ -334,6 +354,22 @@ export const api = {
     return response.json();
   },
 
+  // Customer-facing packaging options (Signature Box / Gift Bag) for gift checkout
+  async getPackagingOptions(): Promise<
+    Array<{
+      id: string;
+      name: string;
+      description?: string;
+      price: number;
+      imageUrl?: string;
+      sortOrder: number;
+    }>
+  > {
+    const response = await fetch(`${API_BASE_URL}/packaging-options`);
+    if (!response.ok) throw new Error('Failed to fetch packaging options');
+    return response.json();
+  },
+
   // Gift Bundles
   async getBundles(): Promise<BundlesGroupedResponse> {
     const response = await fetch(`${API_BASE_URL}/gift-bundles`);
@@ -410,6 +446,42 @@ export const api = {
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || 'Failed to create order');
+    }
+    return response.json();
+  },
+
+  // Order a curated, fixed-price gift bundle (separate from createOrder; priced
+  // server-side from the bundle's override + optional packaging + delivery).
+  async createGiftBundleOrder(
+    data: {
+      bundleId: string;
+      fullName: string;
+      phoneNumber?: string;
+      deliveryMethod: 'pickup' | 'address';
+      deliverySpeed?: 'standard' | 'weekend' | 'sameday' | 'nextday';
+      paymentOption?: 'pay-now' | 'pay-on-delivery';
+      pickupStationId?: string | null;
+      deliveryAddress?: string | null;
+      deliveryLat?: number;
+      deliveryLng?: number;
+      packagingOptionId?: string | null;
+      giftRecipientName?: string;
+      giftRecipientPhone?: string;
+      giftMessage?: string;
+    },
+    token: string,
+  ): Promise<OrderResponse> {
+    const response = await fetch(`${API_BASE_URL}/orders/gift-bundle`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to create gift bundle order');
     }
     return response.json();
   },
