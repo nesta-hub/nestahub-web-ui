@@ -1,22 +1,18 @@
-/* Shared theme gradient + text-color maps for gift cards */
+/* Shared theme gradient + text-color maps for gift cards.
+   Kept in sync with GiftCardThemes.tsx. */
 
 export const themeGradients: Record<string, string> = {
-  "welcome-world":
-    "linear-gradient(135deg, hsl(20,60%,88%), hsl(15,50%,85%), hsl(30,45%,90%))",
-  "hello-little-one":
-    "linear-gradient(135deg, hsl(210,55%,88%), hsl(230,40%,87%), hsl(250,35%,90%))",
-  "little-miracle":
-    "linear-gradient(135deg, hsl(150,30%,85%), hsl(130,25%,87%), hsl(110,20%,90%))",
-  "little-sunshine":
-    "linear-gradient(135deg, hsl(45,65%,85%), hsl(40,55%,87%), hsl(35,50%,92%))",
-  "beautiful-blessing":
-    "linear-gradient(135deg, hsl(340,40%,88%), hsl(350,35%,87%), hsl(10,30%,90%))",
+  "welcome-world": "linear-gradient(135deg, #FCECE8, #F6D9CE, #FCECE8)",
+  "little-sunshine": "linear-gradient(135deg, #F0E8DD, #E6D6BE, #F0E8DD)",
+  "little-miracle": "linear-gradient(135deg, #E8EDE4, #D2DDC9, #E8EDE4)",
+  "hello-little-one": "linear-gradient(135deg, #E8EEF5, #CFDCEB, #E8EEF5)",
+  "beautiful-blessing": "linear-gradient(135deg, #F5E4EA, #EBC9D4, #F5E4EA)",
 };
 
 export const themeTextColors: Record<string, string> = {
-  "welcome-world": "hsl(20,35%,25%)",
-  "hello-little-one": "hsl(220,35%,25%)",
-  "little-miracle": "hsl(140,30%,22%)",
-  "little-sunshine": "hsl(35,40%,22%)",
-  "beautiful-blessing": "hsl(340,30%,25%)",
+  "welcome-world": "#5C3A30",
+  "little-sunshine": "#5C4A2E",
+  "little-miracle": "#3F4A38",
+  "hello-little-one": "#324461",
+  "beautiful-blessing": "#5C3543",
 };

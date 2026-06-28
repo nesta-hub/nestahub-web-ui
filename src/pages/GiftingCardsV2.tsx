@@ -28,7 +28,7 @@ const GiftingCardsV2 = () => {
 
   if (!isMobile) {
     return (
-      <Layout>
+      <Layout showNav={false}>
         <DesktopGiftCardStudio />
       </Layout>
     );

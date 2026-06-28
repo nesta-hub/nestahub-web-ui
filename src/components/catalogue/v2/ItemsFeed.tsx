@@ -6,7 +6,7 @@ import { apiCardToCatalogue } from "@/lib/catalogueAdapter";
 import type { CatalogueProduct } from "@/data/catalogueData";
 
 interface ItemsFeedProps {
-  /** Tree groups (each with its categories) so we can bucket products per group. */
+  /** Tree groups (each with its categories) so we can bucket products per category. */
   groups: ApiGroup[];
   /** Called with the product slug/id to open the detail drawer. */
   onProductClick: (productKey: string, raw: ApiProductCard) => void;
@@ -21,38 +21,35 @@ export function ItemsFeed({ groups, onProductClick }: ItemsFeedProps) {
 
   const allProducts = data?.products ?? [];
 
-  // Map each category slug -> group id, and remember group order/names.
-  const { categorySlugToGroupId, groupOrder } = useMemo(() => {
-    const map: Record<string, string> = {};
-    const order: { id: string; name: string }[] = [];
+  // Flatten groups into an ordered list of categories and a slug → displayName map.
+  const { categoryOrder, slugToDisplayName } = useMemo(() => {
+    const order: { slug: string; displayName: string }[] = [];
+    const nameMap: Record<string, string> = {};
     for (const g of groups) {
-      order.push({ id: g.id, name: g.name });
       for (const c of g.categories) {
-        map[c.slug] = g.id;
+        order.push({ slug: c.slug, displayName: c.displayName });
+        nameMap[c.slug] = c.displayName;
       }
     }
-    return { categorySlugToGroupId: map, groupOrder: order };
+    return { categoryOrder: order, slugToDisplayName: nameMap };
   }, [groups]);
 
-  // Bucket products into their group, de-duplicating by product id.
-  const byGroup = useMemo(() => {
+  // Bucket products by category slug, de-duplicating by product id.
+  const byCategory = useMemo(() => {
     const buckets: Record<string, CatalogueProduct[]> = {};
     const rawById: Record<string, ApiProductCard> = {};
     const seen: Record<string, Set<string>> = {};
     for (const p of allProducts) {
-      const groupId = categorySlugToGroupId[p.categorySlug];
-      if (!groupId) continue;
-      if (!buckets[groupId]) {
-        buckets[groupId] = [];
-        seen[groupId] = new Set();
-      }
-      if (seen[groupId].has(p.id)) continue;
-      seen[groupId].add(p.id);
-      buckets[groupId].push(apiCardToCatalogue(p));
+      const slug = p.categorySlug;
+      if (!slug || !slugToDisplayName[slug]) continue;
+      if (!buckets[slug]) { buckets[slug] = []; seen[slug] = new Set(); }
+      if (seen[slug].has(p.id)) continue;
+      seen[slug].add(p.id);
+      buckets[slug].push(apiCardToCatalogue(p));
       rawById[p.id] = p;
     }
     return { buckets, rawById };
-  }, [allProducts, categorySlugToGroupId]);
+  }, [allProducts, slugToDisplayName]);
 
   if (isLoading) {
     return (
@@ -73,15 +70,15 @@ export function ItemsFeed({ groups, onProductClick }: ItemsFeedProps) {
 
   return (
     <div className="space-y-5 pt-4">
-      {groupOrder.map((group) => {
-        const items = byGroup.buckets[group.id] ?? [];
+      {categoryOrder.map((cat) => {
+        const items = byCategory.buckets[cat.slug] ?? [];
         if (items.length === 0) return null;
         return (
           <FeedCarousel
-            key={group.id}
-            title={`Trending in ${group.name}`}
+            key={cat.slug}
+            title={cat.displayName}
             products={items.slice(0, 12)}
-            onProductClick={(p) => onProductClick(p.id, byGroup.rawById[p.id])}
+            onProductClick={(p) => onProductClick(p.id, byCategory.rawById[p.id])}
           />
         );
       })}

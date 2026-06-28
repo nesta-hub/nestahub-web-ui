@@ -6,16 +6,15 @@ import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import desktopPlaceholder from "@/assets/desktop-placeholder.jpg";
 import { giftCategoryMeta } from "@/data/giftCatalogue";
 import { useGiftBundle, usePackagingOptions } from "@/hooks/useGifting";
 import { BundleDetailView } from "@/components/gifting/bundles/BundleDetailView";
 import { PackagingStep } from "@/components/gifting/bundles/PackagingStep";
 import { BundleSummaryDrawer } from "@/components/gifting/bundles/BundleSummaryDrawer";
+import { DesktopGiftBundleDetail } from "@/components/gifting/desktop/DesktopGiftBundleDetail";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { CheckoutPaymentView } from "@/components/checkout/CheckoutPaymentView";
-import { api } from "@/lib/api";
 
 type Step = "details" | "packaging" | "recipient";
 
@@ -83,25 +82,34 @@ const GiftBundleDetail = () => {
   }, [step]);
 
   if (!isMobile) {
-    return (
-      <Layout showNav={false}>
-        <div className="relative min-h-[calc(100vh-5rem)] flex items-center justify-center">
-          <img
-            src={desktopPlaceholder}
-            alt="Baby care essentials"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" />
-          <div className="relative z-10 text-center px-4">
-            <h1 className="text-4xl font-bold text-foreground mb-4">
-              Desktop Experience Coming Soon
-            </h1>
-            <p className="text-muted-foreground max-w-md mx-auto text-lg font-medium">
-              Browse on a mobile device or a tablet to shop.
-            </p>
+    if (isLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+    if (!pkg) {
+      return (
+        <div className="min-h-screen flex items-center justify-center px-6 text-center">
+          <div>
+            <p className="text-foreground font-semibold">Bundle not found.</p>
+            <button
+              onClick={() => navigate("/gifting/bundles")}
+              className="mt-3 text-sm text-primary font-medium"
+            >
+              Back to Gift Bundles
+            </button>
           </div>
         </div>
-      </Layout>
+      );
+    }
+    return (
+      <DesktopGiftBundleDetail
+        pkg={pkg}
+        packagingOptions={packagingOptions}
+        bundleId={bundle!.bundleId}
+      />
     );
   }
 
@@ -139,60 +147,6 @@ const GiftBundleDetail = () => {
   const recipientValid =
     fullName.trim().length > 0 &&
     phoneNumber.replace(/\D/g, "").length === 11;
-
-  // Build the persisted/pending order payload. Matching the Lovable flow, the
-  // summary drawer opens straight from packaging (no inline recipient step), so
-  // fullName falls back to the signed-in user's name like the gift-card flow.
-  const sessionName =
-    (session?.user?.user_metadata?.name as string | undefined) ||
-    session?.user?.email?.split("@")[0] ||
-    "Gift Buyer";
-  const buildPendingData = () => ({
-    packageId,
-    fullName: fullName.trim() || sessionName,
-    phoneNumber: phoneNumber.trim(),
-    recipientName: recipientName.trim(),
-    recipientPhone: recipientPhone.trim(),
-    giftMessage: giftMessage.trim(),
-    packagingId,
-    timestamp: Date.now(),
-  });
-
-  // Create the bundle order via the SUPPORTED order fields, then go to payment.
-  const createBundleOrderWith = async (data: ReturnType<typeof buildPendingData>) => {
-    if (!session || !bundle) return;
-    setIsCreatingOrder(true);
-    setCreateOrderError(null);
-    try {
-      const order = await api.createOrder(
-        {
-          orderType: "bundle",
-          fullName: data.fullName,
-          phoneNumber: data.phoneNumber,
-          bundleId: bundle.bundleId,
-          giftRecipientName: data.recipientName || undefined,
-          giftRecipientPhone: data.recipientPhone || undefined,
-          giftMessage: data.giftMessage || undefined,
-          items: [],
-          // TODO(C3): send packaging selection (selectedPackaging) once the
-          //   order DTO accepts a packagingOptionId. Held in state for now.
-          // TODO(C2): send delivery mode (pickup/address) once a bundle
-          //   delivery-mode step + DTO support exist.
-        },
-        session.access_token,
-      );
-      setOrderId(order.orderNumber);
-      setServerTotal(order.totalAmount);
-      setSummaryOpen(false);
-      setShowPayment(true);
-    } catch (err) {
-      setCreateOrderError(
-        err instanceof Error ? err.message : "Failed to create order. Please try again.",
-      );
-    } finally {
-      setIsCreatingOrder(false);
-    }
-  };
 
   // Summary-drawer "Proceed": hand off to the shared checkout, which collects
   // delivery + contact and places the order (auth handled there too).

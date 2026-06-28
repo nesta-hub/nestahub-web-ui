@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { GiftCardRecipientPage } from "@/components/gifting/GiftCardRecipientPage";
 import { giftCardThemes } from "@/components/gifting/GiftCardThemes";
-import { getGiftCard, revealGiftCard } from "@/lib/api";
+import { getGiftCard } from "@/lib/api";
 import { AlertCircle, Loader2 } from "lucide-react";
 import nestaLogo from "@/assets/nesta-logo.png";
 
@@ -16,16 +16,6 @@ export default function GiftCardRedeem() {
     enabled: !!giftId,
     retry: false,
   });
-
-  const handleVerify = async (phone: string): Promise<string> => {
-    try {
-      const result = await revealGiftCard(giftId!, phone);
-      return result.code;
-    } catch (error) {
-      // Re-throw to let the component handle the error display
-      throw error;
-    }
-  };
 
   if (isLoading) {
     return (
@@ -114,7 +104,7 @@ export default function GiftCardRedeem() {
       amount={giftCard.currentBalance}
       theme={theme}
       message={giftCard.message}
-      onVerify={handleVerify}
+      giftCode={giftCard.code}
     />
   );
 }

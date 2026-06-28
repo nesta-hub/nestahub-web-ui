@@ -134,10 +134,10 @@ export function apiProductToCatalogue(detail: ProductDetail): CatalogueProduct {
 export function apiCardToCatalogue(card: ApiProductCard): CatalogueProduct {
   const types: ProductType[] =
     card.minPrice === card.maxPrice
-      ? [{ id: '_min', name: '', price: card.minPrice }]
+      ? [{ id: '_min', name: '', price: card.minPrice / 100 }]
       : [
-          { id: '_min', name: '', price: card.minPrice },
-          { id: '_max', name: '', price: card.maxPrice },
+          { id: '_min', name: '', price: card.minPrice / 100 },
+          { id: '_max', name: '', price: card.maxPrice / 100 },
         ];
   return {
     id: card.id,

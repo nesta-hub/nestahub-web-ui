@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import shop1 from "@/assets/home/pillar-shop-1.jpg";
-import shop2 from "@/assets/home/pillar-shop-2.jpg";
-import shop3 from "@/assets/home/pillar-shop-3.jpg";
-import shop4 from "@/assets/home/pillar-shop-4.jpg";
+import shop1 from "@/assets/home/pillar-shop-1.webp";
+import shop2 from "@/assets/home/pillar-shop-2.webp";
+import shop3 from "@/assets/home/pillar-shop-3.webp";
+import shop4 from "@/assets/home/pillar-shop-4.webp";
 
 const handwriting = { fontFamily: "'Caveat', 'Brush Script MT', cursive" } as const;
 

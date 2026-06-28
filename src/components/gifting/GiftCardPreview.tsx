@@ -70,7 +70,8 @@ export function GiftCardPreview({ theme, recipientName, compact = false, amount 
       <div className="absolute bottom-4 left-5">
         <p
           className={cn(
-            "text-xs font-medium transition-opacity duration-300",
+            "font-medium transition-opacity duration-300",
+            compact ? "text-[10px]" : "text-xs",
             textColor,
             hasName ? "opacity-70" : "opacity-30"
           )}

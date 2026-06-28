@@ -154,32 +154,114 @@ export function OrdersView({ onBack }: OrdersViewProps) {
                   <div className="pb-4 pl-1 animate-fade-in space-y-2">
                     {order.orderType === 'gift_card' ? (
                       /* Gift Card Details */
-                      <div className="bg-secondary/50 rounded-lg p-3 space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Gift Card Amount</span>
-                          <span className="text-foreground font-semibold">
-                            {formatPrice(order.giftCardAmount || 0)}
-                          </span>
+                      order.giftCardOrderItems && order.giftCardOrderItems.length > 0 ? (
+                        // Bulk gift card order
+                        <div className="space-y-2">
+                          {order.giftCardOrderItems.map((item, i) => (
+                            <div key={item.id} className="bg-secondary/50 rounded-lg p-3 space-y-2">
+                              {order.giftCardOrderItems!.length > 1 && (
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                  Card {i + 1} of {order.giftCardOrderItems!.length}
+                                </p>
+                              )}
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Amount</span>
+                                <span className="text-foreground font-semibold">{formatPrice(item.amount)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Theme</span>
+                                <span className="text-foreground capitalize">{item.themeId.replace(/-/g, ' ')}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Recipient</span>
+                                <span className="text-foreground font-medium">{item.recipientName}</span>
+                              </div>
+                              {item.message && (
+                                <div className="border-t border-border pt-2 mt-2">
+                                  <p className="text-xs text-muted-foreground mb-1">Message</p>
+                                  <p className="text-sm text-foreground italic">"{item.message}"</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Theme</span>
-                          <span className="text-foreground capitalize">
-                            {order.giftCardThemeId?.replace(/-/g, ' ') || '—'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Recipient</span>
-                          <span className="text-foreground font-medium">
-                            {order.giftCardRecipientName || '—'}
-                          </span>
-                        </div>
-                        {order.giftCardMessage && (
-                          <div className="border-t border-border pt-2 mt-2">
-                            <p className="text-xs text-muted-foreground mb-1">Personal Message</p>
-                            <p className="text-sm text-foreground italic">"{order.giftCardMessage}"</p>
+                      ) : (
+                        // Single gift card (legacy)
+                        <div className="bg-secondary/50 rounded-lg p-3 space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Gift Card Amount</span>
+                            <span className="text-foreground font-semibold">
+                              {formatPrice(order.giftCardAmount || 0)}
+                            </span>
                           </div>
-                        )}
-                      </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Theme</span>
+                            <span className="text-foreground capitalize">
+                              {order.giftCardThemeId?.replace(/-/g, ' ') || '—'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Recipient</span>
+                            <span className="text-foreground font-medium">
+                              {order.giftCardRecipientName || '—'}
+                            </span>
+                          </div>
+                          {order.giftCardMessage && (
+                            <div className="border-t border-border pt-2 mt-2">
+                              <p className="text-xs text-muted-foreground mb-1">Personal Message</p>
+                              <p className="text-sm text-foreground italic">"{order.giftCardMessage}"</p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    ) : order.orderType === 'bundle' ? (
+                      <>
+                        {/* Bundle details */}
+                        <div className="bg-secondary/50 rounded-lg p-3 space-y-2">
+                          {order.bundleName && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Bundle</span>
+                              <span className="text-foreground font-medium">{order.bundleName}</span>
+                            </div>
+                          )}
+                          {order.giftRecipientName && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Recipient</span>
+                              <span className="text-foreground font-medium">{order.giftRecipientName}</span>
+                            </div>
+                          )}
+                          {order.giftRecipientPhone && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Recipient Phone</span>
+                              <span className="text-foreground font-mono">{order.giftRecipientPhone}</span>
+                            </div>
+                          )}
+                          {order.giftMessage && (
+                            <div className="border-t border-border pt-2 mt-2">
+                              <p className="text-xs text-muted-foreground mb-1">Gift Message</p>
+                              <p className="text-sm text-foreground italic">"{order.giftMessage}"</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Delivery info */}
+                        <div className="bg-secondary/50 rounded-lg p-3">
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                            <div className="text-xs space-y-0.5">
+                              <p className="text-foreground font-medium">{order.fullName}</p>
+                              {order.deliveryMethod === "pickup" ? (
+                                <>
+                                  <p className="text-muted-foreground">{order.pickupStationName}</p>
+                                  <p className="text-muted-foreground">{order.pickupStationAddress}</p>
+                                </>
+                              ) : (
+                                <p className="text-muted-foreground">{order.deliveryAddress}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </>
                     ) : (
                       <>
                         {/* Items */}

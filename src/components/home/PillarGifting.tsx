@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { themeGradients, themeTextColors } from "@/components/gifting/giftCardThemeStyles";
-import giftBundleGreen from "@/assets/card-gift-bundles-green.png";
-import giftBundle from "@/assets/card-gift-bundles.png";
-import giftBundleBiege from "@/assets/card-gift-bundles-biege.png";
+import giftBundleGreen from "@/assets/card-gift-bundles-green.webp";
+import giftBundle from "@/assets/card-gift-bundles.webp";
+import giftBundleBiege from "@/assets/card-gift-bundles-biege.webp";
 
 const handwriting = { fontFamily: "'Caveat', 'Brush Script MT', cursive" } as const;
 

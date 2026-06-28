@@ -17,3 +17,4 @@ export type { DrawerCategory } from "./CategoryProductsDrawer";
 export { ReorderDrawer } from "./ReorderDrawer";
 export { ProductDetailContent } from "./ProductDetailContent";
 export { ShopProductDrawer } from "./ShopProductDrawer";
+export { DesktopCatalogueView } from "./DesktopCatalogueView";

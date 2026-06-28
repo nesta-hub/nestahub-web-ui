@@ -5,8 +5,8 @@ import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 // Lovable used @/assets/gifting/*.asset.json placeholders (Lovable-only, 404).
 // Replaced with the gift card images already present in this repo's assets.
-import cardGiftcard from "@/assets/card-gift.png";
-import cardBundles from "@/assets/card-gift-bundles.png";
+import cardGiftcard from "@/assets/gifting-card-giftcard.webp";
+import cardBundles from "@/assets/gifting-card-bundles.webp";
 import { DesktopGiftingLanding } from "@/components/gifting/desktop/DesktopGiftingLanding";
 
 type CardDef = {
@@ -20,8 +20,8 @@ type CardDef = {
   eyebrowColor: string;
   ctaBg: string;
   ctaText: string;
-  /** Card tint used to blend the inner edge of the image column. */
-  fade: string;
+  imageWrap: string;
+  imageHover: string;
 };
 
 const cards: CardDef[] = [
@@ -36,7 +36,8 @@ const cards: CardDef[] = [
     eyebrowColor: "text-[#8B5E55]",
     ctaBg: "bg-[hsl(28,32%,36%)]",
     ctaText: "text-white",
-    fade: "#FCECE8",
+    imageWrap: "absolute right-[-0.5rem] top-[-2rem] w-[11rem] drop-shadow-2xl",
+    imageHover: "group-hover:scale-[1.03]",
   },
   {
     eyebrow: "Curated Gift Sets",
@@ -49,7 +50,8 @@ const cards: CardDef[] = [
     eyebrowColor: "text-[#7D6E5D]",
     ctaBg: "bg-[hsl(28,32%,36%)]",
     ctaText: "text-white",
-    fade: "#F0E8DD",
+    imageWrap: "absolute right-[-1.0rem] bottom-0 w-[12rem]",
+    imageHover: "group-hover:scale-[1.04]",
   },
   // Build-your-own (3D builder) parked — intentionally hidden.
 ];
@@ -94,7 +96,7 @@ const GiftingV2 = () => {
                 <span className={cn("block uppercase tracking-[0.2em] text-[10px] font-bold mb-4", card.eyebrowColor)}>
                   {card.eyebrow}
                 </span>
-                <h2 className="font-display text-[24px] font-bold text-foreground leading-[1.2] max-w-[56%] tracking-[-0.01em]">
+                <h2 className="font-display text-[24px] font-bold text-foreground leading-[1.2] max-w-[62%] tracking-[-0.01em]">
                   {card.headline}
                 </h2>
               </div>
@@ -113,33 +115,22 @@ const GiftingV2 = () => {
                 </span>
               </div>
 
-              {/* Full-height product image column. The assets are framed photos
-                  (not transparent cut-outs), so a full-bleed column reads as
-                  intentional where a floating corner image looked unfinished. */}
-              <div className="absolute inset-y-0 right-0 w-[42%] z-0 overflow-hidden rounded-r-[2.5rem]">
+              {/* Floating product image */}
+              <div className={cn(card.imageWrap, "transition-transform duration-700 ease-out z-0", card.imageHover)}>
                 <img
                   src={card.image}
                   alt={card.imageAlt}
+                  width={512}
+                  height={512}
                   loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
-                />
-                {/* Soft blend into the card tint on the inner edge */}
-                <div
-                  className="absolute inset-y-0 left-0 w-16"
-                  style={{ backgroundImage: `linear-gradient(to right, ${card.fade}, transparent)` }}
-                  aria-hidden
+                  className="w-full h-auto object-contain"
                 />
               </div>
             </button>
           ))}
         </div>
 
-        {/* Sentiment */}
-        <div className="text-center pt-8 pb-2">
-          <p className="font-serif italic text-foreground/40 text-lg">
-            Made with love <span className="not-italic ml-1 text-sm opacity-70">✧</span>
-          </p>
-        </div>
+      
       </div>
     </Layout>
   );

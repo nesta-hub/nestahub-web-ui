@@ -7,10 +7,9 @@
  * - The grouped list endpoint (api.getBundles) gives identity + price but NO
  *   bundle items (its `categories[]` carry no products). Items come from the
  *   detail endpoint (api.getBundle).
- * - Prices: the gift-bundle + packaging-option API values are already in NAIRA
- *   (major units) — same convention as product variant prices (e.g. 6500 =
- *   ₦6,500). The GiftPackage view-model is also naira, so we pass them through
- *   as-is (no /100).
+ * - Prices: the gift-bundle + packaging-option API values are stored in KOBO
+ *   (minor units), same as product variant prices. The GiftPackage view-model
+ *   uses NAIRA, so we divide by 100 when adapting.
  * - Hero/gallery images: the API has no bundle imagery yet, so we fall back to
  *   the gift category's imageUrl, then to a constant placeholder. We never
  *   import `.asset.json` (those were Lovable-only and 404).
@@ -88,6 +87,7 @@ export function apiBundleToPackage(
   const category = mapGiftCategory(giftCategory.slug);
   const tier = mapGiftTier(bundle.size?.slug);
   const hero = bundle.heroImageUrl || heroFor(giftCategory);
+  const galleryImages = bundle.bundleImages?.length ? bundle.bundleImages : [hero];
   return {
     id: bundle.slug || bundle.id,
     category,
@@ -96,9 +96,9 @@ export function apiBundleToPackage(
     tagline: bundle.tagline ?? bundle.size?.name ?? '',
     description: bundle.description ?? giftCategory.description ?? '',
     badge: bundle.badge ?? undefined,
-    price: Math.round(bundle.totalPrice ?? 0),
+    price: Math.round((bundle.totalPrice ?? 0) / 100),
     heroImage: hero,
-    galleryImages: [hero, hero, hero],
+    galleryImages,
     items: mapDisplayItems(bundle.items),
   };
 }
@@ -117,9 +117,10 @@ export function apiBundleDetailToPackage(detail: BundleDetail): GiftPackage {
   const category = mapGiftCategory(detail.giftCategory?.slug);
   const tier = mapGiftTier(detail.size?.slug);
   const hero = detail.heroImageUrl || heroFor(detail.giftCategory);
+  const productImages = detail.bundleImages ?? [];
+  const galleryImages = [hero, ...productImages.filter((img) => img !== hero)];
 
-  // Prefer the curated display items; fall back to deriving from real sections
-  // for bundles that don't carry curated copy.
+  // Prefer the curated display items; fall back to deriving from real sections.
   const items: GiftPackageItem[] = detail.items?.length
     ? mapDisplayItems(detail.items)
     : (detail.categories ?? []).flatMap((cat) =>
@@ -139,9 +140,9 @@ export function apiBundleDetailToPackage(detail: BundleDetail): GiftPackage {
     tagline: detail.tagline ?? detail.size?.name ?? '',
     description: detail.description ?? detail.giftCategory?.description ?? '',
     badge: detail.badge ?? undefined,
-    price: Math.round(detail.priceOverride ?? detail.calculatedPrice ?? 0),
+    price: Math.round((detail.priceOverride ?? detail.calculatedPrice ?? 0) / 100),
     heroImage: hero,
-    galleryImages: [hero, hero, hero],
+    galleryImages,
     items,
   };
 }
@@ -151,7 +152,7 @@ export interface PackagingOption {
   id: string;
   name: string;
   description: string;
-  /** Price in NAIRA (major units). */
+  /** Price in NAIRA (major units — already divided by 100 from kobo). */
   price: number;
   image: string;
 }
@@ -168,7 +169,7 @@ export function apiPackagingToOption(opt: {
     id: opt.id,
     name: opt.name,
     description: opt.description ?? '',
-    price: Math.round(opt.price ?? 0),
+    price: Math.round((opt.price ?? 0) / 100),
     image: opt.imageUrl || GIFT_BUNDLE_PLACEHOLDER_IMAGE,
   };
 }

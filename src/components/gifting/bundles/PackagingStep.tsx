@@ -125,7 +125,7 @@ export function PackagingStep({
                     src={opt.image}
                     alt={opt.name}
                     draggable={false}
-                    className="absolute inset-0 w-full h-full object-contain p-10 pb-32"
+                    className="absolute inset-0 w-full h-full object-contain pb-28"
                   />
 
                   {/* Caption */}

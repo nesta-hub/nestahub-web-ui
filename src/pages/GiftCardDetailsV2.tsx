@@ -11,7 +11,7 @@ import { ArrowLeft, CheckCircle, Link2, Mail, MessageCircle, Send, Trash2, Gift,
 import { cn } from "@/lib/utils";
 import { GiftCardPreview } from "@/components/gifting/GiftCardPreview";
 import { type GiftCardTheme } from "@/components/gifting/GiftCardThemes";
-import { formatPrice, api } from "@/lib/api";
+import { formatPrice, api, createBulkGiftCardOrder } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { CheckoutPaymentView } from "@/components/checkout/CheckoutPaymentView";
@@ -158,42 +158,30 @@ const GiftCardDetailsV2 = () => {
     );
   }
 
-  // ── Create one order PER configured gift card ──────────────────────────────
-  // TODO(C1): batch multi-card into one order once the backend supports it.
-  //   Backend currently supports ONE gift card per order, so we loop here.
   const placeOrders = async (cards: ConfiguredGiftCard[]) => {
     if (!session || cards.length === 0) return;
     setIsCreatingOrder(true);
     setCreateOrderError(null);
     try {
-      let lastOrderNumber = "";
-      let total = 0;
-      for (const c of cards) {
-        const order = await api.createOrder(
-          {
-            orderType: "gift_card",
-            fullName: session.user.user_metadata?.name || c.senderName || "Gift Card Buyer",
-            // No phone collected — gift cards are delivered by link/email.
-            giftCardDetails: {
-              themeId: c.theme.id,
-              message: c.message,
-              amount: c.amount,
-              recipientName: c.recipientName,
-              // TODO(C2): send delivery mode (link/email) + recipientEmail/senderName
-              //   once the gift-card order DTO accepts them. Held in state only.
-            },
-          },
-          session.access_token,
-        );
-        lastOrderNumber = order.orderNumber;
-        total += order.totalAmount;
-      }
-      setOrderId(lastOrderNumber);
-      setServerTotal(total);
+      const buyerName = session.user.user_metadata?.name || cards[0]?.senderName || "Gift Card Buyer";
+      const order = await createBulkGiftCardOrder(
+        {
+          fullName: buyerName,
+          giftCards: cards.map((c) => ({
+            themeId: c.theme.id,
+            amount: c.amount,
+            recipientName: c.recipientName,
+            recipientEmail: c.recipientEmail,
+            senderName: c.senderName || buyerName,
+            message: c.message,
+            deliveryMethod: c.deliveryMethod,
+          })),
+        },
+        session.access_token,
+      );
+      setOrderId(order.orderNumber);
+      setServerTotal(order.totalAmount);
       setShowSummaryDrawer(false);
-      // For a single order we can collect payment; for multiple, the payment
-      // view collects against the last order (one payment ref per order is a
-      // backend limitation tracked by TODO(C1)).
       setShowPayment(true);
     } catch (err) {
       setCreateOrderError(
@@ -510,7 +498,7 @@ const GiftCardDetailsV2 = () => {
               const c = summaryCards[0];
               const rows: Array<{ label: string; value: React.ReactNode }> = [
                 { label: "Delivery", value: c.deliveryMethod === "email" ? "Email" : "Shareable link" },
-                { label: "Phone", value: c.recipientPhone },
+                { label: "Recipient", value: c.recipientName },
               ];
               if (c.recipientEmail)
                 rows.push({ label: "Email", value: <span className="break-all">{c.recipientEmail}</span> });

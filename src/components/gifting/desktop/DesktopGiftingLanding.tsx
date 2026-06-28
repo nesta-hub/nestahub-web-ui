@@ -1,374 +1,275 @@
-import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, ChevronLeft, ChevronRight, Check, Gift, HeartHandshake, MessageCircle } from "lucide-react";
+import { ArrowRight, Gift, PenLine, Truck, Sparkles, MessageCircleHeart, Wallet, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  giftCategoryMeta,
-  formatGiftPrice,
-  type GiftCategory,
-  type GiftPackage,
-} from "@/data/giftCatalogue";
-import { useGiftBundles } from "@/hooks/useGifting";
-// Lovable used @/assets/gifting/*.asset.json placeholders (Lovable-only, 404).
-// Replaced with images already present in this repo's assets.
-import cardGiftcard from "@/assets/card-gift.png";
-import cardBundles from "@/assets/card-gift-bundles.png";
+import giftingHero from "@/assets/gifting-hero.webp";
+import cardGiftcard from "@/assets/gifting-card-giftcard.webp";
+import cardBundles from "@/assets/gifting-card-bundles.webp";
 
-const WHATSAPP_URL =
-  "https://wa.me/2348000000000?text=Hi%20Nesta%20Hub%2C%20I%27d%20love%20some%20help%20choosing%20a%20gift.";
+const BROWN = "hsl(28,32%,36%)";
 
-// ───── Sub-hero ─────
-function EditorialHero({ onGiftCard, onBundles }: { onGiftCard: () => void; onBundles: () => void }) {
+export function DesktopGiftingLanding() {
+  const navigate = useNavigate();
+
   return (
-    <section className="relative bg-[#F5F3F0] overflow-hidden">
-      <div className="container py-16 lg:py-20 grid grid-cols-12 gap-8 items-center">
-        <div className="col-span-12 lg:col-span-7">
-          <span className="block uppercase tracking-[0.24em] text-[11px] font-bold text-[hsl(28,32%,36%)] mb-5">
-            The Nesta Hub Gift Edit
-          </span>
-          <h1 className="font-display text-5xl lg:text-6xl font-bold text-foreground leading-[1.05] tracking-[-0.015em] max-w-[18ch]">
-            Gifts, thoughtfully assembled.
-          </h1>
-          <p className="mt-5 text-base lg:text-lg text-muted-foreground max-w-[52ch] leading-relaxed">
-            Hand-packed bundles for new mothers, babies, and the families welcoming them — or a digital
-            card if you'd like them to choose.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <button
-              onClick={onBundles}
-              className="inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-sm font-semibold bg-[hsl(28,32%,36%)] text-white shadow-[0_18px_36px_-18px_hsl(28,32%,28%,0.6)] hover:translate-y-[-1px] transition-transform"
-            >
-              Shop Bundles <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
-            </button>
-            <button
-              onClick={onGiftCard}
-              className="inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-sm font-semibold border border-foreground/15 text-foreground hover:bg-foreground/[0.04] transition-colors"
-            >
-              Send a Gift Card
-            </button>
+    <div className="bg-[#F7F3EE] min-h-screen">
+      {/* Hero */}
+      <section className="container pt-4 lg:pt-6 pb-8">
+        <div className="grid grid-cols-12 gap-8 items-center">
+          <div className="col-span-12 lg:col-span-6 relative z-10">
+            <h1 className="font-display text-[64px] leading-[1.02] font-bold text-foreground tracking-[-0.02em]">
+              Supporting <span style={{ color: BROWN }}>new parents</span>,{" "}
+              <span className="italic font-normal font-serif">simplified</span>.
+            </h1>
+            <p className="mt-6 text-lg text-muted-foreground max-w-[44ch] leading-relaxed">
+              New parents deserve <strong>all the care and support</strong> they can get. But between busy schedules and
+              the guesswork of gifting, it's easy to let the moment pass. Nesta Hub helps you deliver{" "}
+              <strong>meaningful gifts in minutes</strong>.
+            </p>
           </div>
-        </div>
-        <div className="hidden lg:block col-span-5 relative">
-          <div className="relative aspect-square max-w-[480px] ml-auto">
+          <div className="col-span-12 lg:col-span-6 relative z-0">
             <img
-              src={cardBundles}
-              alt="Curated kraft gift bundle"
-              className="absolute inset-0 w-full h-full object-contain drop-shadow-[0_30px_60px_rgba(60,40,20,0.25)]"
+              src={giftingHero}
+              alt="Nesta Hub gift card and curated bundle box"
+              className="w-[125%] max-w-none h-auto object-contain drop-shadow-[0_30px_50px_rgba(120,80,40,0.15)] lg:-ml-28 transform transition-transform hover:scale-[1.02] duration-500"
             />
           </div>
         </div>
-      </div>
-      <div className="container">
-        <div className="h-px bg-[hsl(85,12%,40%)]/15" />
-      </div>
-    </section>
-  );
-}
+      </section>
 
-// ───── Ways to gift ─────
-function WaysToGift({ onGiftCard, onBundles }: { onGiftCard: () => void; onBundles: () => void }) {
-  const tiles = [
-    {
-      eyebrow: "Digital Gift Card",
-      headline: "They choose exactly what they need",
-      bullets: ["Delivered instantly via email", "Any amount from ₦10,000", "5 thoughtful themes"],
-      cta: "Send Gift Card",
-      onClick: onGiftCard,
-      image: cardGiftcard,
-      bg: "bg-[#FCECE8]",
-      eyebrowColor: "text-[#8B5E55]",
-    },
-    {
-      eyebrow: "Curated Gift Sets",
-      headline: "Thoughtful care packages, ready to send",
-      bullets: ["Hand-assembled in Lagos", "Premium kraft packaging", "Free delivery over ₦50k"],
-      cta: "Shop Bundles",
-      onClick: onBundles,
-      image: cardBundles,
-      bg: "bg-[#F0E8DD]",
-      eyebrowColor: "text-[#7D6E5D]",
-    },
-  ];
-
-  return (
-    <section className="container py-16 lg:py-20">
-      <div className="flex items-end justify-between mb-8">
-        <div>
-          <span className="block uppercase tracking-[0.2em] text-[11px] font-bold text-muted-foreground mb-3">
-            Ways to gift
-          </span>
-          <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground tracking-[-0.01em]">
-            Pick your kind of thoughtful.
-          </h2>
+      {/* Two CTA cards */}
+      <section className="container pb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CtaCard
+            eyebrow="Digital Gift Card"
+            headline={
+              <>
+                Let them choose exactly
+                <br />
+                what they need.
+              </>
+            }
+            sub="Skip the guesswork. Moms choose what they really need"
+            metaPills={["Any amount", "Instant delivery", "Include person note"]}
+            chip="Instant"
+            cta="Send Gift Card"
+            image={cardGiftcard}
+            imageAlt="Nesta Hub digital gift card"
+            surfaceClass="bg-[radial-gradient(at_top_left,#FFF6EE,#FAEDE6_55%,#F4DFD0)]"
+            patternClass="[background-image:radial-gradient(hsl(28,32%,36%)_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.05]"
+            blobColor="bg-[#F4C9AE]"
+            onClick={() => navigate("/gifting/cards")}
+          />
+          <CtaCard
+            eyebrow="Curated Gift Sets"
+            headline={
+              <>
+                Thoughtful
+                <br />
+                curated care
+                <br />
+                packages.
+              </>
+            }
+            sub="Well thought-out curated items for both mum and baby"
+            metaPills={["From ₦10,000", "Hand-packed", "Nationwide delivery"]}
+            chip="Signature"
+            cta="Shop Bundles"
+            image={cardBundles}
+            imageAlt="Curated Nesta Hub bundle"
+            surfaceClass="bg-[radial-gradient(at_top_left,#FAF1DF,#F0E5D6_55%,#E6D6BD)]"
+            patternClass="[background-image:repeating-linear-gradient(45deg,hsl(28,32%,36%)_0_1px,transparent_1px_10px)] opacity-[0.05]"
+            blobColor="bg-[#E2C99A]"
+            onClick={() => navigate("/gifting/bundles")}
+          />
         </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {tiles.map((t) => (
-          <button
-            key={t.cta}
-            onClick={t.onClick}
-            className={cn(
-              "group relative text-left rounded-[2.5rem] p-10 overflow-hidden min-h-[340px]",
-              "shadow-[0_2px_0_hsl(var(--foreground)/0.02),0_30px_60px_-32px_hsl(var(--foreground)/0.3)]",
-              "transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_40px_70px_-30px_hsl(var(--foreground)/0.35)]",
-              t.bg
-            )}
-          >
-            <div className="relative z-10 max-w-[58%]">
-              <span className={cn("block uppercase tracking-[0.2em] text-[10px] font-bold mb-4", t.eyebrowColor)}>
-                {t.eyebrow}
-              </span>
-              <h3 className="font-display text-2xl lg:text-[28px] font-bold text-foreground leading-[1.15] tracking-[-0.01em]">
-                {t.headline}
-              </h3>
-              <ul className="mt-5 space-y-2">
-                {t.bullets.map((b) => (
-                  <li key={b} className="flex items-center gap-2 text-sm text-foreground/75">
-                    <Check className="w-4 h-4 text-[hsl(28,32%,45%)] shrink-0" strokeWidth={2.5} />
-                    <span>{b}</span>
-                  </li>
-                ))}
-              </ul>
-              <span className="mt-7 inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-semibold bg-[hsl(28,32%,36%)] text-white shadow-sm group-hover:gap-3 transition-all">
-                {t.cta}
-                <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
-              </span>
-            </div>
-            <div className="absolute -right-6 -bottom-4 w-[55%] max-w-[320px] transition-transform duration-700 ease-out group-hover:rotate-[-2deg] group-hover:scale-[1.04]">
-              <img src={t.image} alt="" className="w-full h-auto object-contain drop-shadow-[0_24px_40px_rgba(60,40,20,0.25)]" />
-            </div>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
+      </section>
 
-// ───── Recipient shelf ─────
-function RecipientShelf({
-  packages,
-  onCategory,
-}: {
-  packages: GiftPackage[];
-  onCategory: (c: GiftCategory) => void;
-}) {
-  const cats: GiftCategory[] = ["baby", "mom", "combo"];
-  return (
-    <section className="bg-[#F0E8DD]">
-      <div className="container py-16 lg:py-20">
-        <div className="flex items-end justify-between mb-8">
-          <div>
-            <span className="block uppercase tracking-[0.2em] text-[11px] font-bold text-[#7D6E5D] mb-3">
-              Shop by recipient
-            </span>
-            <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground tracking-[-0.01em]">
-              Who is it for?
-            </h2>
-          </div>
+      {/* Promise band */}
+      <section className="container mt-16 pb-20">
+        <div className="flex items-center justify-center gap-4 mb-8">
+          <span className="h-px flex-1 max-w-[120px] bg-[hsl(28,20%,75%)]/60" />
+          <span className="uppercase tracking-[0.3em] text-[11px] font-bold" style={{ color: BROWN }}>
+            Why Nesta Hub Gifting
+          </span>
+          <span className="h-px flex-1 max-w-[120px] bg-[hsl(28,20%,75%)]/60" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {cats.map((cat) => {
-            const meta = giftCategoryMeta[cat];
-            const inCat = packages.filter((p) => p.category === cat);
-            const count = inCat.length;
-            const image = inCat[0]?.heroImage ?? cardBundles;
-            return (
-              <button
-                key={cat}
-                onClick={() => onCategory(cat)}
-                className="group relative text-left rounded-3xl overflow-hidden bg-card shadow-[0_2px_0_hsl(var(--foreground)/0.02),0_24px_50px_-30px_hsl(var(--foreground)/0.28)] hover:-translate-y-1 hover:shadow-[0_30px_60px_-30px_hsl(var(--foreground)/0.35)] transition-all duration-500"
-              >
-                <div className="relative aspect-[5/4] overflow-hidden bg-secondary/40">
-                  <img src={image} alt={meta.label} className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-700" />
-                </div>
-                <div className="p-6 flex items-center justify-between">
-                  <div>
-                    <span className="block uppercase tracking-[0.18em] text-[10px] font-bold text-muted-foreground mb-1.5">
-                      For {meta.short}
-                    </span>
-                    <h3 className="font-display text-xl font-bold text-foreground tracking-[-0.01em]">
-                      {meta.subtitle}
-                    </h3>
-                    <p className="mt-1 text-xs text-muted-foreground">{count} bundles</p>
-                  </div>
-                  <span className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center bg-[hsl(28,32%,36%)] text-white shadow-[0_10px_22px_-10px_hsl(28,32%,28%,0.6)] group-hover:translate-x-1 transition-transform">
-                    <ArrowRight className="w-4 h-4" strokeWidth={2.25} />
-                  </span>
-                </div>
-              </button>
-            );
-          })}
+          <Feature
+            number="01"
+            icon={<Gift className="w-6 h-6" strokeWidth={1.75} style={{ color: BROWN }} />}
+            title="Robust Baby & Mum Catalog"
+            sub="Gift cards give access to our robust baby and mums shopping catalog."
+          />
+          <Feature
+            number="02"
+            icon={<PenLine className="w-6 h-6" strokeWidth={1.75} style={{ color: BROWN }} />}
+            title="Stellar Packaging"
+            sub="Gift sets are beautifully packaged in premium Nesta Hub materials."
+          />
+          <Feature
+            number="03"
+            icon={<Truck className="w-6 h-6" strokeWidth={1.75} style={{ color: BROWN }} />}
+            title="Delivered with care"
+            sub="Fast, reliable delivery you can trust."
+          />
+          <Feature
+            number="04"
+            icon={<MessageCircleHeart className="w-6 h-6" strokeWidth={1.75} style={{ color: BROWN }} />}
+            title="Personal Notes"
+            sub="Add a heartfelt note that prints on the gift card or packing slip."
+          />
+          <Feature
+            number="05"
+            icon={<Wallet className="w-6 h-6" strokeWidth={1.75} style={{ color: BROWN }} />}
+            title="Flexible Amounts"
+            sub="Choose any value from ₦5,000 upward — no awkward fixed tiers."
+          />
+          <Feature
+            number="06"
+            icon={<ScanLine className="w-6 h-6" strokeWidth={1.75} style={{ color: BROWN }} />}
+            title="Easy Redemption"
+            sub="Recipients redeem in seconds with a single code, no account hoops."
+          />
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
 
-// ───── Bestselling rail ─────
-function BestsellingRail({
-  packages,
-  onBundle,
+function CtaCard({
+  eyebrow,
+  headline,
+  sub,
+  metaPills,
+  chip,
+  cta,
+  image,
+  imageAlt,
+  surfaceClass,
+  patternClass,
+  blobColor,
+  onClick,
 }: {
-  packages: GiftPackage[];
-  onBundle: (id: string) => void;
+  eyebrow: string;
+  headline: React.ReactNode;
+  sub: React.ReactNode;
+  metaPills: string[];
+  chip: string;
+  cta: string;
+  image: string;
+  imageAlt: string;
+  surfaceClass: string;
+  patternClass: string;
+  blobColor: string;
+  onClick: () => void;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const picks = packages.slice(0, 6);
-
-  const scroll = (dir: 1 | -1) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir * (el.clientWidth * 0.8), behavior: "smooth" });
-  };
-
-  if (picks.length === 0) return null;
-
   return (
-    <section className="container py-16 lg:py-20">
-      <div className="flex items-end justify-between mb-8 gap-4">
-        <div>
-          <span className="block uppercase tracking-[0.2em] text-[11px] font-bold text-muted-foreground mb-3">
-            The Shelf
-          </span>
-          <h2 className="font-display text-3xl lg:text-4xl font-bold text-foreground tracking-[-0.01em]">
-            Bestselling bundles
-          </h2>
-        </div>
-        <div className="hidden md:flex gap-2">
-          <button
-            onClick={() => scroll(-1)}
-            aria-label="Scroll left"
-            className="w-11 h-11 rounded-full border border-foreground/15 flex items-center justify-center hover:bg-foreground/[0.04] transition"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => scroll(1)}
-            aria-label="Scroll right"
-            className="w-11 h-11 rounded-full border border-foreground/15 flex items-center justify-center hover:bg-foreground/[0.04] transition"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+    <div
+      className={cn(
+        "group relative rounded-[2.25rem] p-10 overflow-hidden transition-all duration-300",
+        "ring-1 ring-[hsl(28,25%,82%)]/60",
+        "shadow-[0_1px_0_rgba(255,255,255,0.7)_inset,0_30px_60px_-30px_rgba(120,80,40,0.25)]",
+        "hover:-translate-y-1.5 hover:shadow-[0_1px_0_rgba(255,255,255,0.7)_inset,0_40px_70px_-30px_rgba(120,80,40,0.35)]",
+        surfaceClass,
+      )}
+    >
+      {/* Decorative blob */}
       <div
-        ref={scrollRef}
-        className="flex gap-5 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 pb-2"
-      >
-        {picks.map((pkg) => (
-          <button
-            key={pkg.id}
-            onClick={() => onBundle(pkg.id)}
-            className="group snap-start shrink-0 w-[280px] lg:w-[300px] text-left rounded-2xl overflow-hidden bg-card border border-foreground/[0.06] shadow-[0_1px_2px_hsl(var(--foreground)/0.04),0_20px_40px_-24px_hsl(28_25%_25%/0.25)] hover:-translate-y-1 hover:shadow-[0_30px_55px_-28px_hsl(28_25%_25%/0.35)] transition-all duration-500"
-          >
-            <div className="relative aspect-square overflow-hidden bg-secondary/40">
+        className={cn(
+          "absolute -bottom-16 -right-16 w-56 h-56 rounded-full blur-3xl opacity-40 pointer-events-none",
+          blobColor,
+        )}
+      />
+      {/* Pattern overlay */}
+      <div className={cn("absolute inset-0 pointer-events-none", patternClass)} />
+
+      <div className="relative grid grid-cols-[auto_1fr] gap-7 items-start">
+        {/* Medallion */}
+        <div className="relative shrink-0">
+          <div className="w-[220px] h-[220px] rounded-full bg-white/60 backdrop-blur-sm p-2 ring-1 ring-white/70 shadow-[0_10px_30px_-15px_rgba(120,80,40,0.3)]">
+            <div className="w-full h-full rounded-full bg-[#E8DDD0]/70 flex items-center justify-center shadow-[inset_0_2px_8px_rgba(120,80,40,0.08)]">
               <img
-                src={pkg.heroImage}
-                alt={pkg.name}
-                className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-700"
+                src={image}
+                alt={imageAlt}
+                className="w-[185px] h-[185px] object-contain transition-transform duration-500 group-hover:scale-105 group-hover:-rotate-[3deg]"
               />
-              {pkg.badge && (
-                <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-card/95 backdrop-blur text-[10px] font-bold uppercase tracking-[0.12em] text-foreground/80 shadow-sm">
-                  {pkg.badge}
-                </span>
-              )}
             </div>
-            <div className="p-4">
-              <span className="block uppercase tracking-[0.16em] text-[9px] font-bold text-muted-foreground mb-1">
-                {giftCategoryMeta[pkg.category].label}
-              </span>
-              <h3 className="font-display text-base font-bold text-foreground leading-tight">{pkg.name}</h3>
-              {pkg.description && (
-                <p className="mt-1 text-xs text-muted-foreground line-clamp-2 min-h-[32px]">{pkg.description}</p>
-              )}
-              <div className="mt-3 pt-3 border-t border-foreground/[0.06] flex items-end justify-between">
-                <div className="flex flex-col leading-tight">
-                  <span className="text-[10px] text-muted-foreground">Starting at</span>
-                  <span className="font-display text-[15px] font-bold text-foreground">
-                    {formatGiftPrice(pkg.price)}
-                  </span>
-                </div>
-                <span className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center bg-[hsl(28,32%,36%)] text-white shadow-[0_8px_18px_-8px_hsl(28,32%,28%,0.6)] group-hover:translate-x-0.5 transition-transform">
-                  <ArrowRight className="w-4 h-4" strokeWidth={2.25} />
-                </span>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-// ───── Pull quote ─────
-function PullQuote() {
-  return (
-    <section className="bg-[hsl(85,18%,93%)]">
-      <div className="container py-20 text-center">
-        <Gift className="w-7 h-7 mx-auto text-[hsl(85,18%,35%)] opacity-70 mb-5" strokeWidth={1.5} />
-        <p className="font-serif italic text-2xl lg:text-3xl text-foreground/80 leading-[1.4] max-w-[28ch] mx-auto">
-          "Every bundle is hand-assembled in Lagos with the same care we'd put into our own family's gifts."
-        </p>
-        <p className="mt-6 text-xs uppercase tracking-[0.24em] text-muted-foreground">
-          — The Nesta Hub Team
-        </p>
-      </div>
-    </section>
-  );
-}
-
-// ───── Concierge ─────
-function ConciergeBand() {
-  return (
-    <section className="container py-16 lg:py-20">
-      <div className="relative rounded-[2.5rem] bg-[#F5F3F0] p-10 lg:p-14 flex flex-col lg:flex-row items-center gap-8 lg:gap-10 shadow-[0_2px_0_hsl(var(--foreground)/0.02),0_30px_60px_-32px_hsl(var(--foreground)/0.28)] overflow-hidden">
-        <div className="shrink-0 w-20 h-20 rounded-full bg-[hsl(28,32%,36%)] text-white flex items-center justify-center shadow-[0_18px_36px_-16px_hsl(28,32%,28%,0.6)]">
-          <HeartHandshake className="w-9 h-9" strokeWidth={1.75} />
+          </div>
+          {/* Floating chip */}
+          <div
+            className="absolute -top-1 -right-2 inline-flex items-center gap-1 bg-white rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] shadow-[0_8px_20px_-8px_rgba(120,80,40,0.35)] ring-1 ring-[hsl(28,25%,82%)]/60"
+            style={{ color: BROWN }}
+          >
+            <Sparkles className="w-3 h-3" strokeWidth={2.5} />
+            {chip}
+          </div>
         </div>
-        <div className="flex-1 text-center lg:text-left">
-          <span className="block uppercase tracking-[0.2em] text-[11px] font-bold text-[hsl(28,32%,36%)] mb-2">
-            Gifting Concierge
+
+        <div className="pt-2">
+          <span
+            className="flex items-center gap-1.5 uppercase tracking-[0.24em] text-[11px] font-bold mb-3"
+            style={{ color: BROWN }}
+          >
+            <span aria-hidden>✦</span>
+            {eyebrow}
           </span>
-          <h3 className="font-display text-2xl lg:text-[28px] font-bold text-foreground leading-tight tracking-[-0.01em]">
-            Not sure what to gift? We'll help you choose.
-          </h3>
-          <p className="mt-2 text-sm lg:text-base text-muted-foreground max-w-[58ch]">
-            Tell us about the occasion and the recipient — we'll suggest the perfect bundle, packaging,
-            and delivery window over WhatsApp.
-          </p>
+          <h2 className="font-display text-[34px] lg:text-[36px] leading-[1.08] font-bold text-foreground tracking-[-0.01em] text-balance">
+            {headline}
+          </h2>
+          <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{sub}</p>
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {metaPills.map((pill) => (
+              <span
+                key={pill}
+                className="inline-flex items-center rounded-full bg-white/50 ring-1 ring-[hsl(28,25%,82%)]/50 px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+              >
+                {pill}
+              </span>
+            ))}
+          </div>
+          <div className="mt-6">
+            <button
+              onClick={onClick}
+              className="inline-flex items-center gap-2 rounded-full pl-7 pr-2 py-2 text-sm font-semibold text-white shadow-[0_14px_30px_-16px_hsl(28,32%,28%,0.6)] hover:translate-y-[-1px] hover:brightness-90 transition-all"
+              style={{ backgroundColor: BROWN }}
+            >
+              {cta}
+              <span className="bg-white/15 rounded-full p-1.5 ml-1 transition-transform group-hover:translate-x-0.5">
+                <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+              </span>
+            </button>
+          </div>
         </div>
-        <a
-          href={WHATSAPP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shrink-0 inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-sm font-semibold bg-[hsl(28,32%,36%)] text-white shadow-[0_18px_36px_-18px_hsl(28,32%,28%,0.6)] hover:translate-y-[-1px] transition-transform"
-        >
-          <MessageCircle className="w-4 h-4" strokeWidth={2.25} />
-          Chat with us
-        </a>
       </div>
-    </section>
+    </div>
   );
 }
 
-// ───── Composer ─────
-export function DesktopGiftingLanding() {
-  const navigate = useNavigate();
-  const { data: packages = [] } = useGiftBundles();
+function Feature({
+  number,
+  icon,
+  title,
+  sub,
+}: {
+  number: string;
+  icon: React.ReactNode;
+  title: string;
+  sub: React.ReactNode;
+}) {
   return (
-    <div className="min-h-screen">
-      <EditorialHero
-        onGiftCard={() => navigate("/gifting/cards")}
-        onBundles={() => navigate("/gifting/bundles")}
-      />
-      <WaysToGift
-        onGiftCard={() => navigate("/gifting/cards")}
-        onBundles={() => navigate("/gifting/bundles")}
-      />
-      <RecipientShelf packages={packages} onCategory={(c) => navigate(`/gifting/bundles?cat=${c}`)} />
-      <BestsellingRail packages={packages} onBundle={(id) => navigate(`/gifting/bundles/${id}`)} />
-      <PullQuote />
-      <ConciergeBand />
+    <div className="group bg-white/70 backdrop-blur-sm rounded-[1.75rem] p-7 ring-1 ring-[hsl(28,20%,85%)]/70 shadow-[0_20px_40px_-30px_rgba(120,80,40,0.25)] hover:-translate-y-1 hover:ring-[hsl(28,32%,36%)]/30 transition-all duration-300">
+      <div className="flex items-start gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FAEDE6] to-[#EFE0CE] ring-1 ring-white flex items-center justify-center shrink-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+          {icon}
+        </div>
+        <div className="flex-1">
+          <span className="block uppercase tracking-[0.3em] text-[10px] font-bold mb-1.5" style={{ color: BROWN }}>
+            {number}
+          </span>
+          <h3 className="font-display text-[18px] font-semibold text-foreground leading-tight">{title}</h3>
+          <p className="mt-1.5 text-[13px] text-muted-foreground leading-[1.55]">{sub}</p>
+        </div>
+      </div>
     </div>
   );
 }

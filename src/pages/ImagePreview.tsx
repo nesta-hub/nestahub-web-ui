@@ -11,7 +11,7 @@ import cardExplore from "@/assets/card-explore-new.png";
 import cardGift from "@/assets/card-gift-new.png";
 
 // New preview images
-import heroLifestyleNew from "@/assets/hero-lifestyle-new.png";
+import heroLifestyleNew from "@/assets/hero-lifestyle-new.webp";
 import cardBundlesPreview from "@/assets/card-bundles-preview.png";
 import cardExplorePreview from "@/assets/card-explore-preview.png";
 import cardGiftPreview from "@/assets/card-gift-preview.png";

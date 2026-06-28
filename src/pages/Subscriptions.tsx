@@ -3,10 +3,13 @@ import { Layout } from "@/components/layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { SubscriptionsView } from "@/components/account/SubscriptionsView";
+import { DesktopSubscriptionsView } from "@/components/account/DesktopSubscriptionsView";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Subscriptions = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const isMobile = useIsMobile();
 
   if (loading) {
     return (
@@ -26,6 +29,14 @@ const Subscriptions = () => {
           description="View and manage your active subscriptions"
           containerClassName="flex-1 flex flex-col items-center justify-center px-6 py-16"
         />
+      </Layout>
+    );
+  }
+
+  if (!isMobile) {
+    return (
+      <Layout showNav={false}>
+        <DesktopSubscriptionsView onBack={() => navigate("/account")} />
       </Layout>
     );
   }

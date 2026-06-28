@@ -169,13 +169,15 @@ export interface Bundle {
   slug: string;
   totalPrice: number;
   sortOrder: number;
-  size: SizeSummary;
+  size?: SizeSummary | null;
   categories: BundleCategory[];
   /** Curated copy (present once the bundle carries design content). */
   badge?: string | null;
   tagline?: string | null;
   description?: string | null;
   heroImageUrl?: string | null;
+  bundleImages?: string[] | null;
+  defaultPackagingOptionId?: string | null;
   items?: BundleDisplayItem[];
 }
 
@@ -245,7 +247,7 @@ export interface BundleDetail {
   isActive: boolean;
   sortOrder: number;
   giftCategory: GiftCategorySummary;
-  size: SizeSummary;
+  size?: SizeSummary | null;
   categories: BundleCategoryDetail[];
   categoryCount: number;
   productCount: number;
@@ -255,6 +257,8 @@ export interface BundleDetail {
   tagline?: string | null;
   description?: string | null;
   heroImageUrl?: string | null;
+  bundleImages?: string[] | null;
+  defaultPackagingOptionId?: string | null;
   items?: BundleDisplayItem[];
   createdAt: string;
   updatedAt: string;
@@ -573,11 +577,24 @@ export interface MyOrder {
   canCancel: boolean;
   canConfirmPayment: boolean;
   paymentOption: string | null;
+  // Bundle specific fields
+  bundleId?: string | null;
+  bundleName?: string | null;
+  giftRecipientName?: string | null;
+  giftRecipientPhone?: string | null;
+  giftMessage?: string | null;
   // Gift card specific fields
   giftCardThemeId?: string | null;
   giftCardAmount?: number | null;
   giftCardRecipientName?: string | null;
   giftCardMessage?: string | null;
+  giftCardOrderItems?: Array<{
+    id: string;
+    themeId: string;
+    amount: number;
+    recipientName: string;
+    message?: string | null;
+  }> | null;
 }
 
 export interface MyOrdersResponse {
@@ -881,6 +898,33 @@ export interface GiftCardPublic {
   recipientName: string;
   message?: string;
   status: string;
+  code: string;
+}
+
+export interface BulkGiftCardItem {
+  themeId: string;
+  amount: number;
+  recipientName: string;
+  recipientEmail?: string;
+  senderName?: string;
+  message?: string;
+  deliveryMethod: 'link' | 'email';
+}
+
+export async function createBulkGiftCardOrder(
+  data: { fullName: string; giftCards: BulkGiftCardItem[] },
+  token: string,
+): Promise<OrderResponse> {
+  const response = await fetch(`${API_BASE_URL}/orders/gift-cards/bulk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to create gift card order');
+  }
+  return response.json();
 }
 
 export interface GiftCardReveal {

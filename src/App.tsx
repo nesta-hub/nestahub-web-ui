@@ -42,6 +42,7 @@ import Wallet from "./pages/Wallet";
 import Referrals from "./pages/Referrals";
 import AccountReferrals from "./pages/AccountReferrals";
 import ReferralActivity from "./pages/ReferralActivity";
+import AccountGifting from "./pages/AccountGifting";
 import { useEffect } from "react";
 import { setReferralCookie } from "./utils/wallet";
 
@@ -118,6 +119,7 @@ const App = () => (
               <Route path="/referrals/activity" element={<ReferralActivity />} />
               <Route path="/share/activity" element={<ReferralActivity />} />
               <Route path="/account/referrals" element={<AccountReferrals />} />
+              <Route path="/account/gifting" element={<AccountGifting />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/gift/:giftId" element={<GiftCardRedeem />} />
               <Route path="/image-preview" element={<ImagePreview />} />

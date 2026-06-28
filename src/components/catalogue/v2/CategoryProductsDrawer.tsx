@@ -103,7 +103,7 @@ export function CategoryProductsDrawer({
                 onClick={handleViewAll}
                 className="text-sm font-semibold text-primary hover:underline px-2 py-1"
               >
-                View all →
+                View all
               </button>
             </div>
           )}
