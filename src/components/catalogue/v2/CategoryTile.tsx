@@ -16,6 +16,7 @@ import {
   Flower2,
 } from "lucide-react";
 import type { CatalogueCategory } from "@/data/catalogueData";
+import { CloudinaryPresets } from "@/lib/cloudinary";
 
 const FALLBACK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "baby-powder": Sparkles,
@@ -59,7 +60,7 @@ export function CategoryTile({ category, onClick }: CategoryTileProps) {
         )}
       >
         {category.imageUrl ? (
-          <img src={category.imageUrl} alt={category.displayName} className="w-full h-full object-cover" />
+          <img src={CloudinaryPresets.categoryTile(category.imageUrl)} alt={category.displayName} className="w-full h-full object-cover" />
         ) : SvgIcon ? (
           <SvgIcon className="w-10 h-10" />
         ) : (

@@ -7,6 +7,7 @@ import { QuantityControl } from "@/components/cart/QuantityControl";
 import { useCart } from "@/contexts/CartContext";
 import { useProductDetail } from "@/hooks/useCatalogue";
 import { apiProductToCatalogue, resolveVariant } from "@/lib/catalogueAdapter";
+import { CloudinaryPresets } from "@/lib/cloudinary";
 import { ArrowLeft, RefreshCw, Check, Share2, ZoomIn, X, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 
@@ -205,7 +206,7 @@ export function DesktopProductDetailContent({
               className="w-full h-full block group relative"
             >
               {image ? (
-                <img src={image} alt={detail.name} className="w-full h-full object-cover" />
+                <img src={CloudinaryPresets.catalogueCard(image)} alt={detail.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-secondary/80 to-secondary/30" />
               )}
@@ -441,7 +442,7 @@ export function DesktopProductDetailContent({
           </button>
           {image ? (
             <img
-              src={image}
+              src={CloudinaryPresets.detail(image)}
               alt={detail.name}
               onClick={(e) => e.stopPropagation()}
               className="max-w-[92vw] max-h-[80vh] object-contain rounded-2xl shadow-2xl"

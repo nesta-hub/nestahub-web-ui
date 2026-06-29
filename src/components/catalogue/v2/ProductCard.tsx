@@ -1,5 +1,6 @@
  import { cn } from "@/lib/utils";
  import { CatalogueProduct, getProductPriceRange, formatPrice } from "@/data/catalogueData";
+import { CloudinaryPresets } from "@/lib/cloudinary";
  
 interface ProductCardProps {
   product: CatalogueProduct;
@@ -25,7 +26,7 @@ export function ProductCard({ product, onClick, size = 'small' }: ProductCardPro
         isLarge && "rounded-2xl"
       )}>
         {product.image ? (
-          <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+          <img src={CloudinaryPresets.categoryTile(product.image)} alt={product.name} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-secondary/80 to-secondary/30" />
         )}
