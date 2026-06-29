@@ -27,20 +27,18 @@ const BundleOptions = () => {
     queryFn: api.getBundles,
   });
 
-  // Find the age group matching the stageId (which is actually the age group slug)
-  const ageGroupData = bundlesData?.ageGroups.find(ag => ag.ageGroup.slug === stageId);
-  const stage = ageGroupData ? {
-    id: ageGroupData.ageGroup.slug,
-    name: ageGroupData.ageGroup.name,
-    ageRange: ageGroupData.ageGroup.ageRangeStart !== undefined && ageGroupData.ageGroup.ageRangeEnd !== undefined
-      ? `${ageGroupData.ageGroup.ageRangeStart}-${ageGroupData.ageGroup.ageRangeEnd} months`
-      : undefined,
-    description: ageGroupData.ageGroup.description || '',
-    emoji: getStageEmoji(ageGroupData.ageGroup.slug),
+  // Find the gift category matching the stageId (which is the gift category slug)
+  const giftCategoryData = bundlesData?.giftCategories.find(gc => gc.giftCategory.slug === stageId);
+  const stage = giftCategoryData ? {
+    id: giftCategoryData.giftCategory.slug,
+    name: giftCategoryData.giftCategory.name,
+    ageRange: undefined,
+    description: giftCategoryData.giftCategory.description || '',
+    emoji: getStageEmoji(giftCategoryData.giftCategory.slug),
   } : undefined;
 
   // Map bundles to tier format for TierCard component
-  const bundleTiers = ageGroupData?.bundles.map(bundle => ({
+  const bundleTiers = giftCategoryData?.bundles.map(bundle => ({
     id: bundle.slug,
     name: bundle.name,
     type: bundle.slug as any, // Type for styling purposes

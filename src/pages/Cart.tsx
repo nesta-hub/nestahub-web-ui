@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { CartItemRow } from "@/components/cart/CartItemRow";
+import { DesktopCartView } from "@/components/cart/DesktopCartView";
 import { ResumeOrderDrawer } from "@/components/cart/ResumeOrderDrawer";
 import { api, formatPrice } from "@/lib/api";
-import { WalletBalancePill } from "@/components/wallet/WalletBalancePill";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ArrowLeft, ShoppingBag, RefreshCw, Loader2 } from "lucide-react";
 
 const Cart = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { items, itemCount, totalAmount } = useCart();
   const { user, session } = useAuth();
   const [isChecking, setIsChecking] = useState(false);
@@ -89,6 +91,14 @@ const Cart = () => {
     .map(([weeks, amount]) => ({ weeks: Number(weeks), amount }))
     .sort((a, b) => a.weeks - b.weeks);
 
+  if (!isMobile) {
+    return (
+      <Layout>
+        <DesktopCartView onBack={() => navigate(-1)} />
+      </Layout>
+    );
+  }
+
   return (
     <Layout showNav={false}>
       <div className="min-h-[calc(100vh-4rem)] flex flex-col">
@@ -100,9 +110,6 @@ const Cart = () => {
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <WalletBalancePill size="sm" />
-        </div>
-        <div className="px-4 pb-2">
           <h1 className="text-lg font-bold text-foreground">
             Your Cart {itemCount > 0 && `(${itemCount} ${itemCount === 1 ? 'item' : 'items'})`}
           </h1>

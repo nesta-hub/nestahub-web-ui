@@ -35,6 +35,9 @@ export interface ProductCard {
   categoryName: string;
   categoryDisplayName: string;
   categorySlug: string;
+  subcategoryId?: string;
+  subcategoryName?: string;
+  subcategorySlug?: string;
   minPrice: number;
   maxPrice: number;
   variantCount: number;
@@ -49,6 +52,14 @@ export interface ProductDetail extends ProductCard {
   updatedAt: string;
 }
 
+export interface Subcategory {
+  id: string;
+  name: string;
+  slug: string;
+  categoryId: string;
+  sortOrder: number;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -56,9 +67,41 @@ export interface Category {
   slug: string;
   description?: string;
   imageUrl?: string;
+  iconKey?: string;
+  tint?: string;
+  groupId?: string;
   sortOrder: number;
   productCount: number;
   isActive: boolean;
+  subcategories?: Subcategory[];
+}
+
+export interface CategoryGroup {
+  id: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+  categories: Category[];
+}
+
+export interface CategoryTreeResponse {
+  groups: CategoryGroup[];
+  ungrouped: Category[];
+}
+
+export interface RecentVariant {
+  productId: string;
+  productName: string;
+  brand: string;
+  slug: string;
+  imageUrl?: string;
+  lastOrderedAt: string;
+  variant: ProductVariant;
+}
+
+export interface RecentVariantsResponse {
+  variants: RecentVariant[];
+  total: number;
 }
 
 export interface CategoryWithProducts {
@@ -87,13 +130,19 @@ export interface CategoriesResponse {
 }
 
 // Gift Bundle Types
-export interface AgeGroup {
+export interface GiftCategorySummary {
   id: string;
   name: string;
   slug: string;
   description?: string;
-  ageRangeStart?: number;
-  ageRangeEnd?: number;
+  imageUrl?: string;
+}
+
+export interface SizeSummary {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
 }
 
 export interface BundleCategory {
@@ -106,22 +155,49 @@ export interface BundleCategory {
   sortOrder: number;
 }
 
+/** Curated display item shown in the gifting UI (verbatim from the design). */
+export interface BundleDisplayItem {
+  name: string;
+  detail: string;
+  qty: string;
+  emoji: string;
+}
+
 export interface Bundle {
   id: string;
   name: string;
   slug: string;
   totalPrice: number;
   sortOrder: number;
+  size?: SizeSummary | null;
   categories: BundleCategory[];
+  /** Curated copy (present once the bundle carries design content). */
+  badge?: string | null;
+  tagline?: string | null;
+  description?: string | null;
+  heroImageUrl?: string | null;
+  bundleImages?: string[] | null;
+  defaultPackagingOptionId?: string | null;
+  items?: BundleDisplayItem[];
 }
 
-export interface BundlesByAgeGroup {
-  ageGroup: AgeGroup;
+export interface BundlesByGiftCategory {
+  giftCategory: GiftCategorySummary;
   bundles: Bundle[];
 }
 
 export interface BundlesGroupedResponse {
-  ageGroups: BundlesByAgeGroup[];
+  giftCategories: BundlesByGiftCategory[];
+}
+
+export interface GiftCategoriesListResponse {
+  giftCategories: (GiftCategorySummary & { sortOrder: number; isActive: boolean })[];
+  total: number;
+}
+
+export interface GiftPackageSizesListResponse {
+  sizes: (SizeSummary & { sortOrder: number; isActive: boolean })[];
+  total: number;
 }
 
 export interface BundleProductVariant {
@@ -164,29 +240,26 @@ export interface BundleCategoryDetail {
   updatedAt: string;
 }
 
-export interface BundleAgeGroupDetail {
-  id: string;
-  bundleId: string;
-  ageGroupId: string;
-  sortOrder: number;
-  ageGroup: AgeGroup;
-  categories: BundleCategoryDetail[];
-  categoryCount: number;
-  productCount: number;
-  totalPrice: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface BundleDetail {
   id: string;
   name: string;
   slug: string;
   isActive: boolean;
   sortOrder: number;
-  ageGroupCount: number;
+  giftCategory: GiftCategorySummary;
+  size?: SizeSummary | null;
+  categories: BundleCategoryDetail[];
+  categoryCount: number;
+  productCount: number;
   calculatedPrice: number;
-  bundleAgeGroups: BundleAgeGroupDetail[];
+  priceOverride?: number | null;
+  badge?: string | null;
+  tagline?: string | null;
+  description?: string | null;
+  heroImageUrl?: string | null;
+  bundleImages?: string[] | null;
+  defaultPackagingOptionId?: string | null;
+  items?: BundleDisplayItem[];
   createdAt: string;
   updatedAt: string;
 }
@@ -241,6 +314,7 @@ export const api = {
   // Browse products with filters
   async getProducts(params: {
     category?: string;
+    subcategory?: string;
     brand?: string;
     search?: string;
     page?: number;
@@ -257,10 +331,46 @@ export const api = {
     return response.json();
   },
 
+  // Buy-again: the authenticated customer's recently purchased variants
+  async getRecentVariants(
+    token: string,
+    limit = 8,
+  ): Promise<RecentVariantsResponse> {
+    const response = await fetch(
+      `${API_BASE_URL}/products/recent-variants?limit=${limit}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!response.ok) throw new Error('Failed to fetch recent variants');
+    return response.json();
+  },
+
   // Categories
   async getCategories(): Promise<CategoriesResponse> {
     const response = await fetch(`${API_BASE_URL}/categories`);
     if (!response.ok) throw new Error('Failed to fetch categories');
+    return response.json();
+  },
+
+  // Full catalogue taxonomy tree: groups -> categories -> subcategories
+  async getCategoryTree(): Promise<CategoryTreeResponse> {
+    const response = await fetch(`${API_BASE_URL}/categories/tree`);
+    if (!response.ok) throw new Error('Failed to fetch category tree');
+    return response.json();
+  },
+
+  // Customer-facing packaging options (Signature Box / Gift Bag) for gift checkout
+  async getPackagingOptions(): Promise<
+    Array<{
+      id: string;
+      name: string;
+      description?: string;
+      price: number;
+      imageUrl?: string;
+      sortOrder: number;
+    }>
+  > {
+    const response = await fetch(`${API_BASE_URL}/packaging-options`);
+    if (!response.ok) throw new Error('Failed to fetch packaging options');
     return response.json();
   },
 
@@ -283,10 +393,22 @@ export const api = {
     return response.json();
   },
 
+  async getGiftCategories(): Promise<GiftCategoriesListResponse> {
+    const response = await fetch(`${API_BASE_URL}/gift-categories`);
+    if (!response.ok) throw new Error('Failed to fetch gift categories');
+    return response.json();
+  },
+
+  async getGiftPackageSizes(): Promise<GiftPackageSizesListResponse> {
+    const response = await fetch(`${API_BASE_URL}/gift-package-sizes`);
+    if (!response.ok) throw new Error('Failed to fetch gift package sizes');
+    return response.json();
+  },
+
   // Orders
   async createOrder(
     data: {
-      orderType: 'shop' | 'bundle' | 'gift_card';
+      orderType: 'shop' | 'bundle' | 'custom_gift' | 'gift_card';
       fullName: string;
       phoneNumber: string;
       deliveryMethod?: 'pickup' | 'address';
@@ -297,6 +419,10 @@ export const api = {
       deliveryLat?: number;
       deliveryLng?: number;
       bundleId?: string | null;
+      giftSizeId?: string | null;
+      giftRecipientName?: string;
+      giftRecipientPhone?: string;
+      giftMessage?: string;
       items?: Array<{
         variantId: string;
         quantity: number;
@@ -324,6 +450,42 @@ export const api = {
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || 'Failed to create order');
+    }
+    return response.json();
+  },
+
+  // Order a curated, fixed-price gift bundle (separate from createOrder; priced
+  // server-side from the bundle's override + optional packaging + delivery).
+  async createGiftBundleOrder(
+    data: {
+      bundleId: string;
+      fullName: string;
+      phoneNumber?: string;
+      deliveryMethod: 'pickup' | 'address';
+      deliverySpeed?: 'standard' | 'weekend' | 'sameday' | 'nextday';
+      paymentOption?: 'pay-now' | 'pay-on-delivery';
+      pickupStationId?: string | null;
+      deliveryAddress?: string | null;
+      deliveryLat?: number;
+      deliveryLng?: number;
+      packagingOptionId?: string | null;
+      giftRecipientName?: string;
+      giftRecipientPhone?: string;
+      giftMessage?: string;
+    },
+    token: string,
+  ): Promise<OrderResponse> {
+    const response = await fetch(`${API_BASE_URL}/orders/gift-bundle`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to create gift bundle order');
     }
     return response.json();
   },
@@ -415,11 +577,24 @@ export interface MyOrder {
   canCancel: boolean;
   canConfirmPayment: boolean;
   paymentOption: string | null;
+  // Bundle specific fields
+  bundleId?: string | null;
+  bundleName?: string | null;
+  giftRecipientName?: string | null;
+  giftRecipientPhone?: string | null;
+  giftMessage?: string | null;
   // Gift card specific fields
   giftCardThemeId?: string | null;
   giftCardAmount?: number | null;
   giftCardRecipientName?: string | null;
   giftCardMessage?: string | null;
+  giftCardOrderItems?: Array<{
+    id: string;
+    themeId: string;
+    amount: number;
+    recipientName: string;
+    message?: string | null;
+  }> | null;
 }
 
 export interface MyOrdersResponse {
@@ -723,6 +898,33 @@ export interface GiftCardPublic {
   recipientName: string;
   message?: string;
   status: string;
+  code: string;
+}
+
+export interface BulkGiftCardItem {
+  themeId: string;
+  amount: number;
+  recipientName: string;
+  recipientEmail?: string;
+  senderName?: string;
+  message?: string;
+  deliveryMethod: 'link' | 'email';
+}
+
+export async function createBulkGiftCardOrder(
+  data: { fullName: string; giftCards: BulkGiftCardItem[] },
+  token: string,
+): Promise<OrderResponse> {
+  const response = await fetch(`${API_BASE_URL}/orders/gift-cards/bulk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to create gift card order');
+  }
+  return response.json();
 }
 
 export interface GiftCardReveal {

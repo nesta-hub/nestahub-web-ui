@@ -1,81 +1,78 @@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import { Package } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { GiftBox3DLazy } from "./GiftBox3DLazy";
 
 interface GiftBundleDetailDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bundleId: string | null;
-  ageGroupSlug: string | null;
   onContinue: () => void;
 }
-
-// Category emoji mapping (from nesting-essentials)
-const categoryEmoji: Record<string, string> = {
-  'Diapers': '🩲',
-  'Wipes': '🧻',
-  'Vaseline': '🧈',
-  'Lotion': '🧴',
-  'Baby Wash': '🫧',
-  'Baby Oil': '💧',
-};
 
 export function GiftBundleDetailDrawer({
   open,
   onOpenChange,
   bundleId,
-  ageGroupSlug,
   onContinue,
 }: GiftBundleDetailDrawerProps) {
-  // Fetch bundle details from API
   const { data: bundleData } = useQuery({
     queryKey: ['bundle', bundleId],
     queryFn: () => bundleId ? api.getBundle(bundleId) : Promise.reject('No bundle ID'),
     enabled: !!bundleId && open,
   });
 
-  if (!bundleData || !ageGroupSlug) return null;
+  if (!bundleData) return null;
 
-  // Get categories from the first bundleAgeGroup
-  const categories = bundleData.bundleAgeGroups?.[0]?.categories || [];
-  const ageGroupData = bundleData.bundleAgeGroups?.[0];
+  const categories = bundleData.categories || [];
+  const boxItems = categories.flatMap((c) =>
+    c.products.map((p) => ({
+      name: `${p.variant.product.brand} ${p.variant.product.name}`,
+      imageUrl: p.variant.imageUrl,
+    }))
+  );
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="h-[70vh] overflow-hidden">
+      <DrawerContent className="h-[80vh] overflow-hidden">
         <div className="flex flex-col h-full">
           <DrawerHeader className="text-center shrink-0">
             <DrawerTitle>{bundleData.name}</DrawerTitle>
             <DrawerDescription>
-              {ageGroupData?.ageGroup.name} · {ageGroupData?.ageGroup.ageRangeStart}-{ageGroupData?.ageGroup.ageRangeEnd} months
+              {bundleData.giftCategory.name} · {bundleData.size.name}
             </DrawerDescription>
           </DrawerHeader>
 
-          <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4 space-y-4">
+          {/* Interactive 3D box preview — drag to rotate (no-drag stops the drawer from grabbing the gesture) */}
+          <div
+            data-vaul-no-drag
+            className="shrink-0 h-48 mx-6 rounded-2xl overflow-hidden touch-none"
+          >
+            <GiftBox3DLazy
+              categorySlug={bundleData.giftCategory.slug}
+              sizeSlug={bundleData.size.slug}
+              items={boxItems}
+            />
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
             {categories.map((category, i) => (
               <div key={i} className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                  <span className="text-lg">
-                    📦
-                  </span>
+                  <Package className="w-5 h-5 text-muted-foreground" strokeWidth={1.75} />
                 </div>
                 <div>
                   <p className="font-medium text-foreground">{category.category.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {category.description}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{category.description}</p>
                 </div>
               </div>
             ))}
           </div>
 
           <div className="px-6 pb-8 shrink-0">
-            <Button
-              variant="shop"
-              className="w-full h-12"
-              onClick={onContinue}
-            >
+            <Button variant="shop" className="w-full h-12" onClick={onContinue}>
               Continue
             </Button>
           </div>

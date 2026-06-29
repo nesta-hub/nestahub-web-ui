@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import heroLifestyle from "@/assets/hero-lifestyle-new.png";
+import heroLifestyle from "@/assets/hero-lifestyle-new.webp";
 
 const handwriting = { fontFamily: "'Caveat', 'Brush Script MT', cursive" } as const;
 

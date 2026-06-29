@@ -16,9 +16,9 @@ export function Layout({ children, showNav = true }: LayoutProps) {
   const isMobile = useIsMobile();
   const location = useLocation();
   
-  // Only show floating cart on shop-related pages (catalogue, shop)
-  const isShopPage = location.pathname === "/catalogue" || location.pathname === "/shop";
-  const showFloatingCart = isMobile && showNav && isShopPage;
+  // The shop (v2) renders its own in-header cart, so the floating cart is no
+  // longer shown anywhere (it previously only appeared on legacy shop pages).
+  const showFloatingCart = false;
 
   return (
     <div className="min-h-screen bg-background bg-nesta-pattern">

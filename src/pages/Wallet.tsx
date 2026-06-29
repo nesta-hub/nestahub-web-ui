@@ -7,6 +7,8 @@ import { SignInForm } from '@/components/auth/SignInForm';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWalletData } from '@/hooks/useWalletData';
 import { formatKobo, transactionLabel } from '@/utils/wallet';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { DesktopWalletView } from '@/components/account/DesktopWalletView';
 
 type Filter = 'all' | 'earned' | 'used';
 
@@ -27,6 +29,7 @@ function formatDate(iso: string) {
 const Wallet = () => {
   const navigate = useNavigate();
   const { user, session, loading: authLoading } = useAuth();
+  const isMobile = useIsMobile();
   const [filter, setFilter] = useState<Filter>('all');
   const typeFilter = filter === 'earned' ? 'credit' : filter === 'used' ? 'debit' : undefined;
   const { summary, summaryLoading, transactions, transactionsLoading, page, totalPages, goToPage } =
@@ -50,6 +53,14 @@ const Wallet = () => {
           description="Your cashback and referral rewards are waiting"
           containerClassName="flex-1 flex flex-col items-center justify-center px-6 py-16"
         />
+      </Layout>
+    );
+  }
+
+  if (!isMobile) {
+    return (
+      <Layout showNav={false}>
+        <DesktopWalletView onBack={() => navigate('/account')} />
       </Layout>
     );
   }

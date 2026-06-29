@@ -2,11 +2,56 @@ import { Layout } from "@/components/layout";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
-import desktopPlaceholder from "@/assets/desktop-placeholder.jpg";
-import nestaBoxRect from "@/assets/nesta-box-rect.png";
-import { GiftCardPreview } from "@/components/gifting/GiftCardPreview";
-import { giftCardThemes } from "@/components/gifting/GiftCardThemes";
 import { cn } from "@/lib/utils";
+import { DesktopGiftingLanding } from "@/components/gifting/desktop/DesktopGiftingLanding";
+import cardGiftcard from "@/assets/card-gift.png";
+import cardBundles from "@/assets/card-gift-bundles.png";
+
+type CardDef = {
+  eyebrow: string;
+  headline: string;
+  cta: string;
+  to: string;
+  image: string;
+  imageAlt: string;
+  cardBg: string;
+  eyebrowColor: string;
+  ctaBg: string;
+  ctaText: string;
+  imageWrap: string;
+  imageHover: string;
+};
+
+const cards: CardDef[] = [
+  {
+    eyebrow: "Digital Gift Card",
+    headline: "They choose exactly what they need",
+    cta: "Send Gift Card",
+    to: "/gifting/cards",
+    image: cardGiftcard,
+    imageAlt: "Nesta Hub digital gift card",
+    cardBg: "bg-[#FCECE8]",
+    eyebrowColor: "text-[#8B5E55]",
+    ctaBg: "bg-[hsl(28,32%,36%)]",
+    ctaText: "text-white",
+    imageWrap: "absolute right-[-0.5rem] top-[-2rem] w-[11rem] drop-shadow-2xl",
+    imageHover: "group-hover:scale-[1.03]",
+  },
+  {
+    eyebrow: "Curated Gift Sets",
+    headline: "Thoughtful curated care packages",
+    cta: "Shop Bundles",
+    to: "/gifting/bundles",
+    image: cardBundles,
+    imageAlt: "Curated kraft gift bundle box",
+    cardBg: "bg-[#F0E8DD]",
+    eyebrowColor: "text-[#7D6E5D]",
+    ctaBg: "bg-[hsl(28,32%,36%)]",
+    ctaText: "text-white",
+    imageWrap: "absolute right-[-1.0rem] bottom-0 w-[12rem]",
+    imageHover: "group-hover:scale-[1.04]",
+  },
+];
 
 const Gifting = () => {
   const isMobile = useIsMobile();
@@ -15,14 +60,7 @@ const Gifting = () => {
   if (!isMobile) {
     return (
       <Layout>
-        <div className="relative min-h-[calc(100vh-5rem)] flex items-center justify-center">
-          <img src={desktopPlaceholder} alt="Baby care essentials" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" />
-          <div className="relative z-10 text-center px-4">
-            <h1 className="text-4xl font-bold text-foreground mb-4">Desktop Experience Coming Soon</h1>
-            <p className="text-muted-foreground max-w-md mx-auto text-lg font-medium">Browse on a mobile device or a tablet to shop.</p>
-          </div>
-        </div>
+        <DesktopGiftingLanding />
       </Layout>
     );
   }
@@ -30,68 +68,66 @@ const Gifting = () => {
   return (
     <Layout>
       <div className="min-h-screen pb-24">
-        {/* Header */}
-        <div className="px-4 pt-6 pb-4">
-          <h1 className="text-2xl font-bold text-foreground">Gifting</h1>
-          <p className="text-muted-foreground mt-1">Show someone you care</p>
+        {/* Page header */}
+        <div className="px-5 pt-6 pb-2">
+          <h1 className="font-display text-2xl font-bold text-foreground leading-tight tracking-[-0.01em]">Gifting</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Show someone you care</p>
         </div>
 
-        <div className="px-4 space-y-4">
-          {/* Gift Cards Card */}
-          <button
-            onClick={() => navigate("/gifting/cards")}
-            className={cn(
-              "w-full rounded-2xl overflow-hidden text-left",
-              "bg-muted/40 border border-border",
-              "transition-all duration-200 active:scale-[0.99]"
-            )}
-          >
-            <div className="p-5 pb-3">
-              <h2 className="text-lg font-extrabold uppercase tracking-tight text-foreground">
-                Gift Cards
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                A digital gift card that lets parents shop for baby essentials on their own terms.
-              </p>
-            </div>
-            <div className="px-5 pb-3">
-              <div className="w-full max-w-[280px] mx-auto shadow-lg rounded-2xl">
-                <GiftCardPreview theme={giftCardThemes[0]} recipientName="Sarah" />
-              </div>
-            </div>
-            <div className="px-5 pb-4 flex items-center gap-1.5 text-primary">
-              <span className="text-sm font-semibold">Send a gift card</span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </button>
-
-          {/* Gift Bundles Card */}
-          <div
-            className={cn(
-              "w-full rounded-2xl overflow-hidden text-left",
-              "bg-muted/40 border border-border opacity-70"
-            )}
-          >
-            <div className="p-5 pb-3 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-extrabold uppercase tracking-tight text-foreground">
-                  Gift Bundles
+        {/* Card stack */}
+        <div className="px-5 pt-6 space-y-6">
+          {cards.map((card) => (
+            <button
+              key={card.to}
+              onClick={() => navigate(card.to)}
+              className={cn(
+                "group relative w-full text-left rounded-[2.5rem] p-7 overflow-hidden",
+                "min-h-[260px] flex flex-col justify-between",
+                "shadow-[0_2px_0_hsl(var(--foreground)/0.02),0_24px_50px_-30px_hsl(var(--foreground)/0.28)]",
+                "transition-all duration-300 active:scale-[0.99]",
+                card.cardBg,
+              )}
+            >
+              {/* Text */}
+              <div className="relative z-10">
+                <span className={cn("block uppercase tracking-[0.2em] text-[10px] font-bold mb-4", card.eyebrowColor)}>
+                  {card.eyebrow}
+                </span>
+                <h2 className="font-display text-[24px] font-bold text-foreground leading-[1.2] max-w-[62%] tracking-[-0.01em]">
+                  {card.headline}
                 </h2>
-                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                  Expertly curated baby care packages, perfect for any stage.
-                </p>
               </div>
-              <span className="shrink-0 mt-0.5 text-[10px] font-semibold uppercase tracking-widest text-nesta-sage bg-nesta-sage/10 px-2.5 py-1 rounded-full">
-                <strong>Coming Soon</strong>
-              </span>
-            </div>
-            <div className="px-5 pb-5">
-              <div className="w-full aspect-[16/10] max-w-[280px] mx-auto rounded-2xl bg-gradient-to-br from-[hsl(25,28%,82%)] to-[hsl(30,35%,90%)] flex items-center justify-center shadow-lg overflow-hidden">
-                <img src={nestaBoxRect} alt="Nestahub gift box" className="w-full object-contain opacity-80" />
+
+              {/* CTA */}
+              <div className="relative z-10 mt-6">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-semibold shadow-sm",
+                    card.ctaBg,
+                    card.ctaText,
+                  )}
+                >
+                  {card.cta}
+                  <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
+                </span>
               </div>
-            </div>
-          </div>
+
+              {/* Floating product image */}
+              <div className={cn(card.imageWrap, "transition-transform duration-700 ease-out z-0", card.imageHover)}>
+                <img
+                  src={card.image}
+                  alt={card.imageAlt}
+                  width={512}
+                  height={512}
+                  loading="lazy"
+                  className="w-full h-auto object-contain"
+                />
+              </div>
+            </button>
+          ))}
         </div>
+
+    
       </div>
     </Layout>
   );

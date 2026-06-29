@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import cardEverything from "@/assets/card-everything.png";
-import cardBundles from "@/assets/card-gift-bundles-biege.png";
+import cardEverything from "@/assets/card-everything.webp";
+import cardBundles from "@/assets/card-gift-bundles-biege.webp";
 
 const handwriting = { fontFamily: "'Caveat', 'Brush Script MT', cursive" } as const;
 

@@ -3,10 +3,13 @@ import { Layout } from "@/components/layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { OrdersView } from "@/components/account/OrdersView";
+import { DesktopOrdersView } from "@/components/account/DesktopOrdersView";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Orders = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const isMobile = useIsMobile();
 
   if (loading) {
     return (
@@ -26,6 +29,14 @@ const Orders = () => {
           description="Access your order history"
           containerClassName="flex-1 flex flex-col items-center justify-center px-6 py-16"
         />
+      </Layout>
+    );
+  }
+
+  if (!isMobile) {
+    return (
+      <Layout showNav={false}>
+        <DesktopOrdersView onBack={() => navigate("/account")} />
       </Layout>
     );
   }

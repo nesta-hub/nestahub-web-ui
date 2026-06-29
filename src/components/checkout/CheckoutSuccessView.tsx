@@ -6,9 +6,10 @@ import { Card } from "@/components/ui/card";
 interface CheckoutSuccessViewProps {
   orderId: string;
   paidWithGiftCard?: boolean;
+  paymentOption?: string;
 }
 
-export function CheckoutSuccessView({ orderId, paidWithGiftCard }: CheckoutSuccessViewProps) {
+export function CheckoutSuccessView({ orderId, paidWithGiftCard, paymentOption }: CheckoutSuccessViewProps) {
   const navigate = useNavigate();
 
   const handleReturnShopping = () => {
@@ -39,6 +40,8 @@ export function CheckoutSuccessView({ orderId, paidWithGiftCard }: CheckoutSucce
           <p className="text-sm text-muted-foreground">
             {paidWithGiftCard
               ? "Your order is confirmed! We'll send an email shortly with the details."
+              : paymentOption === "pay-on-delivery"
+              ? "Your order has been placed! We'll prepare it and get it to you. Pay when it arrives."
               : "We'll verify your payment and send a confirmation via Email. Please keep your phone handy!"}
           </p>
         </Card>
