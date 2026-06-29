@@ -58,7 +58,9 @@ export function CategoryTile({ category, onClick }: CategoryTileProps) {
           "shadow-soft border border-border/40 overflow-hidden",
         )}
       >
-        {SvgIcon ? (
+        {category.imageUrl ? (
+          <img src={category.imageUrl} alt={category.displayName} className="w-full h-full object-cover" />
+        ) : SvgIcon ? (
           <SvgIcon className="w-10 h-10" />
         ) : (
           <LucideFallback className="w-9 h-9 text-primary" strokeWidth={1.5} />
