@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -7,7 +7,7 @@ import { QuantityControl } from "@/components/cart/QuantityControl";
 import { useCart } from "@/contexts/CartContext";
 import { useProductDetail } from "@/hooks/useCatalogue";
 import { apiProductToCatalogue, resolveVariant } from "@/lib/catalogueAdapter";
-import { ArrowLeft, RefreshCw, Check, Share2, ZoomIn, X, ShoppingBag } from "lucide-react";
+import { ArrowLeft, ChevronRight, RefreshCw, Check, Share2, ZoomIn, X } from "lucide-react";
 import { toast } from "sonner";
 
 async function shareProduct(title: string, slug: string) {
@@ -44,6 +44,8 @@ interface ProductDetailContentProps {
   onBack?: () => void;
 }
 
+type DrawerStep = "configure" | "details" | "purchase-type";
+
 const FREQUENCY_OPTIONS = [
   { weeks: 1, label: "1 week", recommended: true },
   { weeks: 2, label: "2 weeks", recommended: false },
@@ -67,25 +69,33 @@ export function ProductDetailContent({
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
   const [selectedSizeId, setSelectedSizeId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [step, setStep] = useState<DrawerStep>("configure");
   const [purchaseType, setPurchaseType] = useState<"one-time" | "subscribe">("one-time");
   const [frequencyWeeks, setFrequencyWeeks] = useState(1);
   const [imageZoomOpen, setImageZoomOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [capturedHeight, setCapturedHeight] = useState<number | null>(null);
 
+  // Selection view-model derived from the live product detail.
   const product = useMemo(
     () => (detail ? apiProductToCatalogue(detail) : null),
     [detail],
   );
 
+  // Reset selection whenever the underlying product changes.
   useEffect(() => {
     if (!product) return;
     setSelectedTypeId(product.types[0]?.id || null);
     setSelectedSizeId(product.sizes?.[0]?.id || null);
     setQuantity(1);
+    setStep("configure");
     setPurchaseType("one-time");
     setFrequencyWeeks(1);
+    setCapturedHeight(null);
     setImageZoomOpen(false);
   }, [product]);
 
+  // Resolve the concrete API variant for the current selection.
   const variant = useMemo(() => {
     if (!detail) return undefined;
     return resolveVariant(detail, selectedTypeId, selectedSizeId);
@@ -99,17 +109,22 @@ export function ProductDetailContent({
     [unitPrice, quantity],
   );
 
+  // Subscription total: per-unit variant.subscriptionPrice * qty when present,
+  // otherwise falls back to the regular total (mirrors ProductDetailDrawer).
   const subscriptionTotal = useMemo(() => {
     if (totalPrice == null) return null;
     if (variant?.subscriptionPrice) return variant.subscriptionPrice * quantity;
     return totalPrice;
   }, [totalPrice, variant, quantity]);
 
+  // Prefer the variant's recommended frequency when subscribing.
   useEffect(() => {
     if (purchaseType === "subscribe" && variant?.recommendedFrequencyWeeks) {
       setFrequencyWeeks(variant.recommendedFrequencyWeeks);
     }
   }, [purchaseType, variant]);
+
+  const handleAddToCartClick = () => setStep("purchase-type");
 
   const finalizeAddToCart = () => {
     if (!detail || !product || !variant || unitPrice == null) return;
@@ -153,10 +168,23 @@ export function ProductDetailContent({
     });
   };
 
+  const attributeSummary = useMemo(() => {
+    if (!product || !selectedTypeId) return "";
+    const type = product.types.find((t) => t.id === selectedTypeId);
+    const size = product.sizes?.find((s) => s.id === selectedSizeId);
+    const parts = [type?.name];
+    if (size) parts.push(size.name);
+    return parts.filter(Boolean).join(" · ");
+  }, [product, selectedTypeId, selectedSizeId]);
+
+  const selectedSummary = attributeSummary ? `${attributeSummary} · Qty: ${quantity}` : `Qty: ${quantity}`;
+
   const descriptionText = useMemo(() => {
     if (variant?.description) return variant.description;
     return detail?.description || null;
   }, [variant, detail]);
+
+  const isPurchaseStep = step === "purchase-type";
 
   if (isLoading || !detail || !product) {
     return (
@@ -193,11 +221,19 @@ export function ProductDetailContent({
           </button>
         </div>
       )}
-
-      <div className={cn("overflow-y-auto", fitContent ? "" : "flex-1")}>
-        {/* Image */}
-        <div className="px-6 pt-6 flex justify-center">
-          <div className="relative w-[180px] h-[180px] rounded-2xl bg-secondary/50 overflow-hidden">
+      <div
+        ref={contentRef}
+        className={cn("overflow-y-auto", fitContent ? "" : "flex-1")}
+        style={step === "details" && capturedHeight ? { minHeight: capturedHeight } : undefined}
+      >
+        {/* Product image */}
+        <div className="px-6 pt-2">
+          <div
+            className={cn(
+              "relative aspect-square rounded-2xl bg-secondary/50 overflow-hidden mx-auto transition-all duration-300",
+              isPurchaseStep ? "max-w-[80px]" : "max-w-[140px]",
+            )}
+          >
             <button
               type="button"
               onClick={() => setImageZoomOpen(true)}
@@ -209,217 +245,273 @@ export function ProductDetailContent({
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-secondary/80 to-secondary/30" />
               )}
-              <span className="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-full bg-secondary/80 backdrop-blur-sm flex items-center justify-center text-foreground shadow-sm transition-transform group-active:scale-95">
-                <ZoomIn className="w-3.5 h-3.5" />
-              </span>
+              {!isPurchaseStep && (
+                <span className="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-full bg-secondary/80 backdrop-blur-sm flex items-center justify-center text-foreground shadow-sm transition-transform group-active:scale-95">
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </span>
+              )}
             </button>
           </div>
         </div>
 
-        {/* Name + price */}
-        <div className="px-6 pt-4 text-center">
-          <h2 className="text-xl font-bold text-foreground leading-snug">{titleName}</h2>
-          <p className="text-2xl font-bold text-primary mt-1">
-            {totalPrice != null ? formatPrice(totalPrice) : "—"}
-          </p>
-          {!canAdd && (
-            <p className="text-xs text-destructive mt-1">This combination is unavailable</p>
+        {/* Product name + view details link */}
+        <div className="px-6 pt-3 text-center">
+          <h2
+            className={cn(
+              "font-bold text-foreground transition-all duration-300",
+              isPurchaseStep ? "text-base" : "text-xl",
+            )}
+          >
+            {titleName}
+          </h2>
+          {(step === "configure" || step === "details") && attributeSummary && (
+            <div className="flex items-center justify-center gap-1 mt-1 text-sm">
+              <span className="text-muted-foreground">{attributeSummary}</span>
+              <span className="text-muted-foreground">·</span>
+              <button
+                onClick={() => {
+                  if (step === "configure" && contentRef.current) {
+                    setCapturedHeight(contentRef.current.offsetHeight);
+                  }
+                  setStep(step === "details" ? "configure" : "details");
+                }}
+                className="text-primary font-medium inline-flex items-center gap-0.5"
+              >
+                {step === "details" ? (
+                  "Close details"
+                ) : (
+                  <>
+                    View details <ChevronRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+          {step === "configure" && (
+            <p className="text-lg font-bold text-foreground mt-1">
+              {totalPrice != null ? formatPrice(totalPrice) : "—"}
+            </p>
+          )}
+          {step === "configure" && !canAdd && (
+            <p className="text-xs text-destructive mt-1">
+              {"This combination is unavailable"}
+            </p>
           )}
         </div>
 
-        {/* Description — directly below price */}
-        {descriptionText && (
-          <div className="px-6 pt-3">
-            <p className="text-sm text-muted-foreground leading-relaxed text-center">
-              {descriptionText}
-            </p>
-          </div>
-        )}
-
-        <div className="px-6 mt-4">
-          <div className="h-px bg-border" />
-        </div>
-
-        {/* Type selector */}
-        <div className="px-6 pt-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2.5">Type</p>
-          <div className="flex flex-wrap gap-2">
-            {product.types.map((type) => (
-              <button
-                key={type.id}
-                onClick={() => setSelectedTypeId(type.id)}
-                className={cn(
-                  "px-4 py-2 rounded-full border text-sm font-medium transition-all",
-                  selectedTypeId === type.id
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:border-primary/50 text-foreground",
-                )}
-              >
-                {type.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Size selector */}
-        {product.sizes && product.sizes.length > 0 && (
-          <div className="px-6 pt-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2.5">Size</p>
-            <div className="flex flex-wrap gap-2">
-              {product.sizes.map((size) => (
-                <button
-                  key={size.id}
-                  onClick={() => setSelectedSizeId(size.id)}
-                  className={cn(
-                    "px-4 py-2 rounded-full border text-sm font-medium transition-all",
-                    selectedSizeId === size.id
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/50 text-foreground",
-                  )}
-                >
-                  {size.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Quantity */}
-        <div className="px-6 pt-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quantity</p>
-            <QuantityControl value={quantity} onChange={setQuantity} />
-          </div>
-        </div>
-
-        <div className="px-6 mt-4">
-          <div className="h-px bg-border" />
-        </div>
-
-        {/* Purchase type — icon cards */}
-        <div className="px-6 pt-5">
-          <div className="flex gap-3">
-            <button
-              onClick={() => setPurchaseType("one-time")}
-              className={cn(
-                "flex-1 flex flex-col items-center gap-1.5 p-4 rounded-2xl border-2 transition-all",
-                purchaseType === "one-time"
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-primary/40 bg-background",
-              )}
-            >
-              <ShoppingBag
-                className={cn("w-5 h-5", purchaseType === "one-time" ? "text-primary" : "text-muted-foreground")}
-                strokeWidth={1.5}
-              />
-              <span className={cn("text-xs font-semibold", purchaseType === "one-time" ? "text-primary" : "text-foreground")}>
-                One-Time
-              </span>
-              <span className={cn("text-xs font-bold", purchaseType === "one-time" ? "text-primary" : "text-foreground")}>
-                {totalPrice != null ? formatPrice(totalPrice) : "—"}
-              </span>
-            </button>
-            <button
-              onClick={() => setPurchaseType("subscribe")}
-              className={cn(
-                "flex-1 flex flex-col items-center gap-1.5 p-4 rounded-2xl border-2 transition-all",
-                purchaseType === "subscribe"
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-primary/40 bg-background",
-              )}
-            >
-              <RefreshCw
-                className={cn("w-5 h-5", purchaseType === "subscribe" ? "text-primary" : "text-muted-foreground")}
-                strokeWidth={1.5}
-              />
-              <span className={cn("text-xs font-semibold", purchaseType === "subscribe" ? "text-primary" : "text-foreground")}>
-                Subscribe & Save
-              </span>
-              <span className={cn("text-xs font-bold", purchaseType === "subscribe" ? "text-primary" : "text-foreground")}>
-                {subscriptionTotal != null ? formatPrice(subscriptionTotal) : "—"}
-                {totalPrice != null && subscriptionTotal != null && totalPrice > subscriptionTotal
-                  ? ` · save ${formatPrice(totalPrice - subscriptionTotal)}`
-                  : ""}
-              </span>
-            </button>
-          </div>
-
-          {/* Subscribe info or frequency picker */}
-          {purchaseType === "one-time" ? (
-            <div className="mt-3 bg-secondary/50 rounded-xl p-3 animate-fade-in">
-              <p className="text-xs font-medium text-muted-foreground mb-2">How Subscription works</p>
-              <ul className="space-y-1.5">
-                <li className="flex items-start gap-2 text-xs text-foreground">
-                  <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                  <span>
-                    <span className="font-semibold">Set & Forget:</span> Set a schedule to auto-renew ordering of this item. Never run out again.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2 text-xs text-foreground">
-                  <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                  <span>
-                    <span className="font-semibold">Pay As You Go:</span> You only get to pay days before each new order.
-                  </span>
-                </li>
-                <li className="flex items-start gap-2 text-xs text-foreground">
-                  <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                  <span>
-                    <span className="font-semibold">Total Control:</span> Swap items, skip a month, or cancel anytime.
-                  </span>
-                </li>
-              </ul>
-            </div>
-          ) : (
-            <div className="mt-4 animate-fade-in">
-              <p className="text-sm font-medium text-foreground mb-2">Get it every</p>
-              <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
-                {FREQUENCY_OPTIONS.map((opt) => (
-                  <div key={opt.weeks} className="flex flex-col items-center min-w-[84px] shrink-0">
-                    <button
-                      onClick={() => setFrequencyWeeks(opt.weeks)}
-                      className={cn(
-                        "flex flex-col items-center justify-center w-full p-3 rounded-xl border-2 transition-all",
-                        frequencyWeeks === opt.weeks
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-background",
-                      )}
-                    >
-                      <RefreshCw
-                        className={cn(
-                          "w-4 h-4 mb-1",
-                          frequencyWeeks === opt.weeks ? "text-primary" : "text-muted-foreground",
-                        )}
-                      />
-                      <span
-                        className={cn(
-                          "text-xs font-bold",
-                          frequencyWeeks === opt.weeks ? "text-primary" : "text-muted-foreground",
-                        )}
-                      >
-                        {opt.label}
-                      </span>
-                    </button>
-                    {opt.recommended && (
-                      <span className="text-[9px] font-medium text-primary mt-1">Recommended</span>
+        {step === "configure" && (
+          <div className="animate-fade-in">
+            <div className="px-6 pt-3 text-left">
+              <label className="text-sm font-medium text-muted-foreground mb-2 block">Type</label>
+              <div className="flex flex-wrap gap-2 justify-start">
+                {product.types.map((type) => (
+                  <button
+                    key={type.id}
+                    onClick={() => setSelectedTypeId(type.id)}
+                    className={cn(
+                      "px-4 py-2 rounded-full border text-sm font-medium transition-all",
+                      selectedTypeId === type.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/50",
                     )}
-                  </div>
+                  >
+                    {type.name}
+                  </button>
                 ))}
               </div>
             </div>
-          )}
-        </div>
 
-        {/* CTA — inline, reduced width */}
-        <div className="flex justify-center mt-6 mb-8">
+            {product.sizes && product.sizes.length > 0 && (
+              <div className="px-6 pt-3 text-left">
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">Size</label>
+                <div className="flex flex-wrap gap-2 justify-start">
+                  {product.sizes.map((size) => (
+                    <button
+                      key={size.id}
+                      onClick={() => setSelectedSizeId(size.id)}
+                      className={cn(
+                        "px-4 py-2 rounded-full border text-sm font-medium transition-all",
+                        selectedSizeId === size.id
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:border-primary/50",
+                      )}
+                    >
+                      {size.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="px-6 pt-3">
+              <div className="border-t border-border pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Quantity</span>
+                  <QuantityControl value={quantity} onChange={setQuantity} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === "details" && (
+          <div className="px-6 pt-4 animate-fade-in">
+            <div className="mt-2 text-sm text-foreground leading-relaxed text-left">
+              <p>
+                {descriptionText ||
+                  "Premium quality product carefully selected for your baby's comfort and well-being. Made with gentle, hypoallergenic ingredients suitable for sensitive skin."}
+              </p>
+              <p className="mt-2 text-muted-foreground">
+                Dermatologically tested. Free from harsh chemicals, parabens, and artificial fragrances. Trusted by
+                parents across Nigeria.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {step === "purchase-type" && (
+          <div className="px-6 pt-2 animate-fade-in">
+            <p className="text-xs text-muted-foreground mb-2 text-center">{selectedSummary}</p>
+
+            <button
+              onClick={() => setPurchaseType("one-time")}
+              className={cn(
+                "w-full flex items-center gap-3 p-4 rounded-xl border transition-all mb-3",
+                purchaseType === "one-time" ? "border-primary bg-primary/5" : "border-border",
+              )}
+            >
+              <div
+                className={cn(
+                  "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                  purchaseType === "one-time" ? "border-primary" : "border-muted-foreground/40",
+                )}
+              >
+                {purchaseType === "one-time" && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+              </div>
+              <div className="flex-1 text-left">
+                <span className="text-sm font-medium text-foreground">One-Time Purchase</span>
+              </div>
+              <span className="text-sm font-bold text-foreground">
+                {totalPrice != null ? formatPrice(totalPrice) : "—"}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setPurchaseType("subscribe")}
+              className={cn(
+                "w-full flex items-center gap-3 p-4 rounded-xl border transition-all",
+                purchaseType === "subscribe" ? "border-primary bg-primary/5" : "border-border",
+              )}
+            >
+              <div
+                className={cn(
+                  "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                  purchaseType === "subscribe" ? "border-primary" : "border-muted-foreground/40",
+                )}
+              >
+                {purchaseType === "subscribe" && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
+              </div>
+              <div className="flex-1 text-left">
+                <span className="text-sm font-medium text-foreground">
+                  Subscribe & Save{" "}
+                  {totalPrice != null && subscriptionTotal != null && totalPrice > subscriptionTotal
+                    ? formatPrice(totalPrice - subscriptionTotal)
+                    : ""}
+                </span>
+              </div>
+              <span className="text-sm font-bold text-foreground">
+                {subscriptionTotal != null ? formatPrice(subscriptionTotal) : "—"}
+              </span>
+            </button>
+
+            {purchaseType !== "subscribe" ? (
+              <div className="mt-3 bg-secondary/50 rounded-xl p-3 animate-fade-in">
+                <p className="text-xs font-medium text-muted-foreground mb-2">How Subscription works</p>
+                <ul className="space-y-1.5">
+                  <li className="flex items-start gap-2 text-xs text-foreground">
+                    <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                    <span>
+                      <span className="font-semibold">Set & Forget:</span> Set a schedule to auto-renew ordering of this
+                      item. Never run out again.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2 text-xs text-foreground">
+                    <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                    <span>
+                      <span className="font-semibold">Pay As You Go:</span> You only get to pay days before each new
+                      order.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2 text-xs text-foreground">
+                    <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                    <span>
+                      <span className="font-semibold">Total Control:</span> Swap items, skip a month, or cancel anytime.
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            ) : (
+              <div className="mt-4 animate-fade-in">
+                <p className="text-sm font-medium text-foreground mb-2">Get it every</p>
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
+                  {FREQUENCY_OPTIONS.map((opt) => (
+                    <div key={opt.weeks} className="flex flex-col items-center min-w-[84px] shrink-0">
+                      <button
+                        onClick={() => setFrequencyWeeks(opt.weeks)}
+                        className={cn(
+                          "flex flex-col items-center justify-center w-full p-3 rounded-xl border-2 transition-all",
+                          frequencyWeeks === opt.weeks
+                            ? "border-primary bg-primary/10"
+                            : "border-border bg-background",
+                        )}
+                      >
+                        <RefreshCw
+                          className={cn(
+                            "w-4 h-4 mb-1",
+                            frequencyWeeks === opt.weeks ? "text-primary" : "text-muted-foreground",
+                          )}
+                        />
+                        <span
+                          className={cn(
+                            "text-xs font-bold",
+                            frequencyWeeks === opt.weeks ? "text-primary" : "text-muted-foreground",
+                          )}
+                        >
+                          {opt.label}
+                        </span>
+                      </button>
+                      {opt.recommended && (
+                        <span className="text-[9px] font-medium text-primary mt-1">Recommended</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-end mt-1">
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground animate-pulse" />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* CTA */}
+      <div className="px-6 py-4 shrink-0">
+        {(step === "configure" || step === "details") && (
           <Button
             variant="shop"
-            className="h-12 px-10 rounded-xl min-w-[200px]"
-            onClick={finalizeAddToCart}
+            className="w-full h-12 rounded-xl"
+            onClick={handleAddToCartClick}
             disabled={!canAdd}
           >
             {canAdd ? "Add to Cart" : "Unavailable"}
           </Button>
-        </div>
+        )}
+        {step === "purchase-type" && (
+          <Button variant="shop" className="w-full h-12 rounded-xl" onClick={finalizeAddToCart} disabled={!canAdd}>
+            Done
+          </Button>
+        )}
       </div>
 
       {/* Image zoom lightbox */}

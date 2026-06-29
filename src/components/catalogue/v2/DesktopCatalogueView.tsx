@@ -2,12 +2,11 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Search, X, ShoppingCart, Check, ChevronRight, ShoppingBag, RotateCcw, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { CategoryTile } from "./CategoryTile";
 import { SubcategoryChips } from "./SubcategoryChips";
-import { ProductDetailContent } from "./ProductDetailContent";
+import { DesktopProductDetailContent } from "./DesktopProductDetailContent";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import {
@@ -227,13 +226,15 @@ function CategoryPanel({
   category,
   groupName,
   onClose,
+  directProductKey,
 }: {
   category: CatalogueCategory | null;
   groupName?: string;
   onClose: () => void;
+  directProductKey?: string | null;
 }) {
   const [activeSub, setActiveSub] = useState("all");
-  const [selectedProductKey, setSelectedProductKey] = useState<string | null>(null);
+  const [selectedProductKey, setSelectedProductKey] = useState<string | null>(directProductKey ?? null);
 
   useEffect(() => {
     if (category) {
@@ -241,6 +242,10 @@ function CategoryPanel({
       setSelectedProductKey(null);
     }
   }, [category?.id]);
+
+  useEffect(() => {
+    if (directProductKey) setSelectedProductKey(directProductKey);
+  }, [directProductKey]);
 
   const subcategories: CatalogueSubcategory[] = useMemo(
     () => (category?.subcategories as CatalogueSubcategory[] | undefined) ?? [],
@@ -265,19 +270,21 @@ function CategoryPanel({
 
   const inProductView = !!selectedProductKey;
 
+  const isDirect = !category && !!directProductKey;
+
   return (
-    <Sheet open={!!category} onOpenChange={(open) => !open && onClose()}>
+    <Sheet open={!!category || !!directProductKey} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-3xl p-0 flex flex-col overflow-hidden">
-        {category && (
+        {(category || directProductKey) && (
           <div className="flex flex-col h-full">
             {/* Sticky header */}
             <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border px-6 py-5 shrink-0">
               {inProductView ? (
                 <button
-                  onClick={() => setSelectedProductKey(null)}
+                  onClick={() => isDirect ? onClose() : setSelectedProductKey(null)}
                   className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <ArrowLeft className="w-4 h-4" /> Back to {category.displayName}
+                  <ArrowLeft className="w-4 h-4" /> {isDirect || !category ? "Back" : `Back to ${category.displayName}`}
                 </button>
               ) : (
                 <div className="flex items-start justify-between gap-2">
@@ -287,7 +294,7 @@ function CategoryPanel({
                         {groupName}
                       </p>
                     )}
-                    <h2 className="text-2xl font-bold text-foreground">{category.displayName}</h2>
+                    <h2 className="text-2xl font-bold text-foreground">{category?.displayName}</h2>
                   </div>
                   <button
                     onClick={onClose}
@@ -340,7 +347,7 @@ function CategoryPanel({
             {/* Inline product detail */}
             {inProductView && (
               <div className="flex-1 overflow-y-auto animate-fade-in">
-                <ProductDetailContent
+                <DesktopProductDetailContent
                   productKey={selectedProductKey}
                   fitContent={false}
                   showShareButton={false}
@@ -597,8 +604,7 @@ export function DesktopCatalogueView({ initialProductKey }: DesktopCatalogueView
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<CatalogueCategory | null>(null);
   const [reorderOpen, setReorderOpen] = useState(false);
-  const [selectedProductKey, setSelectedProductKey] = useState<string | null>(initialProductKey ?? null);
-  const [dialogOpen, setDialogOpen] = useState(!!initialProductKey);
+  const [directProductKey, setDirectProductKey] = useState<string | null>(initialProductKey ?? null);
   const [scrolled, setScrolled] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -610,8 +616,8 @@ export function DesktopCatalogueView({ initialProductKey }: DesktopCatalogueView
   }, []);
 
   const openProduct = (key: string) => {
-    setSelectedProductKey(key);
-    setDialogOpen(true);
+    setActiveCategory(null);
+    setDirectProductKey(key);
   };
 
   const handleProductClick = (product: CatalogueProduct, raw: ApiProductCard) => {
@@ -758,25 +764,13 @@ export function DesktopCatalogueView({ initialProductKey }: DesktopCatalogueView
         )}
       </main>
 
-      {/* Category panel */}
+      {/* Category panel — also used for direct product open from feed/search */}
       <CategoryPanel
         category={activeCategory}
         groupName={groupNameForCategory}
-        onClose={() => setActiveCategory(null)}
+        directProductKey={directProductKey}
+        onClose={() => { setActiveCategory(null); setDirectProductKey(null); }}
       />
-
-      {/* Product detail dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg p-0 overflow-hidden rounded-3xl gap-0">
-          {selectedProductKey && (
-            <ProductDetailContent
-              productKey={selectedProductKey}
-              fitContent
-              onAdded={() => setDialogOpen(false)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Reorder side panel */}
       <ReorderSidePanel
