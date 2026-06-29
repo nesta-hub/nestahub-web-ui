@@ -242,7 +242,7 @@ export function ProductDetailContent({
               className="w-full h-full block group relative"
             >
               {image ? (
-                <img src={CloudinaryPresets.catalogueCard(image)} alt={detail.name} className="w-full h-full object-cover" />
+                <img src={CloudinaryPresets.categoryTile(image)} alt={detail.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-secondary/80 to-secondary/30" />
               )}
