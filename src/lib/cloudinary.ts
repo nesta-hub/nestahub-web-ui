@@ -89,4 +89,12 @@ export const CloudinaryPresets = {
 
   /** Basic optimization only (auto format & quality, no resizing) */
   optimize: (url: string | null | undefined) => optimizeCloudinaryUrl(url),
+
+  /** Mobile category tile (≈88px rendered, 2× retina = 180px) */
+  categoryTile: (url: string | null | undefined) =>
+    optimizeCloudinaryUrl(url, { width: 180, height: 180, crop: 'fill' }),
+
+  /** Desktop catalogue card — category hero tile or product grid card (≈80–160px rendered, 2× = 240px) */
+  catalogueCard: (url: string | null | undefined) =>
+    optimizeCloudinaryUrl(url, { width: 240, height: 240, crop: 'fill' }),
 };

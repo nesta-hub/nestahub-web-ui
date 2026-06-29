@@ -18,6 +18,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { api, type CategoryGroup as ApiGroup, type ProductCard as ApiProductCard, type RecentVariant } from "@/lib/api";
 import { apiCardToCatalogue, apiCategoryToCatalogue, TYPE_ATTR, SIZE_ATTR } from "@/lib/catalogueAdapter";
+import { CloudinaryPresets } from "@/lib/cloudinary";
 import { formatPrice, getProductPriceRange } from "@/data/catalogueData";
 import type { CatalogueCategory, CatalogueProduct, CatalogueSubcategory } from "@/data/catalogueData";
 import type { ShopTab } from "./ShopTabs";
@@ -51,7 +52,7 @@ function CategoryHeroTile({
       <div className="relative aspect-square overflow-hidden">
         {category.imageUrl ? (
           <img
-            src={category.imageUrl}
+            src={CloudinaryPresets.catalogueCard(category.imageUrl)}
             alt={category.displayName}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
@@ -98,7 +99,7 @@ function ProductGridCard({
       <div className="aspect-square bg-secondary/30 overflow-hidden">
         {product.image ? (
           <img
-            src={product.image}
+            src={CloudinaryPresets.catalogueCard(product.image)}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
@@ -482,7 +483,7 @@ function ReorderSidePanel({
                   >
                     <div className="w-16 h-16 rounded-xl bg-[#F5F3F0] overflow-hidden flex-shrink-0">
                       {v.imageUrl ? (
-                        <img src={v.imageUrl} alt={v.productName} className="w-full h-full object-cover" />
+                        <img src={CloudinaryPresets.catalogueCard(v.imageUrl)} alt={v.productName} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-secondary/70 to-secondary/20" />
                       )}
