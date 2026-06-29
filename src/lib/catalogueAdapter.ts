@@ -162,6 +162,7 @@ export function apiCategoryToCatalogue(
     groupId,
     iconKey: category.iconKey,
     tint: category.tint,
+    imageUrl: category.imageUrl,
   };
 }
 

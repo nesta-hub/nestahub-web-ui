@@ -48,15 +48,25 @@ function CategoryHeroTile({
       onClick={onClick}
       className="group relative flex flex-col text-left rounded-2xl overflow-hidden border border-foreground/[0.06] bg-card hover:border-foreground/15 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-20px_rgba(0,0,0,0.18)] transition-all duration-300"
     >
-      <div className="relative aspect-square bg-gradient-to-br from-[#F5F1EA] via-[#EFE8DC] to-[#E6DDCB] flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(circle_at_20%_20%,#000_1px,transparent_1px)] [background-size:14px_14px]" />
-        <div className="relative transition-transform duration-500 group-hover:scale-110">
-          {SvgIcon ? (
-            <SvgIcon className="w-10 h-10" />
-          ) : (
-            <LucideFallback className="w-9 h-9 text-[hsl(28,32%,36%)]" strokeWidth={1.4} />
-          )}
-        </div>
+      <div className="relative aspect-square overflow-hidden">
+        {category.imageUrl ? (
+          <img
+            src={category.imageUrl}
+            alt={category.displayName}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#F5F1EA] via-[#EFE8DC] to-[#E6DDCB] flex items-center justify-center">
+            <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(circle_at_20%_20%,#000_1px,transparent_1px)] [background-size:14px_14px]" />
+            <div className="relative transition-transform duration-500 group-hover:scale-110">
+              {SvgIcon ? (
+                <SvgIcon className="w-10 h-10" />
+              ) : (
+                <LucideFallback className="w-9 h-9 text-[hsl(28,32%,36%)]" strokeWidth={1.4} />
+              )}
+            </div>
+          </div>
+        )}
       </div>
       <div className="p-2.5 flex items-center justify-between gap-2">
         <div className="min-w-0">

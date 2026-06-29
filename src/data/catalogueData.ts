@@ -34,8 +34,9 @@ export interface CatalogueCategory {
   name: string;
   displayName: string;
   groupId: string;
-  iconKey?: string; // optional key into iconography
-  tint?: string; // tailwind bg class for tile
+  iconKey?: string;
+  tint?: string;
+  imageUrl?: string;
 }
 
 export interface CategoryGroup {
