@@ -90,7 +90,7 @@ export const CloudinaryPresets = {
   /** Basic optimization only (auto format & quality, no resizing) */
   optimize: (url: string | null | undefined) => optimizeCloudinaryUrl(url),
 
-  /** Mobile category tile / product card (300px, 2× retina for ~128px rendered) */
+  /** Mobile category tile / product card (300px) */
   categoryTile: (url: string | null | undefined) =>
     optimizeCloudinaryUrl(url, { width: 300, height: 300, crop: 'fill' }),
 
