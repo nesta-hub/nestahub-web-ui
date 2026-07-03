@@ -17,6 +17,7 @@ import type {
 } from '@/lib/api';
 import type {
   CatalogueProduct,
+  ProductAttribute,
   ProductType,
   ProductSizeOption,
   CatalogueCategory,
@@ -26,7 +27,7 @@ import type {
 export const TYPE_ATTR = 'Type';
 export const SIZE_ATTR = 'Size';
 
-function attrValue(variant: ProductVariant, attrName: string): string | undefined {
+export function attrValue(variant: ProductVariant, attrName: string): string | undefined {
   return variant.attributes.find((a) => a.attributeName === attrName)?.value;
 }
 
@@ -53,21 +54,19 @@ function priceForType(detail: ProductDetail, typeValue: string): number {
 }
 
 /**
- * Resolve the concrete variant for a selected (type, size) pair.
- * Falls back gracefully when the product has only one axis (or none).
+ * Resolve the concrete variant for a map of selected attribute values.
+ * Matches ALL attribute axes present in availableAttributes.
  */
 export function resolveVariant(
   detail: ProductDetail,
-  typeId: string | null,
-  sizeId: string | null,
+  selectedAttrs: Record<string, string>,
 ): ProductVariant | undefined {
-  const hasType = (detail.availableAttributes[TYPE_ATTR]?.length ?? 0) > 0;
-  const hasSize = (detail.availableAttributes[SIZE_ATTR]?.length ?? 0) > 0;
-  return detail.variants.find((v) => {
-    const typeOk = !hasType || attrValue(v, TYPE_ATTR) === typeId;
-    const sizeOk = !hasSize || attrValue(v, SIZE_ATTR) === sizeId;
-    return typeOk && sizeOk;
-  });
+  return detail.variants.find((v) =>
+    Object.entries(detail.availableAttributes).every(([attrName, values]) => {
+      if (!values.length) return true;
+      return attrValue(v, attrName) === selectedAttrs[attrName];
+    }),
+  );
 }
 
 /** Map an API ProductDetail to the catalogue view-model product. */
@@ -108,6 +107,17 @@ export function apiProductToCatalogue(detail: ProductDetail): CatalogueProduct {
         })
       : undefined;
 
+  // Build a dynamic attribute list covering ALL axes in availableAttributes order.
+  const attributes: ProductAttribute[] = Object.entries(detail.availableAttributes)
+    .filter(([, values]) => values.length > 0)
+    .map(([attrName, values]) => ({
+      name: attrName,
+      values: values.map((value) => ({
+        id: value,
+        name: displayName(detail, attrName, value),
+      })),
+    }));
+
   return {
     id: detail.id,
     name: detail.name,
@@ -117,6 +127,7 @@ export function apiProductToCatalogue(detail: ProductDetail): CatalogueProduct {
     image: detail.imageUrl,
     types,
     sizes,
+    attributes,
   };
 }
 

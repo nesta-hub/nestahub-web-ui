@@ -31,16 +31,14 @@ export function AutoRenewConfigDrawer({
 
   const handleToggleAutoRenew = (item: CartItem, isAutoRenew: boolean) => {
     setItemAutoRenew(
-      item.productId,
-      item.typeId,
-      item.sizeId,
+      item.variantId,
       isAutoRenew,
       isAutoRenew ? (item.frequencyWeeks ?? 4) : undefined
     );
   };
 
   const handleFrequencyChange = (item: CartItem, weeks: number) => {
-    setItemAutoRenew(item.productId, item.typeId, item.sizeId, true, weeks);
+    setItemAutoRenew(item.variantId, true, weeks);
   };
 
   const handleSave = () => {

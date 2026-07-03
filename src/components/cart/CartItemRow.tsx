@@ -13,11 +13,11 @@ export function CartItemRow({ item }: CartItemRowProps) {
   const { removeFromCart, updateQuantity } = useCart();
 
   const handleRemove = () => {
-    removeFromCart(item.productId, item.typeId, item.sizeId);
+    removeFromCart(item.variantId);
   };
 
   const handleQuantityChange = (qty: number) => {
-    updateQuantity(item.productId, item.typeId, item.sizeId, qty);
+    updateQuantity(item.variantId, qty);
   };
 
   // Build display - prioritize API attributes, show "Default" for simple products

@@ -49,7 +49,7 @@ export function DesktopGiftingLanding() {
               </>
             }
             sub="Skip the guesswork. Moms choose what they really need"
-            metaPills={["Any amount", "Instant delivery", "Include person note"]}
+            metaPills={["Any amount", "Instant delivery", "Include personal note"]}
             chip="Instant"
             cta="Send Gift Card"
             image={cardGiftcard}
@@ -122,7 +122,7 @@ export function DesktopGiftingLanding() {
             number="05"
             icon={<Wallet className="w-6 h-6" strokeWidth={1.75} style={{ color: BROWN }} />}
             title="Flexible Amounts"
-            sub="Choose any value from ₦5,000 upward — no awkward fixed tiers."
+            sub="Choose any value from ₦10,000 upward — no awkward fixed tiers."
           />
           <Feature
             number="06"

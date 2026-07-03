@@ -97,22 +97,18 @@ export default function Subscribe() {
             <p className="text-sm font-medium text-muted-foreground">Your Items</p>
             {items.map((item) => (
               <SubscribeItemCard
-                key={`${item.productId}-${item.typeId}-${item.sizeId || "no-size"}`}
+                key={item.variantId}
                 item={item}
                 onToggleAutoRenew={(isAutoRenew) =>
                   setItemAutoRenew(
-                    item.productId,
-                    item.typeId,
-                    item.sizeId,
+                    item.variantId,
                     isAutoRenew,
                     isAutoRenew ? 4 : undefined
                   )
                 }
                 onFrequencyChange={(weeks) =>
                   setItemAutoRenew(
-                    item.productId,
-                    item.typeId,
-                    item.sizeId,
+                    item.variantId,
                     true,
                     weeks
                   )

@@ -6,7 +6,7 @@ import { formatPrice } from "@/lib/api";
 import { QuantityControl } from "@/components/cart/QuantityControl";
 import { useCart } from "@/contexts/CartContext";
 import { useProductDetail } from "@/hooks/useCatalogue";
-import { apiProductToCatalogue, resolveVariant } from "@/lib/catalogueAdapter";
+import { apiProductToCatalogue, resolveVariant, attrValue } from "@/lib/catalogueAdapter";
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import { ArrowLeft, ChevronRight, RefreshCw, Check, Share2, ZoomIn, X } from "lucide-react";
 import { toast } from "sonner";
@@ -67,8 +67,7 @@ export function ProductDetailContent({
   const navigate = useNavigate();
   const { data: detail, isLoading } = useProductDetail(productKey);
 
-  const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
-  const [selectedSizeId, setSelectedSizeId] = useState<string | null>(null);
+  const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [step, setStep] = useState<DrawerStep>("configure");
   const [purchaseType, setPurchaseType] = useState<"one-time" | "subscribe">("one-time");
@@ -85,25 +84,36 @@ export function ProductDetailContent({
 
   // Reset selection whenever the underlying product changes.
   useEffect(() => {
-    if (!product) return;
-    setSelectedTypeId(product.types[0]?.id || null);
-    setSelectedSizeId(product.sizes?.[0]?.id || null);
+    if (!product || !detail) return;
+    const firstActive = detail.variants.find((v) => v.isActive);
+    const initial: Record<string, string> = {};
+    if (firstActive) {
+      for (const attr of product.attributes ?? []) {
+        const val = attrValue(firstActive, attr.name);
+        if (val) initial[attr.name] = val;
+      }
+    } else {
+      for (const attr of product.attributes ?? []) {
+        if (attr.values[0]) initial[attr.name] = attr.values[0].id;
+      }
+    }
+    setSelectedAttrs(initial);
     setQuantity(1);
     setStep("configure");
     setPurchaseType("one-time");
     setFrequencyWeeks(1);
     setCapturedHeight(null);
     setImageZoomOpen(false);
-  }, [product]);
+  }, [product, detail]);
 
   // Resolve the concrete API variant for the current selection.
   const variant = useMemo(() => {
     if (!detail) return undefined;
-    return resolveVariant(detail, selectedTypeId, selectedSizeId);
-  }, [detail, selectedTypeId, selectedSizeId]);
+    return resolveVariant(detail, selectedAttrs);
+  }, [detail, selectedAttrs]);
 
   const unitPrice = variant?.price ?? null;
-  const canAdd = !!variant && unitPrice != null;
+  const canAdd = !!variant && variant.isActive && unitPrice != null;
 
   const totalPrice = useMemo(
     () => (unitPrice != null ? unitPrice * quantity : null),
@@ -129,8 +139,8 @@ export function ProductDetailContent({
 
   const finalizeAddToCart = () => {
     if (!detail || !product || !variant || unitPrice == null) return;
-    const selectedType = product.types.find((t) => t.id === selectedTypeId);
-    const selectedSize = product.sizes?.find((s) => s.id === selectedSizeId);
+    const firstAttr = product.attributes?.[0];
+    const secondAttr = product.attributes?.[1];
     const isSubscribe = purchaseType === "subscribe";
 
     addToCart(
@@ -140,10 +150,10 @@ export function ProductDetailContent({
         productName: detail.name,
         brand: detail.brand,
         slug: detail.slug,
-        typeId: selectedTypeId || "_default",
-        typeName: selectedType?.name || "",
-        sizeId: selectedSizeId || undefined,
-        sizeName: selectedSize?.name,
+        typeId: (firstAttr ? selectedAttrs[firstAttr.name] : null) || "_default",
+        typeName: firstAttr?.values.find((v) => v.id === selectedAttrs[firstAttr.name])?.name || "",
+        sizeId: secondAttr ? selectedAttrs[secondAttr.name] : undefined,
+        sizeName: secondAttr?.values.find((v) => v.id === selectedAttrs[secondAttr.name])?.name,
         attributes: variant.attributes.map((a) => ({
           attributeName: a.attributeName,
           value: a.value,
@@ -170,13 +180,12 @@ export function ProductDetailContent({
   };
 
   const attributeSummary = useMemo(() => {
-    if (!product || !selectedTypeId) return "";
-    const type = product.types.find((t) => t.id === selectedTypeId);
-    const size = product.sizes?.find((s) => s.id === selectedSizeId);
-    const parts = [type?.name];
-    if (size) parts.push(size.name);
-    return parts.filter(Boolean).join(" · ");
-  }, [product, selectedTypeId, selectedSizeId]);
+    if (!product?.attributes?.length) return "";
+    return product.attributes
+      .map((attr) => attr.values.find((v) => v.id === selectedAttrs[attr.name])?.name)
+      .filter(Boolean)
+      .join(" · ");
+  }, [product, selectedAttrs]);
 
   const selectedSummary = attributeSummary ? `${attributeSummary} · Qty: ${quantity}` : `Qty: ${quantity}`;
 
@@ -302,47 +311,40 @@ export function ProductDetailContent({
 
         {step === "configure" && (
           <div className="animate-fade-in">
-            <div className="px-6 pt-3 text-left">
-              <label className="text-sm font-medium text-muted-foreground mb-2 block">Type</label>
-              <div className="flex flex-wrap gap-2 justify-start">
-                {product.types.map((type) => (
-                  <button
-                    key={type.id}
-                    onClick={() => setSelectedTypeId(type.id)}
-                    className={cn(
-                      "px-4 py-2 rounded-full border text-sm font-medium transition-all",
-                      selectedTypeId === type.id
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border hover:border-primary/50",
-                    )}
-                  >
-                    {type.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {product.sizes && product.sizes.length > 0 && (
-              <div className="px-6 pt-3 text-left">
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Size</label>
+            {product.attributes?.map((attr) => (
+              <div key={attr.name} className="px-6 pt-3 text-left">
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">{attr.name}</label>
                 <div className="flex flex-wrap gap-2 justify-start">
-                  {product.sizes.map((size) => (
-                    <button
-                      key={size.id}
-                      onClick={() => setSelectedSizeId(size.id)}
-                      className={cn(
-                        "px-4 py-2 rounded-full border text-sm font-medium transition-all",
-                        selectedSizeId === size.id
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border hover:border-primary/50",
-                      )}
-                    >
-                      {size.name}
-                    </button>
-                  ))}
+                  {attr.values.map((v) => {
+                    const otherSelected = Object.fromEntries(
+                      Object.entries(selectedAttrs).filter(([k]) => k !== attr.name)
+                    );
+                    const isAvailable = detail.variants.some(
+                      (variant) =>
+                        variant.isActive &&
+                        attrValue(variant, attr.name) === v.id &&
+                        Object.entries(otherSelected).every(([k, sel]) => attrValue(variant, k) === sel),
+                    );
+                    return (
+                      <button
+                        key={v.id}
+                        disabled={!isAvailable}
+                        onClick={() => setSelectedAttrs((prev) => ({ ...prev, [attr.name]: v.id }))}
+                        className={cn(
+                          "px-4 py-2 rounded-full border text-sm font-medium transition-all",
+                          selectedAttrs[attr.name] === v.id
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border hover:border-primary/50",
+                          !isAvailable && "opacity-40 cursor-not-allowed pointer-events-none",
+                        )}
+                      >
+                        {v.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            )}
+            ))}
 
             <div className="px-6 pt-3">
               <div className="border-t border-border pt-3">

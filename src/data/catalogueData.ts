@@ -13,6 +13,11 @@ export interface ProductSizeOption {
   description?: string;
 }
 
+export interface ProductAttribute {
+  name: string;
+  values: { id: string; name: string }[];
+}
+
 export interface CatalogueProduct {
   id: string;
   name: string;
@@ -22,6 +27,7 @@ export interface CatalogueProduct {
   image?: string;
   types: ProductType[];
   sizes?: ProductSizeOption[];
+  attributes?: ProductAttribute[];
 }
 
 export interface CatalogueSubcategory {

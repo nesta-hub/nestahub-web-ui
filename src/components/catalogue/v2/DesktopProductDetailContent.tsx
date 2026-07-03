@@ -6,7 +6,7 @@ import { formatPrice } from "@/lib/api";
 import { QuantityControl } from "@/components/cart/QuantityControl";
 import { useCart } from "@/contexts/CartContext";
 import { useProductDetail } from "@/hooks/useCatalogue";
-import { apiProductToCatalogue, resolveVariant } from "@/lib/catalogueAdapter";
+import { apiProductToCatalogue, resolveVariant, attrValue } from "@/lib/catalogueAdapter";
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import { ArrowLeft, RefreshCw, Check, Share2, ZoomIn, X, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
@@ -65,8 +65,7 @@ export function DesktopProductDetailContent({
   const navigate = useNavigate();
   const { data: detail, isLoading } = useProductDetail(productKey);
 
-  const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
-  const [selectedSizeId, setSelectedSizeId] = useState<string | null>(null);
+  const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [purchaseType, setPurchaseType] = useState<"one-time" | "subscribe">("one-time");
   const [frequencyWeeks, setFrequencyWeeks] = useState(1);
@@ -78,22 +77,33 @@ export function DesktopProductDetailContent({
   );
 
   useEffect(() => {
-    if (!product) return;
-    setSelectedTypeId(product.types[0]?.id || null);
-    setSelectedSizeId(product.sizes?.[0]?.id || null);
+    if (!product || !detail) return;
+    const firstActive = detail.variants.find((v) => v.isActive);
+    const initial: Record<string, string> = {};
+    if (firstActive) {
+      for (const attr of product.attributes ?? []) {
+        const val = attrValue(firstActive, attr.name);
+        if (val) initial[attr.name] = val;
+      }
+    } else {
+      for (const attr of product.attributes ?? []) {
+        if (attr.values[0]) initial[attr.name] = attr.values[0].id;
+      }
+    }
+    setSelectedAttrs(initial);
     setQuantity(1);
     setPurchaseType("one-time");
     setFrequencyWeeks(1);
     setImageZoomOpen(false);
-  }, [product]);
+  }, [product, detail]);
 
   const variant = useMemo(() => {
     if (!detail) return undefined;
-    return resolveVariant(detail, selectedTypeId, selectedSizeId);
-  }, [detail, selectedTypeId, selectedSizeId]);
+    return resolveVariant(detail, selectedAttrs);
+  }, [detail, selectedAttrs]);
 
   const unitPrice = variant?.price ?? null;
-  const canAdd = !!variant && unitPrice != null;
+  const canAdd = !!variant && variant.isActive && unitPrice != null;
 
   const totalPrice = useMemo(
     () => (unitPrice != null ? unitPrice * quantity : null),
@@ -114,8 +124,8 @@ export function DesktopProductDetailContent({
 
   const finalizeAddToCart = () => {
     if (!detail || !product || !variant || unitPrice == null) return;
-    const selectedType = product.types.find((t) => t.id === selectedTypeId);
-    const selectedSize = product.sizes?.find((s) => s.id === selectedSizeId);
+    const firstAttr = product.attributes?.[0];
+    const secondAttr = product.attributes?.[1];
     const isSubscribe = purchaseType === "subscribe";
 
     addToCart(
@@ -125,10 +135,10 @@ export function DesktopProductDetailContent({
         productName: detail.name,
         brand: detail.brand,
         slug: detail.slug,
-        typeId: selectedTypeId || "_default",
-        typeName: selectedType?.name || "",
-        sizeId: selectedSizeId || undefined,
-        sizeName: selectedSize?.name,
+        typeId: (firstAttr ? selectedAttrs[firstAttr.name] : null) || "_default",
+        typeName: firstAttr?.values.find((v) => v.id === selectedAttrs[firstAttr.name])?.name || "",
+        sizeId: secondAttr ? selectedAttrs[secondAttr.name] : undefined,
+        sizeName: secondAttr?.values.find((v) => v.id === selectedAttrs[secondAttr.name])?.name,
         attributes: variant.attributes.map((a) => ({
           attributeName: a.attributeName,
           value: a.value,
@@ -241,49 +251,41 @@ export function DesktopProductDetailContent({
           <div className="h-px bg-border" />
         </div>
 
-        {/* Type selector */}
-        <div className="px-6 pt-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2.5">Type</p>
-          <div className="flex flex-wrap gap-2">
-            {product.types.map((type) => (
-              <button
-                key={type.id}
-                onClick={() => setSelectedTypeId(type.id)}
-                className={cn(
-                  "px-4 py-2 rounded-full border text-sm font-medium transition-all",
-                  selectedTypeId === type.id
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:border-primary/50 text-foreground",
-                )}
-              >
-                {type.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Size selector */}
-        {product.sizes && product.sizes.length > 0 && (
-          <div className="px-6 pt-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2.5">Size</p>
+        {/* Attribute selectors — one per axis */}
+        {product.attributes?.map((attr, i) => (
+          <div key={attr.name} className={cn("px-6", i === 0 ? "pt-5" : "pt-4")}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2.5">{attr.name}</p>
             <div className="flex flex-wrap gap-2">
-              {product.sizes.map((size) => (
-                <button
-                  key={size.id}
-                  onClick={() => setSelectedSizeId(size.id)}
-                  className={cn(
-                    "px-4 py-2 rounded-full border text-sm font-medium transition-all",
-                    selectedSizeId === size.id
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/50 text-foreground",
-                  )}
-                >
-                  {size.name}
-                </button>
-              ))}
+              {attr.values.map((v) => {
+                const otherSelected = Object.fromEntries(
+                  Object.entries(selectedAttrs).filter(([k]) => k !== attr.name)
+                );
+                const isAvailable = detail.variants.some(
+                  (variant) =>
+                    variant.isActive &&
+                    attrValue(variant, attr.name) === v.id &&
+                    Object.entries(otherSelected).every(([k, sel]) => attrValue(variant, k) === sel),
+                );
+                return (
+                  <button
+                    key={v.id}
+                    disabled={!isAvailable}
+                    onClick={() => setSelectedAttrs((prev) => ({ ...prev, [attr.name]: v.id }))}
+                    className={cn(
+                      "px-4 py-2 rounded-full border text-sm font-medium transition-all",
+                      selectedAttrs[attr.name] === v.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/50 text-foreground",
+                      !isAvailable && "opacity-40 cursor-not-allowed pointer-events-none",
+                    )}
+                  >
+                    {v.name}
+                  </button>
+                );
+              })}
             </div>
           </div>
-        )}
+        ))}
 
         {/* Quantity */}
         <div className="px-6 pt-4">
