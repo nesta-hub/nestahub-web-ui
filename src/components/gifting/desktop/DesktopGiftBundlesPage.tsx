@@ -14,7 +14,7 @@ const cats: GiftCategory[] = ["baby", "mom", "combo"];
 
 const categoryHelper: Record<GiftCategory, string> = {
   baby: "Carefully curated baby essentials; soft fabrics, gentle care items, and keepsakes chosen for tiny hands.",
-  mom: "Thoughtful comforts for the mother; restorative care, soft loungewear, and quiet moments she'll feel held in.",
+  mom: "Thoughtful comforts for the mother; restorative care, and quiet moments she'll feel held in.",
   combo: "The full hug; pairings that honour both mother and baby in one beautifully bundled gift.",
 };
 
