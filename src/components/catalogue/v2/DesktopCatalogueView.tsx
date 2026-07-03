@@ -362,7 +362,7 @@ function CategoryPanel({
                   productKey={selectedProductKey}
                   fitContent={false}
                   showShareButton={false}
-                  onAdded={() => setSelectedProductKey(null)}
+                  onAdded={() => isDirect ? onClose() : setSelectedProductKey(null)}
                 />
               </div>
             )}

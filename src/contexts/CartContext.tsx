@@ -34,18 +34,18 @@ interface CartContextType {
   openCart: () => void;
   closeCart: () => void;
   addToCart: (item: Omit<CartItem, 'quantity'>, quantity: number) => void;
-  updateQuantity: (productId: string, typeId: string, sizeId: string | undefined, quantity: number) => void;
-  removeFromCart: (productId: string, typeId: string, sizeId: string | undefined) => void;
+  updateQuantity: (variantId: string, quantity: number) => void;
+  removeFromCart: (variantId: string) => void;
   clearCart: () => void;
   setSubscriptionStartDate: (date: Date) => void;
-  setItemAutoRenew: (productId: string, typeId: string, sizeId: string | undefined, isAutoRenew: boolean, frequencyWeeks?: number) => void;
+  setItemAutoRenew: (variantId: string, isAutoRenew: boolean, frequencyWeeks?: number) => void;
   setAllItemsAutoRenew: (isAutoRenew: boolean, frequencyWeeks?: number) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-function getItemKey(productId: string, typeId: string, sizeId: string | undefined): string {
-  return `${productId}-${typeId}-${sizeId || 'no-size'}`;
+function getItemKey(variantId: string): string {
+  return variantId;
 }
 
 const CART_STORAGE_KEY = 'nesta_cart_items';
@@ -111,9 +111,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addToCart = useCallback((item: Omit<CartItem, 'quantity'>, quantity: number) => {
     setItems(prev => {
-      const existingIndex = prev.findIndex(
-        i => i.productId === item.productId && i.typeId === item.typeId && i.sizeId === item.sizeId
-      );
+      const key = getItemKey(item.variantId);
+      const existingIndex = prev.findIndex(i => getItemKey(i.variantId) === key);
 
       if (existingIndex >= 0) {
         const updated = [...prev];
@@ -128,26 +127,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const updateQuantity = useCallback((productId: string, typeId: string, sizeId: string | undefined, quantity: number) => {
+  const updateQuantity = useCallback((variantId: string, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(productId, typeId, sizeId);
+      removeFromCart(variantId);
       return;
     }
 
     setItems(prev =>
       prev.map(item =>
-        item.productId === productId && item.typeId === typeId && item.sizeId === sizeId
+        getItemKey(item.variantId) === getItemKey(variantId)
           ? { ...item, quantity }
           : item
       )
     );
   }, []);
 
-  const removeFromCart = useCallback((productId: string, typeId: string, sizeId: string | undefined) => {
+  const removeFromCart = useCallback((variantId: string) => {
     setItems(prev =>
-      prev.filter(
-        item => !(item.productId === productId && item.typeId === typeId && item.sizeId === sizeId)
-      )
+      prev.filter(item => getItemKey(item.variantId) !== getItemKey(variantId))
     );
   }, []);
 
@@ -161,15 +158,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setItemAutoRenew = useCallback((
-    productId: string,
-    typeId: string,
-    sizeId: string | undefined,
+    variantId: string,
     isAutoRenew: boolean,
     frequencyWeeks?: number
   ) => {
     setItems(prev =>
       prev.map(item =>
-        item.productId === productId && item.typeId === typeId && item.sizeId === sizeId
+        getItemKey(item.variantId) === getItemKey(variantId)
           ? { ...item, isAutoRenew, frequencyWeeks: isAutoRenew ? (frequencyWeeks ?? 4) : undefined }
           : item
       )
