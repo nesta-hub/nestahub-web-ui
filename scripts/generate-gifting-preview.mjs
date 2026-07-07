@@ -1,14 +1,15 @@
 /**
- * Post-build step: generate dist/gift.html from the built dist/index.html,
+ * Post-build step: generate dist/gifting.html from the built dist/index.html,
  * swapping the default NestaHub head meta for gifting-specific Open Graph tags.
  *
- * Why generated (not a hand-written static file): Vite fingerprints the JS/CSS
- * bundles with content hashes that change every build. Copying the freshly built
- * index.html keeps those asset references correct, so the SPA still boots for
- * humans while social crawlers read the gifting tags.
+ * One generic gifting preview is served for ALL public gifting routes
+ * (/gifting*, /gift-cards, and the /gift/:id recipient link) via vercel.json
+ * rewrites -> /gifting.html. Social crawlers read the gifting tags; a real
+ * browser still boots the SPA because the hashed asset refs are preserved.
  *
- * Wired via `vercel.json` rewrite: /gift/(.*) -> /gift.html (above the SPA catch-all).
- * The preview is intentionally GENERIC (same for every gift link) — no per-card data.
+ * Why generated (not a hand-written static file): Vite fingerprints the JS/CSS
+ * bundles with content hashes that change every build. Copying the freshly
+ * built index.html keeps those refs correct.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -17,19 +18,21 @@ import { dirname, resolve } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(__dirname, '..', 'dist');
 const srcFile = resolve(distDir, 'index.html');
-const outFile = resolve(distDir, 'gift.html');
+const outFile = resolve(distDir, 'gifting.html');
 
 // Canonical public origin (used to build the absolute og:image URL).
 const ORIGIN = (process.env.VITE_PUBLIC_ORIGIN || 'https://nestahub.ng').replace(/\/$/, '');
-// The branded 1200x630 share banner. Override with VITE_GIFT_OG_IMAGE (absolute URL)
-// if the asset is hosted elsewhere (e.g. Cloudinary). Defaults to a file in /public.
-const OG_IMAGE = process.env.VITE_GIFT_OG_IMAGE || `${ORIGIN}/gift-preview.png`;
+// The 1200x630 share banner. Override with VITE_GIFT_OG_IMAGE (absolute URL) if
+// the asset is hosted elsewhere (e.g. Cloudinary). Defaults to a file in /public.
+// Currently a temporary crop of the gifting hero art (public/gift-preview.jpg) —
+// swap for dedicated branded artwork when available.
+const OG_IMAGE = process.env.VITE_GIFT_OG_IMAGE || `${ORIGIN}/gift-preview.jpg`;
 
-const TITLE = "🎁 You've received a NestaHub gift!";
-const DESCRIPTION = 'Tap to open your gift and shop baby essentials for the little one.';
+const TITLE = 'NestaHub Gifting';
+const DESCRIPTION = 'Send baby essentials, gift cards & bundles to someone special.';
 
 if (!existsSync(srcFile)) {
-  console.error(`[generate-gift-html] ${srcFile} not found — run \`vite build\` first.`);
+  console.error(`[generate-gifting-preview] ${srcFile} not found — run \`vite build\` first.`);
   process.exit(1);
 }
 
@@ -63,4 +66,4 @@ const injected = [
 html = html.replace(/<\/head>/i, `    ${injected}\n  </head>`);
 
 writeFileSync(outFile, html, 'utf8');
-console.log(`[generate-gift-html] wrote ${outFile} (og:image=${OG_IMAGE})`);
+console.log(`[generate-gifting-preview] wrote ${outFile} (title="${TITLE}", og:image=${OG_IMAGE})`);
