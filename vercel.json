@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/gift/(.*)",
+      "destination": "/gift.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
