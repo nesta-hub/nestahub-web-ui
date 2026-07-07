@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Wallet as WalletIcon, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, ReceiptText } from 'lucide-react';
+import { ArrowLeft, Wallet as WalletIcon, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, ReceiptText, Gift } from 'lucide-react';
 import { Layout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { SignInForm } from '@/components/auth/SignInForm';
@@ -9,6 +9,7 @@ import { useWalletData } from '@/hooks/useWalletData';
 import { formatKobo, transactionLabel } from '@/utils/wallet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DesktopWalletView } from '@/components/account/DesktopWalletView';
+import { RedeemGiftCardDialog } from '@/components/wallet/RedeemGiftCardDialog';
 
 type Filter = 'all' | 'earned' | 'used';
 
@@ -31,6 +32,7 @@ const Wallet = () => {
   const { user, session, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
   const [filter, setFilter] = useState<Filter>('all');
+  const [redeemOpen, setRedeemOpen] = useState(false);
   const typeFilter = filter === 'earned' ? 'credit' : filter === 'used' ? 'debit' : undefined;
   const { summary, summaryLoading, transactions, transactionsLoading, page, totalPages, goToPage } =
     useWalletData(session?.access_token, typeFilter);
@@ -95,6 +97,22 @@ const Wallet = () => {
             </p>
           </div>
         </div>
+
+        {/* Redeem gift card */}
+        <button
+          type="button"
+          onClick={() => setRedeemOpen(true)}
+          className="mt-4 w-full flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left hover:bg-muted/50 transition-colors"
+        >
+          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <Gift className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">Redeem a gift card</p>
+            <p className="text-xs text-muted-foreground">Add a gift card balance to your wallet</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        </button>
 
         {/* Transactions */}
         <div className="mt-8">
@@ -210,6 +228,8 @@ const Wallet = () => {
           )}
         </div>
       </div>
+
+      <RedeemGiftCardDialog open={redeemOpen} onOpenChange={setRedeemOpen} />
     </Layout>
   );
 };

@@ -10,12 +10,14 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
+  Gift,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWalletData } from "@/hooks/useWalletData";
 import { formatKobo, transactionLabel } from "@/utils/wallet";
+import { RedeemGiftCardDialog } from "@/components/wallet/RedeemGiftCardDialog";
 
 type Filter = "all" | "earned" | "used";
 
@@ -41,6 +43,7 @@ export function DesktopWalletView({ onBack }: DesktopWalletViewProps) {
   const navigate = useNavigate();
   const { session } = useAuth();
   const [filter, setFilter] = useState<Filter>("all");
+  const [redeemOpen, setRedeemOpen] = useState(false);
   const typeFilter = filter === "earned" ? "credit" : filter === "used" ? "debit" : undefined;
 
   const { summary, summaryLoading, transactions, transactionsLoading, page, totalPages, goToPage } =
@@ -104,6 +107,22 @@ export function DesktopWalletView({ onBack }: DesktopWalletViewProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Redeem gift card */}
+              <button
+                type="button"
+                onClick={() => setRedeemOpen(true)}
+                className="w-full flex items-center gap-3 rounded-2xl border border-foreground/[0.06] bg-card p-4 shadow-sm text-left hover:bg-muted/40 transition-colors"
+              >
+                <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <Gift className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">Redeem a gift card</p>
+                  <p className="text-xs text-muted-foreground">Add its balance to your wallet</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </button>
 
               {/* How to earn */}
               <div className="rounded-2xl border border-foreground/[0.06] bg-card p-5 space-y-4 shadow-sm">
@@ -262,6 +281,8 @@ export function DesktopWalletView({ onBack }: DesktopWalletViewProps) {
           </div>
         </div>
       </div>
+
+      <RedeemGiftCardDialog open={redeemOpen} onOpenChange={setRedeemOpen} />
     </div>
   );
 }
