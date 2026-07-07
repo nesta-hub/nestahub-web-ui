@@ -20,8 +20,22 @@ const distDir = resolve(__dirname, '..', 'dist');
 const srcFile = resolve(distDir, 'index.html');
 const outFile = resolve(distDir, 'gifting.html');
 
-// Canonical public origin (used to build the absolute og:image URL).
-const ORIGIN = (process.env.VITE_PUBLIC_ORIGIN || 'https://nestahub.ng').replace(/\/$/, '');
+// Absolute origin for the og:image URL. Crawlers need a fully-qualified URL that
+// actually resolves, so it must point at the same host that serves the page —
+// pointing staging at the production domain (or vice-versa) yields a broken preview.
+// Precedence:
+//   1. VITE_PUBLIC_ORIGIN — explicit override, if ever needed.
+//   2. VERCEL_PROJECT_PRODUCTION_URL — injected by Vercel at build time as the
+//      project's production domain (no protocol). This makes og:image self-configure
+//      per Vercel project with zero manual env setup: the staging project resolves to
+//      nestahub-web-staging.vercel.app, production to nestahub.ng.
+//   3. https://nestahub.ng — fallback for local builds.
+const ORIGIN = (
+  process.env.VITE_PUBLIC_ORIGIN ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : 'https://nestahub.ng')
+).replace(/\/$/, '');
 // The 1200x630 share banner. Override with VITE_GIFT_OG_IMAGE (absolute URL) if
 // the asset is hosted elsewhere (e.g. Cloudinary). Defaults to a file in /public.
 // Currently a temporary crop of the gifting hero art (public/gift-preview.jpg) —
