@@ -98,26 +98,38 @@ export default async function handler(req, res) {
 
   const shell = await getShell(origin);
 
-  // Replace the shell's default title/description/og:title/og:description in
-  // place (keeps its og:type + twitter:card), then inject the image + twitter
-  // text tags before </head> — mirrors the static gifting-preview generator.
-  let html = shell
-    .replace(/<title>[\s\S]*?<\/title>/i, `<title>${esc(title)}</title>`)
-    .replace(/<meta\s+name="description"[^>]*>/i, `<meta name="description" content="${esc(description)}" />`)
-    .replace(/<meta\s+property="og:title"[^>]*>/i, `<meta property="og:title" content="${esc(title)}" />`)
-    .replace(/<meta\s+property="og:description"[^>]*>/i, `<meta property="og:description" content="${esc(description)}" />`);
-
+  // Strip every title / description / og:* / twitter:* tag we manage from the
+  // shell, then inject a COMPLETE head block. Doing it this way (rather than
+  // replace-in-place) guarantees a well-formed preview even for the minimal
+  // fallback shell — no tag-less responses, which is what makes WhatsApp show
+  // the bare domain.
   const injected = [
+    `<title>${esc(title)}</title>`,
+    `<meta name="description" content="${esc(description)}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:title" content="${esc(title)}" />`,
+    `<meta property="og:description" content="${esc(description)}" />`,
     `<meta property="og:image" content="${esc(ogImage)}" />`,
     `<meta property="og:image:width" content="1200" />`,
     `<meta property="og:image:height" content="630" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${esc(title)}" />`,
     `<meta name="twitter:description" content="${esc(description)}" />`,
     `<meta name="twitter:image" content="${esc(ogImage)}" />`,
   ].join('\n    ');
-  html = html.replace(/<\/head>/i, `    ${injected}\n  </head>`);
 
+  const html = shell
+    .replace(/<title>[\s\S]*?<\/title>/i, '')
+    .replace(/<meta\s+name="description"[^>]*>/gi, '')
+    .replace(/<meta\s+property="og:[^"]*"[^>]*>/gi, '')
+    .replace(/<meta\s+name="twitter:[^"]*"[^>]*>/gi, '')
+    .replace(/<\/head>/i, `    ${injected}\n  </head>`);
+
+  // Only cache a real (card-backed) preview for the long window. A generic
+  // fallback means the API was cold/unreachable — cache it briefly so the next
+  // crawl retries instead of the fallback sticking for 30 days.
+  const ttl = card ? CACHE_SECONDS : 60;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Cache-Control', `public, s-maxage=${CACHE_SECONDS}, stale-while-revalidate=86400`);
+  res.setHeader('Cache-Control', `public, s-maxage=${ttl}, stale-while-revalidate=86400`);
   res.status(200).send(html);
 }
