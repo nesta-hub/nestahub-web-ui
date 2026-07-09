@@ -8,14 +8,43 @@
  *   desc:   "<sender> sent you a gift on NestaHub. Tap to open."
  * The gift amount and code are never exposed in the preview.
  *
- * It fetches the card from the public API and the built SPA shell, injects the
- * per-card meta, and returns HTML that crawlers read for the preview while a
- * real browser still boots the app. Any failure degrades to the generic
- * gifting preview rather than erroring. Routed via vercel.json: /gift/(.*) ->
- * /api/gift/$1.
+ * Card identity (recipient, sender) is immutable, so the rendered preview is
+ * edge-cached for 30 days — the API is hit ~once per gift link rather than per
+ * request. Cards are almost always redeemed immediately, so a used/expired card
+ * whose link is later re-shared with a slightly stale preview is an accepted
+ * rare edge (the page itself always shows live status). Deploys bust the cache.
+ *
+ * Routed via vercel.json: /gift/(.*) -> /api/gift/$1.
  */
 
 const API_BASE = (process.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/$/, '');
+const FETCH_TIMEOUT_MS = 2000;
+const CACHE_SECONDS = 60 * 60 * 24 * 30; // 30 days
+
+// The SPA shell is identical for every gift link and only changes per deploy,
+// so cache it in module scope — fetched once per warm instance, not per request.
+let cachedShell = null;
+
+async function fetchWithTimeout(url, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function getShell(origin) {
+  if (cachedShell) return cachedShell;
+  try {
+    const text = await (await fetchWithTimeout(`${origin}/index.html`, FETCH_TIMEOUT_MS)).text();
+    cachedShell = text; // only cache a real shell, never the fallback
+    return cachedShell;
+  } catch {
+    return '<!doctype html><html><head></head><body><div id="root"></div></body></html>';
+  }
+}
 
 // Escape untrusted card fields before placing them in HTML attributes/text.
 function esc(s) {
@@ -56,23 +85,18 @@ export default async function handler(req, res) {
   const origin = `${proto}://${host}`;
   const ogImage = process.env.VITE_GIFT_OG_IMAGE || `${origin}/gift-preview.jpg`;
 
-  // Best-effort card fetch — never let a failure break the page.
+  // Best-effort card fetch (short timeout) — never let a slow/cold API break
+  // or hang the page; degrade to the generic preview instead.
   let card = null;
   try {
-    const r = await fetch(`${API_BASE}/gift-cards/${encodeURIComponent(id)}`);
+    const r = await fetchWithTimeout(`${API_BASE}/gift-cards/${encodeURIComponent(id)}`, FETCH_TIMEOUT_MS);
     if (r.ok) card = await r.json();
   } catch {
     /* fall through to generic */
   }
   const { title, description } = metaForCard(card);
 
-  // Fetch the built SPA shell so the app still boots for real visitors.
-  let shell;
-  try {
-    shell = await (await fetch(`${origin}/index.html`)).text();
-  } catch {
-    shell = '<!doctype html><html><head></head><body><div id="root"></div></body></html>';
-  }
+  const shell = await getShell(origin);
 
   // Replace the shell's default title/description/og:title/og:description in
   // place (keeps its og:type + twitter:card), then inject the image + twitter
@@ -94,6 +118,6 @@ export default async function handler(req, res) {
   html = html.replace(/<\/head>/i, `    ${injected}\n  </head>`);
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=86400');
+  res.setHeader('Cache-Control', `public, s-maxage=${CACHE_SECONDS}, stale-while-revalidate=86400`);
   res.status(200).send(html);
 }
