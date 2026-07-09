@@ -4,6 +4,6 @@
     { "source": "/gifting/(.*)", "destination": "/gifting.html" },
     { "source": "/gift-cards", "destination": "/gifting.html" },
     { "source": "/gift/(.*)", "destination": "/api/gift/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
