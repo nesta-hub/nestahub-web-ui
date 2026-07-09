@@ -3,7 +3,7 @@
     { "source": "/gifting", "destination": "/gifting.html" },
     { "source": "/gifting/(.*)", "destination": "/gifting.html" },
     { "source": "/gift-cards", "destination": "/gifting.html" },
-    { "source": "/gift/(.*)", "destination": "/gifting.html" },
+    { "source": "/gift/(.*)", "destination": "/api/gift/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
