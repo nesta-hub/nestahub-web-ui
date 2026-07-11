@@ -54,6 +54,19 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
+// Size a Cloudinary image to the 1200x630 OG canvas (c_fill keeps it filling the
+// frame; f_auto/q_auto optimise delivery). Returns the URL with dimensions when
+// the transform was applied, so we can emit accurate og:image:width/height and
+// WhatsApp/Facebook reliably pick the large-image layout. Non-Cloudinary URLs are
+// passed through unsized (we don't know their real dimensions).
+const OG_W = 1200;
+const OG_H = 630;
+function toOgImage(url) {
+  const m = /^(https?:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.*)$/i.exec(url || '');
+  if (!m) return { url, sized: false };
+  return { url: `${m[1]}w_${OG_W},h_${OG_H},c_fill,f_auto,q_auto/${m[2]}`, sized: true };
+}
+
 // Product descriptions may contain HTML / be long — strip tags, collapse space, clamp.
 function cleanDescription(s, max = 180) {
   const text = String(s || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -95,10 +108,14 @@ export default async function handler(req, res) {
 
   // og:image — the real product image (absolute Cloudinary URL) when available.
   let ogImage = null;
+  let ogImageSized = false;
   if (found && product.imageUrl) {
-    ogImage = /^https?:\/\//i.test(product.imageUrl)
+    const absolute = /^https?:\/\//i.test(product.imageUrl)
       ? product.imageUrl
       : `${origin}${product.imageUrl.startsWith('/') ? '' : '/'}${product.imageUrl}`;
+    const sized = toOgImage(absolute);
+    ogImage = sized.url;
+    ogImageSized = sized.sized;
   } else if (process.env.VITE_PRODUCT_OG_IMAGE) {
     ogImage = process.env.VITE_PRODUCT_OG_IMAGE;
   }
@@ -122,6 +139,14 @@ export default async function handler(req, res) {
       `<meta property="og:image" content="${esc(ogImage)}" />`,
       `<meta name="twitter:image" content="${esc(ogImage)}" />`,
     );
+    // Declaring dimensions makes crawlers render the large card without first
+    // downloading the image — only when we know them (Cloudinary-sized).
+    if (ogImageSized) {
+      tags.push(
+        `<meta property="og:image:width" content="${OG_W}" />`,
+        `<meta property="og:image:height" content="${OG_H}" />`,
+      );
+    }
   }
 
   const html = shell
@@ -131,8 +156,13 @@ export default async function handler(req, res) {
     .replace(/<meta\s+name="twitter:[^"]*"[^>]*>/gi, '')
     .replace(/<\/head>/i, `    ${tags.join('\n    ')}\n  </head>`);
 
+  // A found product's preview is stable → long cache + a day of stale-while-
+  // revalidate. A miss/cold-API fallback must NOT stick: without a long SWR the
+  // CDN re-runs this function promptly instead of serving the generic card for
+  // up to a day (which is exactly how a cold-start miss got "stuck" before).
   const ttl = found ? CACHE_SECONDS : FALLBACK_CACHE_SECONDS;
+  const swr = found ? 86400 : 0;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Cache-Control', `public, s-maxage=${ttl}, stale-while-revalidate=86400`);
+  res.setHeader('Cache-Control', `public, s-maxage=${ttl}, stale-while-revalidate=${swr}`);
   res.status(200).send(html);
 }

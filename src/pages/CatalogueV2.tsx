@@ -63,26 +63,36 @@ const CatalogueV2 = () => {
     sessionStorage.setItem(TAB_STORAGE_KEY, activeTab);
   }, [activeTab]);
 
-  // Deep link: ?product=<slug-or-id> opens the product drawer.
+  // The `?product=<slug-or-id>` param is the single source of truth for the
+  // product drawer: present → open, absent → closed. This keeps deep links,
+  // in-grid opens, and the back button all consistent — the URL always
+  // describes what's on screen.
   useEffect(() => {
     const productKey = searchParams.get("product");
     if (productKey) {
       setSelectedProductKey(productKey);
       setIsProductDrawerOpen(true);
+    } else {
+      setIsProductDrawerOpen(false);
     }
   }, [searchParams]);
 
   const handleProductDrawerOpen = (open: boolean) => {
-    setIsProductDrawerOpen(open);
     if (!open && searchParams.get("product")) {
+      // Removing the param drives the drawer closed via the effect above.
       searchParams.delete("product");
       setSearchParams(searchParams, { replace: true });
+    } else {
+      setIsProductDrawerOpen(open);
     }
   };
 
   const openProduct = (productKey: string) => {
-    setSelectedProductKey(productKey);
-    setIsProductDrawerOpen(true);
+    // Push the slug into the URL so the open product is shareable and the back
+    // button closes the drawer; the effect above reflects it into drawer state.
+    const next = new URLSearchParams(searchParams);
+    next.set("product", productKey);
+    setSearchParams(next);
   };
 
   const handleTileClick = (cat: ApiCategory) => {
