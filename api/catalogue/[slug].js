@@ -55,17 +55,18 @@ function esc(s) {
 }
 
 // Fit a Cloudinary image onto the 1200x630 OG canvas. c_pad shows the WHOLE
-// product (never crops) and pads the leftover space with white to match the
-// product photos' background; f_auto/q_auto optimise delivery. Padding produces
-// exactly 1200x630, so the emitted og:image:width/height stay accurate and
-// WhatsApp/Facebook reliably pick the large-image layout. Non-Cloudinary URLs
-// are passed through unsized (we don't know their real dimensions).
+// product (never crops); b_auto pads with the image's own edge colour so there's
+// no seam — the product photos sit on a warm off-white, not pure white, so a
+// fixed colour would leave a visible frame. f_auto/q_auto optimise delivery.
+// Padding produces exactly 1200x630, so the emitted og:image:width/height stay
+// accurate and WhatsApp/Facebook reliably pick the large-image layout.
+// Non-Cloudinary URLs are passed through unsized (we don't know their dimensions).
 const OG_W = 1200;
 const OG_H = 630;
 function toOgImage(url) {
   const m = /^(https?:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.*)$/i.exec(url || '');
   if (!m) return { url, sized: false };
-  return { url: `${m[1]}w_${OG_W},h_${OG_H},c_pad,b_white,f_auto,q_auto/${m[2]}`, sized: true };
+  return { url: `${m[1]}w_${OG_W},h_${OG_H},c_pad,b_auto,f_auto,q_auto/${m[2]}`, sized: true };
 }
 
 // Product descriptions may contain HTML / be long — strip tags, collapse space, clamp.
