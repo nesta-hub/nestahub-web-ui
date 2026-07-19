@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { Copy, Check, ShoppingBag, Gift, CreditCard, ShoppingCart } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Copy, Check, ShoppingBag, Wallet, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { GiftCardTheme } from "./GiftCardThemes";
 import { themeGradients, themeTextColors } from "./giftCardThemeStyles";
 import { formatPrice } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { useAddGiftToWallet } from "@/hooks/useAddGiftToWallet";
 import nestaLogo from "@/assets/nesta-logo.png";
 
 export interface GiftCardRecipientPageProps {
+  giftId: string;
   senderName: string;
   recipientName: string;
   amount: number;
@@ -16,6 +19,7 @@ export interface GiftCardRecipientPageProps {
 }
 
 export function GiftCardRecipientPage({
+  giftId,
   senderName,
   recipientName,
   amount,
@@ -24,6 +28,8 @@ export function GiftCardRecipientPage({
   giftCode,
 }: GiftCardRecipientPageProps) {
   const [copied, setCopied] = useState(false);
+  const navigate = useNavigate();
+  const redeem = useAddGiftToWallet(giftId, giftCode);
 
   const gradient = themeGradients[theme.id] ?? themeGradients["welcome-world"];
   const cardText = themeTextColors[theme.id] ?? themeTextColors["welcome-world"];
@@ -88,58 +94,74 @@ export function GiftCardRecipientPage({
             </div>
           )}
 
-          {/* Code + actions */}
+          {/* Actions */}
           <div className="px-6 pb-6 space-y-4">
-            <div className="text-center">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                Your Gift Code
-              </p>
-              <div className="border-2 border-green-300 bg-green-50 rounded-xl px-4 py-4">
-                <p className="text-lg sm:text-xl font-bold font-mono text-green-800 tracking-wider">
-                  {giftCode}
-                </p>
+            {redeem.isSuccess ? (
+              /* Redeemed to wallet */
+              <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-5 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-base font-bold text-emerald-800">
+                    {formatPrice(redeem.redeemedAmount ?? amount)} added to your wallet
+                  </p>
+                  <p className="text-xs text-emerald-700/80 mt-1">Use it at checkout on any order.</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button className="flex-1 rounded-xl gap-2" onClick={() => navigate("/account/wallet")}>
+                    <Wallet className="w-4 h-4" /> My Wallet
+                  </Button>
+                  <Button variant="outline" className="flex-1 rounded-xl gap-2" onClick={() => navigate("/catalogue")}>
+                    <ShoppingBag className="w-4 h-4" /> Shop Now
+                  </Button>
+                </div>
               </div>
-            </div>
-
-            <Button
-              onClick={handleCopy}
-              className="w-full rounded-xl py-3 h-auto text-sm font-semibold gap-2"
-            >
-              {copied ? (
-                <><Check className="w-4 h-4" /> Copied!</>
-              ) : (
-                <><Copy className="w-4 h-4" /> Copy Code</>
-              )}
-            </Button>
-
-            {/* How to use */}
-            <div className="border-t border-border pt-5 space-y-4">
-              <h3 className="text-sm font-semibold text-foreground text-center">How to Use Your Gift Card</h3>
-              <div className="space-y-3">
-                {[
-                  { icon: Copy, text: "Copy your gift card code using the button above" },
-                  { icon: ShoppingBag, text: "Visit nestahub.ng and browse baby essentials" },
-                  { icon: ShoppingCart, text: "Add items to your cart and proceed to checkout" },
-                  { icon: CreditCard, text: "At payment, tap \"Have a gift card?\" and enter your code" },
-                  { icon: Gift, text: "Your gift card balance will be applied to your order" },
-                ].map((step, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">
-                      {i + 1}
-                    </span>
-                    <p className="text-sm text-muted-foreground leading-relaxed pt-1">{step.text}</p>
+            ) : (
+              <>
+                {/* Primary — add to wallet */}
+                <Button
+                  onClick={redeem.addToWallet}
+                  disabled={redeem.isPending}
+                  className="w-full rounded-xl py-3.5 h-auto text-sm font-semibold gap-2"
+                >
+                  {redeem.isPending ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Adding…</>
+                  ) : (
+                    <><Wallet className="w-4 h-4" /> Add {formatPrice(amount)} to my wallet</>
+                  )}
+                </Button>
+                {!redeem.isLoggedIn && !redeem.isPending && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    You'll sign in first — just takes a moment.
+                  </p>
+                )}
+                {redeem.error && (
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-destructive">
+                    <XCircle className="w-3.5 h-3.5 shrink-0" /> {redeem.error}
                   </div>
-                ))}
-              </div>
-            </div>
+                )}
 
-            <Button
-              variant="outline"
-              className="w-full rounded-xl py-3 h-auto text-sm font-semibold gap-2"
-              onClick={() => window.location.href = "/catalogue"}
-            >
-              <ShoppingBag className="w-4 h-4" /> Shop Now
-            </Button>
+                {/* Secondary — use the code at checkout */}
+                <div className="border-t border-border pt-4 space-y-3">
+                  <p className="text-xs text-center text-muted-foreground">Or use the code at checkout</p>
+                  <div className="border-2 border-green-300 bg-green-50 rounded-xl px-4 py-3 text-center">
+                    <p className="text-lg font-bold font-mono text-green-800 tracking-wider">{giftCode}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleCopy}
+                    className="w-full rounded-xl py-3 h-auto text-sm font-semibold gap-2"
+                  >
+                    {copied ? (
+                      <><Check className="w-4 h-4" /> Copied!</>
+                    ) : (
+                      <><Copy className="w-4 h-4" /> Copy Code</>
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

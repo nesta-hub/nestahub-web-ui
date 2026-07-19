@@ -1,8 +1,10 @@
 {
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/gifting", "destination": "/gifting.html" },
+    { "source": "/gifting/(.*)", "destination": "/gifting.html" },
+    { "source": "/gift-cards", "destination": "/gifting.html" },
+    { "source": "/gift/(.*)", "destination": "/api/gift/$1" },
+    { "source": "/catalogue/(.*)", "destination": "/api/catalogue/$1" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

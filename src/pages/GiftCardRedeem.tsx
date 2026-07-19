@@ -99,6 +99,7 @@ export default function GiftCardRedeem() {
 
   return (
     <GiftCardRecipientPage
+      giftId={giftId!}
       senderName={giftCard.senderName}
       recipientName={giftCard.recipientName}
       amount={giftCard.currentBalance}

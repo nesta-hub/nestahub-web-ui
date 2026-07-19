@@ -69,6 +69,47 @@ export function resolveVariant(
   );
 }
 
+/**
+ * Pick the default attribute selection for a freshly-opened product: the
+ * active variant whose attribute values rank first, axis by axis, in swatch
+ * order (product.attributes is already sorted by admin-configured
+ * sortOrder). `detail.variants` itself is ordered by price, not sortOrder,
+ * so picking `variants[0]` directly would default to the cheapest variant
+ * rather than the first swatch. Ties broken by price ascending.
+ * Returns undefined when there is no active variant to select.
+ */
+export function defaultSelectedAttrs(
+  detail: ProductDetail,
+  product: CatalogueProduct,
+): Record<string, string> | undefined {
+  const activeVariants = detail.variants.filter((v) => v.isActive);
+  if (!activeVariants.length) return undefined;
+
+  const rankMaps = product.attributes.map((attr) => ({
+    name: attr.name,
+    map: new Map(attr.values.map((v, i) => [v.id, i])),
+  }));
+
+  const rank = (v: ProductVariant) =>
+    rankMaps.map(({ name, map }) => map.get(attrValue(v, name) ?? '') ?? Infinity);
+
+  const best = activeVariants.reduce((a, b) => {
+    const ra = rank(a);
+    const rb = rank(b);
+    for (let i = 0; i < ra.length; i++) {
+      if (ra[i] !== rb[i]) return ra[i] < rb[i] ? a : b;
+    }
+    return a.price <= b.price ? a : b;
+  });
+
+  const initial: Record<string, string> = {};
+  for (const attr of product.attributes) {
+    const val = attrValue(best, attr.name);
+    if (val) initial[attr.name] = val;
+  }
+  return initial;
+}
+
 /** Map an API ProductDetail to the catalogue view-model product. */
 export function apiProductToCatalogue(detail: ProductDetail): CatalogueProduct {
   const typeValues = detail.availableAttributes[TYPE_ATTR] ?? [];

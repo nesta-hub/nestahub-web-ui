@@ -10,6 +10,7 @@ export function transactionLabel(tx: WalletTransaction): string {
     case 'cashback': return `Cashback${tx.orderNumber ? ` — ${tx.orderNumber}` : ''}`;
     case 'referral': return 'Referral reward';
     case 'checkout_redemption': return `Used at checkout${tx.orderNumber ? ` — ${tx.orderNumber}` : ''}`;
+    case 'gift_card_redemption': return 'Gift card redeemed';
     case 'admin_adjustment': return tx.description || 'Admin adjustment';
     default: return tx.description || tx.source;
   }

@@ -980,6 +980,34 @@ export async function validateGiftCard(code: string): Promise<GiftCardValidation
   return response.json();
 }
 
+export interface RedeemGiftCardResponse {
+  redeemedAmount: number; // in kobo
+  walletBalance: number; // in kobo
+  transactionId: string;
+}
+
+export async function redeemGiftCardToWallet(
+  code: string,
+  token: string,
+): Promise<RedeemGiftCardResponse> {
+  const response = await fetch(`${API_BASE_URL}/gift-cards/redeem`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code }),
+  });
+  if (!response.ok) {
+    let message = 'Could not redeem this gift card. Please try again.';
+    try {
+      const body = await response.json();
+      if (body?.message) message = Array.isArray(body.message) ? body.message[0] : body.message;
+    } catch {
+      /* keep default message */
+    }
+    throw new Error(message);
+  }
+  return response.json();
+}
+
 export interface ApplyGiftCardResponse {
   code: string;
   balance: number; // in kobo
