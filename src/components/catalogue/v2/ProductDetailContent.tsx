@@ -6,7 +6,7 @@ import { formatPrice } from "@/lib/api";
 import { QuantityControl } from "@/components/cart/QuantityControl";
 import { useCart } from "@/contexts/CartContext";
 import { useProductDetail } from "@/hooks/useCatalogue";
-import { apiProductToCatalogue, resolveVariant, attrValue } from "@/lib/catalogueAdapter";
+import { apiProductToCatalogue, resolveVariant, attrValue, defaultSelectedAttrs } from "@/lib/catalogueAdapter";
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import { ArrowLeft, ChevronRight, RefreshCw, Check, Share2, ZoomIn, X } from "lucide-react";
 import { toast } from "sonner";
@@ -85,14 +85,8 @@ export function ProductDetailContent({
   // Reset selection whenever the underlying product changes.
   useEffect(() => {
     if (!product || !detail) return;
-    const firstActive = detail.variants.find((v) => v.isActive);
-    const initial: Record<string, string> = {};
-    if (firstActive) {
-      for (const attr of product.attributes ?? []) {
-        const val = attrValue(firstActive, attr.name);
-        if (val) initial[attr.name] = val;
-      }
-    } else {
+    const initial = defaultSelectedAttrs(detail, product) ?? {};
+    if (!Object.keys(initial).length) {
       for (const attr of product.attributes ?? []) {
         if (attr.values[0]) initial[attr.name] = attr.values[0].id;
       }
@@ -160,7 +154,7 @@ export function ProductDetailContent({
           displayValue: a.displayValue,
         })),
         unitPrice,
-        image: detail.imageUrl,
+        image: variant.imageUrl || detail.imageUrl,
         isAutoRenew: isSubscribe,
         frequencyWeeks: isSubscribe ? frequencyWeeks : undefined,
         subscriptionPrice: variant.subscriptionPrice,
@@ -204,7 +198,7 @@ export function ProductDetailContent({
     );
   }
 
-  const image = detail.imageUrl;
+  const image = variant?.imageUrl || detail.imageUrl;
   const titleName = `${detail.brand} ${detail.name}`;
 
   return (
