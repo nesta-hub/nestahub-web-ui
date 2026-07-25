@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { metaPixel } from "@/lib/metaPixel";
 import { Layout } from "@/components/layout";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ArrowLeft, CheckCircle, Loader2 } from "lucide-react";
@@ -236,7 +237,7 @@ const GiftBundleDetail = () => {
         <BundleDetailView
           pkg={pkg}
           onBack={() => navigate("/gifting/bundles")}
-          onContinue={() => setStep("packaging")}
+          onContinue={() => { metaPixel.customEvent('BundleDetailsContinue', { bundle_name: pkg?.name, bundle_id: packageId }); setStep("packaging"); }}
         />
       )}
       {step === "packaging" && (
@@ -246,7 +247,7 @@ const GiftBundleDetail = () => {
           selectedId={packagingId}
           onSelect={setPackagingId}
           onBack={() => setStep("details")}
-          onContinue={() => setSummaryOpen(true)}
+          onContinue={() => { metaPixel.customEvent('BundlePackagingSelected', { bundle_name: pkg?.name, packaging_id: packagingId }); setSummaryOpen(true); }}
         />
       )}
       {step === "recipient" && (

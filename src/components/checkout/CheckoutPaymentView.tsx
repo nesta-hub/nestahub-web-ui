@@ -1,4 +1,5 @@
 import { Copy, Check, ArrowLeft, CreditCard, ChevronRight, Info, X } from 'lucide-react';
+import { metaPixel } from '@/lib/metaPixel';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -65,6 +66,7 @@ export function CheckoutPaymentView({
     setConfirmError(null);
     try {
       await api.markPaymentMade(orderId, token);
+      metaPixel.purchase({ value: adjustedTotal / 100, currency: 'NGN', order_id: orderId });
       // Wallet is debited inside markPaymentMade — refresh so the pill and wallet page reflect it.
       await refreshWalletData();
       onPaymentConfirmed();

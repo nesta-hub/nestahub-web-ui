@@ -6,12 +6,18 @@ import { useCart } from "@/contexts/CartContext";
 import { CartItemRow } from "./CartItemRow";
 import { formatPrice } from "@/lib/api";
 import { ShoppingBag, RefreshCw } from "lucide-react";
+import { metaPixel } from "@/lib/metaPixel";
 
 export function CartDrawer() {
   const navigate = useNavigate();
   const { items, itemCount, totalAmount, isCartOpen, closeCart } = useCart();
 
   const handleProceed = () => {
+    metaPixel.initiateCheckout({
+      num_items: items.reduce((sum, i) => sum + i.quantity, 0),
+      value: totalAmount / 100,
+      currency: 'NGN',
+    });
     closeCart();
     navigate("/checkout");
   };

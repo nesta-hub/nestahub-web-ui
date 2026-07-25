@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { metaPixel } from "@/lib/metaPixel";
 import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ export function DesktopGiftBundleDetail({ pkg, packagingOptions, bundleId }: Des
   const total = pkg.price + (selectedPackaging?.price ?? 0);
 
   const handleProceed = () => {
+    metaPixel.initiateCheckout({ num_items: 1, value: total / 100, currency: 'NGN' });
     const params = new URLSearchParams({ source: "gift-bundle", bundleId });
     if (packagingId) params.set("packagingId", packagingId);
     navigate(`/checkout?${params.toString()}`);

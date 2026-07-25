@@ -1,5 +1,6 @@
 import { Layout } from "@/components/layout";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { metaPixel } from "@/lib/metaPixel";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -82,7 +83,11 @@ const GiftingV2 = () => {
           {cards.map((card) => (
             <button
               key={card.to}
-              onClick={() => navigate(card.to)}
+              onClick={() => {
+                if (card.to === '/gifting/cards') metaPixel.customEvent('SendGiftCardClick');
+                else if (card.to === '/gifting/bundles') metaPixel.customEvent('ShopBundlesClick');
+                navigate(card.to);
+              }}
               className={cn(
                 "group relative w-full text-left rounded-[2.5rem] p-7 overflow-hidden",
                 "min-h-[260px] flex flex-col justify-between",

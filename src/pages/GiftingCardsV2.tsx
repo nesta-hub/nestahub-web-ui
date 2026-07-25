@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { GiftCardPreview } from "@/components/gifting/GiftCardPreview";
 import { giftCardThemes, presetAmounts, type GiftCardTheme } from "@/components/gifting/GiftCardThemes";
 import { formatPrice } from "@/lib/api";
+import { metaPixel } from "@/lib/metaPixel";
 import { DesktopGiftCardStudio } from "@/components/gifting/desktop/DesktopGiftCardStudio";
 import type { ConfiguredGiftCard } from "@/pages/GiftCardDetailsV2";
 
@@ -52,6 +53,11 @@ const GiftingCardsV2 = () => {
 
   const handleContinue = () => {
     if (!isValid) return;
+    metaPixel.customEvent('GiftCardContinue', {
+      amount: effectiveAmount / 100,
+      currency: 'NGN',
+      theme: selectedTheme?.name,
+    });
     navigate("/gifting/cards/details", {
       state: { theme: selectedTheme, amount: effectiveAmount, addedCards: incomingAddedCards },
     });
