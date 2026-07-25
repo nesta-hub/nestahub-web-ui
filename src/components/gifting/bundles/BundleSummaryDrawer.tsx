@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import { metaPixel } from "@/lib/metaPixel";
 import {
   Drawer,
   DrawerContent,
@@ -104,7 +105,7 @@ export function BundleSummaryDrawer({
           <Button
             variant="shop"
             className="w-full h-12 text-base font-semibold rounded-full"
-            onClick={onProceed}
+            onClick={() => { metaPixel.initiateCheckout({ num_items: 1, value: total / 100, currency: 'NGN' }); onProceed(); }}
             disabled={isSubmitting}
           >
             <span>{isSubmitting ? "Creating order…" : "Proceed to Payment"}</span>

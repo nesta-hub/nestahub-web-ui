@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { metaPixel } from "@/lib/metaPixel";
 import { ArrowRight, Gift, PenLine, Truck, Sparkles, MessageCircleHeart, Wallet, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import giftingHero from "@/assets/gifting-hero.webp";
@@ -57,7 +58,7 @@ export function DesktopGiftingLanding() {
             surfaceClass="bg-[radial-gradient(at_top_left,#FFF6EE,#FAEDE6_55%,#F4DFD0)]"
             patternClass="[background-image:radial-gradient(hsl(28,32%,36%)_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.05]"
             blobColor="bg-[#F4C9AE]"
-            onClick={() => navigate("/gifting/cards")}
+            onClick={() => { metaPixel.customEvent('SendGiftCardClick'); navigate("/gifting/cards"); }}
           />
           <CtaCard
             eyebrow="Curated Gift Sets"
@@ -79,7 +80,7 @@ export function DesktopGiftingLanding() {
             surfaceClass="bg-[radial-gradient(at_top_left,#FAF1DF,#F0E5D6_55%,#E6D6BD)]"
             patternClass="[background-image:repeating-linear-gradient(45deg,hsl(28,32%,36%)_0_1px,transparent_1px_10px)] opacity-[0.05]"
             blobColor="bg-[#E2C99A]"
-            onClick={() => navigate("/gifting/bundles")}
+            onClick={() => { metaPixel.customEvent('ShopBundlesClick'); navigate("/gifting/bundles"); }}
           />
         </div>
       </section>

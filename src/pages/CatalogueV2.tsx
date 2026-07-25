@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCategoryTree, useRecentVariants } from "@/hooks/useCatalogue";
 import { apiGroupToCatalogue, apiCategoryToCatalogue } from "@/lib/catalogueAdapter";
 import type { Category as ApiCategory, CategoryGroup as ApiGroup } from "@/lib/api";
+import { metaPixel } from "@/lib/metaPixel";
 
 const TAB_STORAGE_KEY = "catalogue:active-tab";
 
@@ -88,6 +89,7 @@ const CatalogueV2 = () => {
   };
 
   const openProduct = (productKey: string) => {
+    metaPixel.viewContent({ content_name: productKey, content_ids: [productKey], content_type: 'product' });
     // Push the slug into the URL so the open product is shareable and the back
     // button closes the drawer; the effect above reflects it into drawer state.
     const next = new URLSearchParams(searchParams);
@@ -96,6 +98,7 @@ const CatalogueV2 = () => {
   };
 
   const handleTileClick = (cat: ApiCategory) => {
+    metaPixel.customEvent('CategoryClick', { category_name: cat.displayName, category_id: cat.slug });
     setSelectedCategory(toDrawerCategory(cat));
     setIsCategoryDrawerOpen(true);
   };

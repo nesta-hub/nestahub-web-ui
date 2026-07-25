@@ -2,6 +2,7 @@ import { MapPin, Truck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { DeliverySummaryCard } from "./DeliverySummaryCard";
 import { formatPrice } from "@/lib/api";
+import { metaPixel } from "@/lib/metaPixel";
 
 type DeliveryMethod = 'pickup' | 'address';
 
@@ -53,7 +54,7 @@ export function CheckoutDeliverySection({
       <div className="grid grid-cols-2 gap-3">
         <Card
           className="p-4 cursor-pointer hover:border-primary transition-colors active:scale-[0.98]"
-          onClick={() => onSelectMethod('pickup')}
+          onClick={() => { metaPixel.customEvent('DeliveryMethodSelected', { method: 'pickup' }); onSelectMethod('pickup'); }}
         >
           <div className="flex flex-col items-center gap-2 text-center">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -68,7 +69,7 @@ export function CheckoutDeliverySection({
 
         <Card
           className="p-4 cursor-pointer hover:border-primary transition-colors active:scale-[0.98]"
-          onClick={() => onSelectMethod('address')}
+          onClick={() => { metaPixel.customEvent('DeliveryMethodSelected', { method: 'address' }); onSelectMethod('address'); }}
         >
           <div className="flex flex-col items-center gap-2 text-center">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">

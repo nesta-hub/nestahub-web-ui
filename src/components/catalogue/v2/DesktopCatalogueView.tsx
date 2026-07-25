@@ -21,6 +21,7 @@ import { apiCardToCatalogue, apiCategoryToCatalogue, TYPE_ATTR, SIZE_ATTR } from
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import { formatPrice, getProductPriceRange } from "@/data/catalogueData";
 import type { CatalogueCategory, CatalogueProduct, CatalogueSubcategory } from "@/data/catalogueData";
+import { metaPixel } from "@/lib/metaPixel";
 import type { ShopTab } from "./ShopTabs";
 
 const TAB_STORAGE_KEY = "catalogue:active-tab";
@@ -209,6 +210,7 @@ function ItemsFeedDesktop({
               <h3 className="text-xl font-bold text-foreground tracking-tight">{cat.displayName}</h3>
               <button
                 onClick={() => {
+                  metaPixel.customEvent('ExploreAllItems', { category_name: cat.displayName });
                   for (const g of groups) {
                     const apiCat = g.categories.find((c) => c.slug === cat.slug);
                     if (apiCat) { onCategoryClick(apiCategoryToCatalogue(apiCat, g.id)); break; }
@@ -632,10 +634,12 @@ export function DesktopCatalogueView({ initialProductKey }: DesktopCatalogueView
   };
 
   const handleProductClick = (product: CatalogueProduct, raw: ApiProductCard) => {
+    metaPixel.viewContent({ content_name: product.name, content_ids: [product.id], content_type: 'product' });
     openProduct(raw?.slug ?? product.id);
   };
 
   const openCategory = (cat: CatalogueCategory) => {
+    metaPixel.customEvent('CategoryClick', { category_name: cat.displayName, category_id: cat.id });
     setActiveCategory(cat);
     setSearchQuery("");
   };

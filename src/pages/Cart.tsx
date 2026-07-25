@@ -8,6 +8,7 @@ import { CartItemRow } from "@/components/cart/CartItemRow";
 import { DesktopCartView } from "@/components/cart/DesktopCartView";
 import { ResumeOrderDrawer } from "@/components/cart/ResumeOrderDrawer";
 import { api, formatPrice } from "@/lib/api";
+import { metaPixel } from "@/lib/metaPixel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ArrowLeft, ShoppingBag, RefreshCw, Loader2 } from "lucide-react";
 
@@ -22,6 +23,12 @@ const Cart = () => {
   const [pendingOrder, setPendingOrder] = useState<{ orderNumber: string; totalAmount: number; paymentOption: string | null } | null>(null);
 
   const handleCheckout = async () => {
+    metaPixel.initiateCheckout({
+      num_items: items.reduce((sum, i) => sum + i.quantity, 0),
+      value: totalAmount / 100,
+      currency: 'NGN',
+    });
+
     if (!user || !session) {
       navigate('/checkout');
       return;

@@ -20,6 +20,7 @@ import {
 } from "@/components/checkout";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { api, formatPrice } from "@/lib/api";
+import { metaPixel } from "@/lib/metaPixel";
 import { useGiftBundle, usePackagingOptions } from "@/hooks/useGifting";
 import { isZone1Address, isZone1Or2Address } from "@/components/checkout/CheckoutAddressSection";
 import { calculateDeliveryTiming, type DeliveryTiming } from "@/lib/delivery-timing";
@@ -169,6 +170,11 @@ const Checkout = () => {
   const handleProceedToPayment = async () => {
     if (!session?.access_token) return;
 
+    metaPixel.customEvent('ProceedToPayment', {
+      delivery_method: deliveryMethod,
+      is_gift_bundle: isGiftBundle,
+    });
+
     if (isGiftBundle && giftBundleId) {
       setIsSubmitting(true);
       setSubmitError(null);
@@ -192,6 +198,7 @@ const Checkout = () => {
         setOrderNumber(result.orderNumber);
         setServerTotalAmount(result.totalAmount);
         if (paymentOption === 'pay-on-delivery') {
+          metaPixel.purchase({ value: result.totalAmount / 100, currency: 'NGN', order_id: result.orderNumber });
           setShowSuccess(true);
         } else {
           setShowPayment(true);
@@ -240,6 +247,7 @@ const Checkout = () => {
       clearCustomGiftDraft();
 
       if (paymentOption === 'pay-on-delivery') {
+        metaPixel.purchase({ value: result.totalAmount / 100, currency: 'NGN', order_id: result.orderNumber });
         setShowSuccess(true);
       } else {
         setShowPayment(true);

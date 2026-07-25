@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { GiftCardPreview } from "@/components/gifting/GiftCardPreview";
 import { type GiftCardTheme } from "@/components/gifting/GiftCardThemes";
 import { formatPrice, api, createBulkGiftCardOrder } from "@/lib/api";
+import { metaPixel } from "@/lib/metaPixel";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { CheckoutPaymentView } from "@/components/checkout/CheckoutPaymentView";
@@ -179,6 +180,12 @@ const GiftCardDetailsV2 = () => {
         },
         session.access_token,
       );
+      metaPixel.purchase({
+        value: cards.reduce((s, c) => s + c.amount, 0) / 100,
+        currency: 'NGN',
+        num_items: cards.length,
+        order_id: order.orderNumber,
+      });
       setOrderId(order.orderNumber);
       setServerTotal(order.totalAmount);
       setShowSummaryDrawer(false);
@@ -194,6 +201,11 @@ const GiftCardDetailsV2 = () => {
 
   const handleProceed = () => {
     if (!isValid) return;
+    metaPixel.customEvent('GiftCardReviewOrder', {
+      num_cards: summaryCards.length,
+      total_value: summaryCards.reduce((s, c) => s + c.amount, 0) / 100,
+      currency: 'NGN',
+    });
     setShowSummaryDrawer(true);
   };
 
@@ -239,6 +251,11 @@ const GiftCardDetailsV2 = () => {
 
   const handleProceedToPayment = async () => {
     if (summaryCards.length === 0) return;
+    metaPixel.initiateCheckout({
+      num_items: summaryCards.length,
+      value: summaryCards.reduce((s, c) => s + c.amount, 0) / 100,
+      currency: 'NGN',
+    });
     if (!session) {
       // Persist before OAuth redirect, then restore + auto-create on return.
       localStorage.setItem(

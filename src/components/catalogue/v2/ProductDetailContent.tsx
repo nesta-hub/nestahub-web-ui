@@ -10,6 +10,7 @@ import { apiProductToCatalogue, resolveVariant, attrValue, defaultSelectedAttrs 
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import { ArrowLeft, ChevronRight, RefreshCw, Check, Share2, ZoomIn, X } from "lucide-react";
 import { toast } from "sonner";
+import { metaPixel } from "@/lib/metaPixel";
 
 async function shareProduct(title: string, slug: string) {
   const url = `${window.location.origin}/catalogue/${slug}`;
@@ -162,6 +163,14 @@ export function ProductDetailContent({
       },
       quantity,
     );
+
+    metaPixel.addToCart({
+      content_name: detail.name,
+      content_ids: [detail.id],
+      value: unitPrice,
+      currency: 'NGN',
+      num_items: quantity,
+    });
 
     onAdded();
     toast.success("Added to cart", {

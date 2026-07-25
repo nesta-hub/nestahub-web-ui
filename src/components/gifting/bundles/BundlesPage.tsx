@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { metaPixel } from "@/lib/metaPixel";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import {
   giftCategoryMeta,
@@ -90,7 +91,10 @@ export function BundlesPage() {
               <BundleListingCard
                 key={pkg.id}
                 pkg={pkg}
-                onClick={() => navigate(`/gifting/bundles/${pkg.id}`)}
+                onClick={() => {
+                metaPixel.viewContent({ content_name: pkg.name, content_ids: [pkg.id], content_type: 'product', value: pkg.price / 100, currency: 'NGN' });
+                navigate(`/gifting/bundles/${pkg.id}`);
+              }}
               />
             ))}
           </div>

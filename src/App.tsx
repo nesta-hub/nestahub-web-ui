@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import { Analytics } from "@vercel/analytics/react";
+import { metaPixel } from "@/lib/metaPixel";
 import Index from "./pages/Index";
 import Shop from "./pages/Shop";
 import Bundles from "./pages/Bundles";
@@ -65,6 +66,14 @@ function ScrollToTop() {
   return null;
 }
 
+function MetaPageTracker() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    metaPixel.pageView();
+  }, [pathname]);
+  return null;
+}
+
 function ReferralCapture() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -85,6 +94,7 @@ const App = () => (
           <Analytics />
           <BrowserRouter>
             <ScrollToTop />
+            <MetaPageTracker />
             <ReferralCapture />
             <CartDrawer />
             <Routes>

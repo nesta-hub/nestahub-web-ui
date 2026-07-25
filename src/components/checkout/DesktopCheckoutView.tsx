@@ -1,5 +1,6 @@
 import { type ReactNode, useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { metaPixel } from "@/lib/metaPixel";
 import { ArrowLeft, ShieldCheck, Clock, Package, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -152,6 +153,7 @@ export function DesktopCheckoutView({
 
   const handleProceedToPayment = async () => {
     if (!session?.access_token) return;
+    metaPixel.customEvent('ProceedToPayment', { delivery_method: deliveryMethod, is_gift_bundle: returnToPath === '/gifting/bundles' });
     setIsSubmitting(true);
     setSubmitError(null);
     try {
@@ -169,6 +171,7 @@ export function DesktopCheckoutView({
       setOrderNumber(result.orderNumber);
       setServerTotalAmount(result.totalAmount);
       if (paymentOption === "pay-on-delivery") {
+        metaPixel.purchase({ value: result.totalAmount / 100, currency: 'NGN', order_id: result.orderNumber });
         setShowSuccess(true);
       } else {
         setShowPayment(true);

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { metaPixel } from "@/lib/metaPixel";
 import { ArrowLeft, ShoppingBag, Gift, ArrowUpDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -245,7 +246,10 @@ export function DesktopGiftBundlesPage() {
                       <BundleListingCard
                         key={pkg.id}
                         pkg={pkg}
-                        onClick={() => navigate(`/gifting/bundles/${pkg.id}`)}
+                        onClick={() => {
+                        metaPixel.viewContent({ content_name: pkg.name, content_ids: [pkg.id], content_type: 'product', value: pkg.price / 100, currency: 'NGN' });
+                        navigate(`/gifting/bundles/${pkg.id}`);
+                      }}
                       />
                     ))}
                   </div>

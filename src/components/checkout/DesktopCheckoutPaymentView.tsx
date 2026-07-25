@@ -30,6 +30,7 @@ import {
 } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { type AppliedGiftCard } from "./ApplyCreditsDrawer";
+import { metaPixel } from "@/lib/metaPixel";
 import { cn } from "@/lib/utils";
 
 interface SummaryLine {
@@ -125,6 +126,7 @@ const walletAvailable = walletBalance >= 50;
     } finally {
       setIsConfirming(false);
     }
+    metaPixel.purchase({ value: adjustedTotal / 100, currency: 'NGN', order_id: orderId });
     onPaymentConfirmed();
   };
 
