@@ -535,7 +535,54 @@ export const api = {
     }
     return response.json();
   },
+
+  // Public price list — every active variant with its price, grouped by category.
+  // Powers the shareable /prices page. No auth.
+  async getPriceList(): Promise<PriceListResponse> {
+    const response = await fetch(`${API_BASE_URL}/products/price-list`);
+    if (!response.ok) throw new Error('Failed to fetch price list');
+    return response.json();
+  },
 };
+
+// ─── Public Price List ────────────────────────────────────────────────────────
+
+export interface PriceListVariant {
+  id: string;
+  sku: string;
+  /** Composed from variant attributes, e.g. "3-6M (up to 8kg)". May be empty. */
+  label: string;
+  /** Kobo. */
+  price: number;
+  subscriptionPrice?: number;
+  compareAtPrice?: number;
+  inStock: boolean;
+}
+
+export interface PriceListProduct {
+  id: string;
+  name: string;
+  brand: string;
+  slug: string;
+  imageUrl?: string;
+  variants: PriceListVariant[];
+}
+
+export interface PriceListCategory {
+  id: string;
+  name: string;
+  slug: string;
+  products: PriceListProduct[];
+  variantCount: number;
+}
+
+export interface PriceListResponse {
+  categories: PriceListCategory[];
+  categoryCount: number;
+  productCount: number;
+  variantCount: number;
+  updatedAt: string;
+}
 
 // Helper function to format price
 export function formatPrice(price: number): string {

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/generate-gifting-preview.mjs",
+    "build": "vite build && node scripts/generate-gifting-preview.mjs && node scripts/generate-prices-preview.mjs",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",

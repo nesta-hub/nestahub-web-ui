@@ -34,6 +34,7 @@ import CustomGiftBuilder from "./pages/CustomGiftBuilder";
 import Subscribe from "./pages/Subscribe";
 import Contact from "./pages/Contact";
 import FAQ from "./pages/FAQ";
+import Prices from "./pages/Prices";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ImagePreview from "./pages/ImagePreview";
 import IconPreview from "./pages/IconPreview";
@@ -99,6 +100,7 @@ const App = () => (
             <CartDrawer />
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/prices" element={<Prices />} />
               <Route path="/shop" element={<CataloguePage />} />
               <Route path="/bundles" element={<Bundles />} />
               <Route path="/bundles/:stageId" element={<BundleOptions />} />
