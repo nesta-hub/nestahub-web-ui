@@ -30,11 +30,11 @@ const ORIGIN = (
     : 'https://nestahub.ng')
 ).replace(/\/$/, '');
 
-// Optional 1200x630 share banner. There is no dedicated price-list artwork yet,
-// so this is unset by default: WhatsApp still renders a clean title+description
-// card without an image, which is better than showing unrelated gifting art.
-// Set VITE_PRICES_OG_IMAGE (absolute URL) once a banner exists.
-const OG_IMAGE = process.env.VITE_PRICES_OG_IMAGE || '';
+// The 1200x630 share banner: the Nesta Hub logo on the brand background, in
+// public/prices-preview.jpg. Lives in public/ rather than src/assets/ because
+// Vite content-hashes bundled assets, and a share card needs a stable URL that
+// crawlers can resolve. Override with VITE_PRICES_OG_IMAGE (absolute URL).
+const OG_IMAGE = process.env.VITE_PRICES_OG_IMAGE || `${ORIGIN}/prices-preview.jpg`;
 
 const TITLE = 'Nesta Hub Price List';
 const DESCRIPTION =
