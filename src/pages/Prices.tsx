@@ -47,9 +47,7 @@ const Prices = () => {
             Price List
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {data
-              ? `${data.variantCount} items across ${data.categoryCount} categories. Updated ${updated}.`
-              : "All products and prices at a glance."}
+            {data ? `Updated ${updated}.` : "All products and prices at a glance."}
           </p>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center print:hidden">
