@@ -940,12 +940,14 @@ export async function reorderMultipleSubscriptions(
 
 export interface GiftCardPublic {
   themeId: string;
+  initialValue: number;
   currentBalance: number;
   senderName: string;
   recipientName: string;
   message?: string;
   status: string;
   code: string;
+  redeemedByCurrentUser?: boolean;
 }
 
 export interface BulkGiftCardItem {
@@ -986,8 +988,10 @@ export interface GiftCardValidation {
   reason?: string; // 'not_found' | 'expired' | 'exhausted' | 'void'
 }
 
-export async function getGiftCard(giftId: string): Promise<GiftCardPublic> {
-  const response = await fetch(`${API_BASE_URL}/gift-cards/${giftId}`);
+export async function getGiftCard(giftId: string, token?: string): Promise<GiftCardPublic> {
+  const response = await fetch(`${API_BASE_URL}/gift-cards/${giftId}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (!response.ok) {
     if (response.status === 404) {
       throw new Error('Gift card not found or has expired');
