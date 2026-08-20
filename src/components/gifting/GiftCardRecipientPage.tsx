@@ -13,7 +13,8 @@ export interface GiftCardRecipientPageProps {
   giftId: string;
   senderName: string;
   recipientName: string;
-  amount: number;
+  initialValue: number;
+  currentBalance: number;
   theme: GiftCardTheme;
   message?: string;
   giftCode: string;
@@ -24,7 +25,8 @@ export function GiftCardRecipientPage({
   giftId,
   senderName,
   recipientName,
-  amount,
+  initialValue,
+  currentBalance,
   theme,
   message,
   giftCode,
@@ -38,6 +40,7 @@ export function GiftCardRecipientPage({
   const cardText = themeTextColors[theme.id] ?? themeTextColors["welcome-world"];
 
   const showSuccess = redeem.isSuccess || !!redeemedByCurrentUser;
+  const isPartial = currentBalance < initialValue;
 
   const handleCopy = async () => {
     try {
@@ -80,10 +83,15 @@ export function GiftCardRecipientPage({
           For {recipientName}
         </p>
       </div>
-      <div className="absolute bottom-4 right-5">
+      <div className="absolute bottom-4 right-5 text-right">
         <p className="text-sm font-bold" style={{ color: cardText, opacity: 0.85 }}>
-          {formatPrice(amount)}
+          {formatPrice(initialValue)}
         </p>
+        {(showSuccess || isPartial) && (
+          <p className="text-[10px] font-medium" style={{ color: cardText, opacity: 0.6 }}>
+            {showSuccess ? "Used" : `${formatPrice(currentBalance)} left`}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -98,7 +106,7 @@ export function GiftCardRecipientPage({
 
   const walletSteps = [
     { icon: Wallet, text: 'Tap "Add to Wallet" above' },
-    { icon: Gift, text: `${formatPrice(amount)} lands in your Nesta wallet instantly` },
+    { icon: Gift, text: `${formatPrice(currentBalance)} lands in your Nesta wallet instantly` },
     { icon: ShoppingBag, text: "Shop anytime at nestahub.ng — no code to remember" },
     { icon: CreditCard, text: 'At checkout, choose "Pay with wallet"' },
     { icon: ShoppingCart, text: "Anything left over stays in your wallet for next time" },
@@ -153,7 +161,7 @@ export function GiftCardRecipientPage({
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   You have successfully added your gift card value of{" "}
-                  {formatPrice(redeem.redeemedAmount ?? amount)} to your wallet.
+                  {formatPrice(initialValue)} to your wallet.
                 </p>
               </div>
 
@@ -270,7 +278,7 @@ export function GiftCardRecipientPage({
                     ) : (
                       <>
                         <Wallet className="w-4 h-4" />
-                        Add {formatPrice(amount)} to Wallet
+                        Add {formatPrice(currentBalance)} to Wallet
                       </>
                     )}
                   </Button>

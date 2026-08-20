@@ -940,6 +940,7 @@ export async function reorderMultipleSubscriptions(
 
 export interface GiftCardPublic {
   themeId: string;
+  initialValue: number;
   currentBalance: number;
   senderName: string;
   recipientName: string;

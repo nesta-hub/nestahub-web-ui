@@ -126,7 +126,8 @@ export default function GiftCardRedeem() {
       giftId={giftId!}
       senderName={giftCard.senderName}
       recipientName={giftCard.recipientName}
-      amount={giftCard.currentBalance}
+      initialValue={giftCard.initialValue}
+      currentBalance={giftCard.currentBalance}
       theme={theme}
       message={giftCard.message}
       giftCode={giftCard.code}
