@@ -3,16 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import { GiftCardRecipientPage } from "@/components/gifting/GiftCardRecipientPage";
 import { giftCardThemes } from "@/components/gifting/GiftCardThemes";
 import { getGiftCard } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 import { AlertCircle, Loader2 } from "lucide-react";
 import nestaLogo from "@/assets/nesta-logo.png";
 
 export default function GiftCardRedeem() {
   const { giftId } = useParams<{ giftId: string }>();
   const navigate = useNavigate();
+  const { session } = useAuth();
 
   const { data: giftCard, isLoading, error } = useQuery({
-    queryKey: ["gift-card", giftId],
-    queryFn: () => getGiftCard(giftId!),
+    queryKey: ["gift-card", giftId, !!session?.access_token],
+    queryFn: () => getGiftCard(giftId!, session?.access_token),
     enabled: !!giftId,
     retry: false,
   });
@@ -64,8 +66,8 @@ export default function GiftCardRedeem() {
     );
   }
 
-  // Check if gift card is usable (allow ACTIVE and PARTIAL statuses)
-  if (giftCard.status === "EXHAUSTED" || giftCard.status === "VOID") {
+  // VOID is always an error
+  if (giftCard.status === "VOID") {
     return (
       <div className="min-h-screen bg-muted/30 flex items-center justify-center px-4">
         <div className="w-full max-w-[480px] space-y-6 text-center">
@@ -74,13 +76,35 @@ export default function GiftCardRedeem() {
           </div>
           <div className="bg-card rounded-2xl border border-border shadow-sm p-12">
             <AlertCircle className="w-12 h-12 mx-auto text-amber-500 mb-4" />
-            <h2 className="text-lg font-semibold text-foreground mb-2">
-              Gift Card {giftCard.status === "EXHAUSTED" ? "Fully Used" : "Not Available"}
-            </h2>
+            <h2 className="text-lg font-semibold text-foreground mb-2">Gift Card Not Available</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              {giftCard.status === "EXHAUSTED"
-                ? "This gift card has been fully used and has no remaining balance."
-                : "This gift card has been cancelled and is no longer available."}
+              This gift card has been cancelled and is no longer available.
+            </p>
+            <button
+              onClick={() => navigate("/")}
+              className="inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground px-6 py-3 text-sm font-semibold hover:bg-primary/90 transition-colors"
+            >
+              Go to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // EXHAUSTED — show generic error unless the current user was the one who redeemed it
+  if (giftCard.status === "EXHAUSTED" && !giftCard.redeemedByCurrentUser) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center px-4">
+        <div className="w-full max-w-[480px] space-y-6 text-center">
+          <div className="flex justify-center">
+            <img src={nestaLogo} alt="Nesta Hub" className="h-14" />
+          </div>
+          <div className="bg-card rounded-2xl border border-border shadow-sm p-12">
+            <AlertCircle className="w-12 h-12 mx-auto text-amber-500 mb-4" />
+            <h2 className="text-lg font-semibold text-foreground mb-2">Gift Card Fully Used</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              This gift card has been fully used and has no remaining balance.
             </p>
             <button
               onClick={() => navigate("/")}
@@ -106,6 +130,7 @@ export default function GiftCardRedeem() {
       theme={theme}
       message={giftCard.message}
       giftCode={giftCard.code}
+      redeemedByCurrentUser={giftCard.redeemedByCurrentUser}
     />
   );
 }
