@@ -16,6 +16,11 @@ interface AppliedWallet {
 interface CheckoutPaymentViewProps {
   orderId: string;
   totalAmount: number;
+  /**
+   * Supabase access token, or "" for a guest. When empty the API client falls
+   * back to the order's stored claim token, which is how a guest is authorized
+   * to mark their own payment made.
+   */
   token: string;
   walletBalance?: number;
   onPaymentConfirmed: () => void;

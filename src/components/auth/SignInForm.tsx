@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
@@ -22,21 +24,47 @@ function FacebookIcon({ className }: { className?: string }) {
   );
 }
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface SignInFormProps {
   title?: string;
   description?: string;
   containerClassName?: string;
+  /**
+   * Show the "continue as guest" path (PRD §2). Off by default: this form is
+   * shared by Checkout, Orders, Wallet and SubscriptionReorder, none of which
+   * can serve a guest — they need an account for addresses, wallet and
+   * subscriptions. Only gift card checkout opts in.
+   */
+  allowGuest?: boolean;
+  /** Receives the guest's email once it validates. */
+  onGuestContinue?: (email: string) => void;
+  /** Disables the guest button while the caller is creating the order. */
+  guestSubmitting?: boolean;
 }
 
 export function SignInForm({
   title = "Sign in to continue",
   description = "This is a one-time process to complete your order",
-  containerClassName = "flex-1 flex flex-col items-center justify-center px-6 py-12"
+  containerClassName = "flex-1 flex flex-col items-center justify-center px-6 py-12",
+  allowGuest = false,
+  onGuestContinue,
+  guestSubmitting = false,
 }: SignInFormProps) {
   const { signInWithGoogle, signInWithFacebook } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
   const [facebookLoading, setFacebookLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestTouched, setGuestTouched] = useState(false);
+
+  const guestEmailValid = emailRegex.test(guestEmail.trim());
+
+  const handleGuestContinue = () => {
+    setGuestTouched(true);
+    if (!guestEmailValid) return;
+    onGuestContinue?.(guestEmail.trim());
+  };
 
   const handleGoogleSignIn = async () => {
     try {
@@ -72,58 +100,154 @@ export function SignInForm({
     }
   };
 
+  // Shared by both layouts so the buttons themselves never diverge.
+  const socialButtons = (
+    <>
+      <Button
+        variant="outline"
+        className="w-full h-12 gap-2"
+        onClick={handleGoogleSignIn}
+        disabled={googleLoading || facebookLoading}
+      >
+        {googleLoading ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Signing in...
+          </>
+        ) : (
+          <>
+            <GoogleIcon className="w-5 h-5" />
+            Continue with Google
+          </>
+        )}
+      </Button>
+
+      <Button
+        variant="outline"
+        className="w-full h-12 gap-2"
+        onClick={handleFacebookSignIn}
+        disabled={googleLoading || facebookLoading}
+      >
+        {facebookLoading ? (
+          <>
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Signing in...
+          </>
+        ) : (
+          <>
+            <FacebookIcon className="w-5 h-5" />
+            Continue with Facebook
+          </>
+        )}
+      </Button>
+    </>
+  );
+
   return (
     <div className={containerClassName}>
-      <h2 className="text-xl font-semibold text-foreground mb-2 text-center">
-        {title}
-      </h2>
-      <p className="text-sm text-muted-foreground mb-8 text-center max-w-xs">
-        {description}
-      </p>
+      {allowGuest ? (
+        <div className="w-full max-w-md space-y-4">
+          {/* Route 1 — sign in */}
+          <div className="rounded-2xl border bg-card p-5 shadow-sm space-y-4">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-foreground mb-2">
+                {title}
+              </h2>
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                Simply log in with your Google or Facebook account and you'll be
+                able to track this order under a profile.
+              </p>
+            </div>
+            <div className="space-y-3">{socialButtons}</div>
+            {error && (
+              <p className="text-sm text-destructive text-center">{error}</p>
+            )}
+          </div>
 
-      <div className="w-full max-w-sm space-y-3">
-        <Button
-          variant="outline"
-          className="w-full h-12 gap-2"
-          onClick={handleGoogleSignIn}
-          disabled={googleLoading || facebookLoading}
-        >
-          {googleLoading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Signing in...
-            </>
-          ) : (
-            <>
-              <GoogleIcon className="w-5 h-5" />
-              Continue with Google
-            </>
-          )}
-        </Button>
+          <div className="relative flex items-center justify-center">
+            <span className="bg-background px-3 text-sm font-medium text-muted-foreground">
+              or
+            </span>
+          </div>
 
-        <Button
-          variant="outline"
-          className="w-full h-12 gap-2"
-          onClick={handleFacebookSignIn}
-          disabled={googleLoading || facebookLoading}
-        >
-          {facebookLoading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Signing in...
-            </>
-          ) : (
-            <>
-              <FacebookIcon className="w-5 h-5" />
-              Continue with Facebook
-            </>
-          )}
-        </Button>
+          {/* Route 2 — guest */}
+          <div className="rounded-2xl border bg-card p-5 shadow-sm space-y-4">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-foreground mb-2">
+                Continue as guest
+              </h2>
+              <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                No account needed. We'll send your receipt and gift card details
+                to this email.
+              </p>
+            </div>
 
-        {error && (
-          <p className="text-sm text-destructive text-center">{error}</p>
-        )}
-      </div>
+            <div className="space-y-3">
+              <div className="space-y-1.5 text-left">
+                <Label
+                  htmlFor="guest-email"
+                  className="text-xs text-muted-foreground"
+                >
+                  Email address
+                </Label>
+                <Input
+                  id="guest-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  maxLength={255}
+                  placeholder="you@email.com"
+                  value={guestEmail}
+                  onChange={(e) => {
+                    setGuestEmail(e.target.value);
+                    if (guestTouched) setGuestTouched(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleGuestContinue();
+                  }}
+                  className="h-12 bg-background"
+                  aria-invalid={guestTouched && !guestEmailValid}
+                />
+                {guestTouched && !guestEmailValid && (
+                  <p className="text-xs text-destructive">
+                    Enter a valid email address
+                  </p>
+                )}
+              </div>
+
+              <Button
+                className="w-full h-12"
+                onClick={handleGuestContinue}
+                disabled={guestSubmitting || googleLoading || facebookLoading}
+              >
+                {guestSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Continuing...
+                  </>
+                ) : (
+                  "Continue"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <h2 className="text-xl font-semibold text-foreground mb-2 text-center">
+            {title}
+          </h2>
+          <p className="text-sm text-muted-foreground mb-8 text-center max-w-xs">
+            {description}
+          </p>
+          <div className="w-full max-w-sm space-y-3">
+            {socialButtons}
+            {error && (
+              <p className="text-sm text-destructive text-center">{error}</p>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

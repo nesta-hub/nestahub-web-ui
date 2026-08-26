@@ -4,10 +4,11 @@ import { Layout } from "@/components/layout";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, CheckCircle, Link2, Mail, MessageCircle, Send, Trash2, Gift, Info } from "lucide-react";
+import { ArrowLeft, Link2, Mail, MessageCircle, Send, Trash2, Gift, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GiftCardPreview } from "@/components/gifting/GiftCardPreview";
 import { type GiftCardTheme } from "@/components/gifting/GiftCardThemes";
@@ -16,6 +17,12 @@ import { metaPixel } from "@/lib/metaPixel";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { CheckoutPaymentView } from "@/components/checkout/CheckoutPaymentView";
+import {
+  PaymentCheckingView,
+  PaymentOutcomeView,
+} from "@/components/gifting/PaymentOutcomeView";
+import { useOrderConfirmationPoll } from "@/hooks/useOrderConfirmationPoll";
+import { resolveOutcomeCopy, type CtaAction } from "@/lib/giftOutcomeCopy";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from "@/components/ui/drawer";
 
 export interface ConfiguredGiftCard {
@@ -23,12 +30,14 @@ export interface ConfiguredGiftCard {
   theme: GiftCardTheme;
   /** Amount in KOBO (minor units). */
   amount: number;
-  deliveryMethod: "link" | "email";
+  deliveryMethod: "link" | "email" | "whatsapp";
   recipientName: string;
   /** Required by the backend gift-card order DTO (used to verify the recipient). */
   recipientPhone: string;
   recipientEmail?: string;
   senderName?: string;
+  /** Hide the sender name from the recipient. Email/WhatsApp delivery only. */
+  isAnonymous?: boolean;
   message?: string;
 }
 
@@ -41,6 +50,8 @@ interface LocationState {
 type DeliveryMethod = "link" | "email" | "whatsapp";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** 08012345678 / 8012345678 / +2348012345678 / 2348012345678 */
+const nigerianPhoneRegex = /^(?:\+?234|0)?[789][01]\d{8}$/;
 const PENDING_KEY = "pending_gift_card_purchase_v2";
 
 const GiftCardDetailsV2 = () => {
@@ -81,6 +92,8 @@ const GiftCardDetailsV2 = () => {
   const [recipientPhone, setRecipientPhone] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [senderName, setSenderName] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [message, setMessage] = useState("");
 
   const [addedCards, setAddedCards] = useState<ConfiguredGiftCard[]>(
@@ -89,6 +102,9 @@ const GiftCardDetailsV2 = () => {
 
   const [showSummaryDrawer, setShowSummaryDrawer] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
+  // Set once the buyer chooses the guest path. Distinct from `session`: these
+  // two are mutually exclusive, and `session` always wins.
+  const [guestEmail, setGuestEmail] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderId, setOrderId] = useState("");
@@ -96,23 +112,39 @@ const GiftCardDetailsV2 = () => {
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [createOrderError, setCreateOrderError] = useState<string | null>(null);
 
+  // §1: starts when "Payment Made" is clicked, stops on confirm or at 30s.
+  const { state: pollState, status: orderStatus } = useOrderConfirmationPoll(
+    showSuccess ? orderId : null,
+    session?.access_token,
+  );
+
+  const senderNameTouchedRef = useRef(false);
   const currentCardIdRef = useRef(`gc-current-${Date.now()}`);
   const pendingNavigateAwayRef = useRef(false);
   const suppressNextSummaryCloseRef = useRef(false);
 
+  // With a shareable link the buyer hands the link over themselves, so hiding
+  // the name would be theatre. Anonymity is email/WhatsApp only.
+  const canBeAnonymous = deliveryMethod === "email" || deliveryMethod === "whatsapp";
+  const sendAnonymously = canBeAnonymous && isAnonymous;
+
   // Link/email delivery — no recipient phone is collected (matches the design).
   const emailValid = deliveryMethod !== "email" || emailRegex.test(recipientEmail.trim());
-  const isValid =
-    recipientName.trim().length > 0 && emailValid && deliveryMethod !== "whatsapp";
+  const phoneValid =
+    deliveryMethod !== "whatsapp" || nigerianPhoneRegex.test(recipientPhone.trim());
+  const isValid = recipientName.trim().length > 0 && emailValid && phoneValid;
 
   const buildCurrentCard = (): ConfiguredGiftCard => ({
     id: currentCardIdRef.current,
     theme: theme!,
     amount,
-    deliveryMethod: deliveryMethod === "whatsapp" ? "link" : deliveryMethod,
+    deliveryMethod,
     recipientName: recipientName.trim(),
     recipientEmail: deliveryMethod === "email" ? recipientEmail.trim() : undefined,
-    senderName: deliveryMethod === "email" ? senderName.trim() || undefined : undefined,
+    recipientPhone:
+      deliveryMethod === "whatsapp" ? recipientPhone.trim().replace(/[\s-]/g, "") : "",
+    senderName: sendAnonymously ? undefined : senderName.trim() || undefined,
+    isAnonymous: sendAnonymously,
     message: message.trim() || undefined,
   });
 
@@ -120,6 +152,19 @@ const GiftCardDetailsV2 = () => {
     ? [...addedCards, buildCurrentCard()]
     : [...addedCards];
   const summaryTotal = summaryCards.reduce((sum, c) => sum + c.amount, 0);
+
+  // §4: logged-in buyers get their account name prefilled; guests get a blank
+  // field. Either way it stays editable — the point of the change is that the
+  // buyer can see and control what the recipient reads.
+  useEffect(() => {
+    if (senderNameTouchedRef.current) return;
+    const meta = session?.user?.user_metadata as Record<string, string> | undefined;
+    const accountName =
+      meta?.name ||
+      meta?.full_name ||
+      [meta?.given_name, meta?.family_name].filter(Boolean).join(" ");
+    if (accountName) setSenderName(accountName);
+  }, [session]);
 
   // Auto-create orders after returning from OAuth sign-in.
   useEffect(() => {
@@ -159,26 +204,45 @@ const GiftCardDetailsV2 = () => {
     );
   }
 
-  const placeOrders = async (cards: ConfiguredGiftCard[]) => {
-    if (!session || cards.length === 0) return;
+  /**
+   * Create the order for either a signed-in buyer or a guest.
+   *
+   * `guestEmailOverride` exists because React state set in the same tick as the
+   * "Continue as Guest" click is not visible here yet.
+   */
+  const placeOrders = async (
+    cards: ConfiguredGiftCard[],
+    guestEmailOverride?: string,
+  ) => {
+    const guest = guestEmailOverride ?? guestEmail;
+    if ((!session && !guest) || cards.length === 0) return;
     setIsCreatingOrder(true);
     setCreateOrderError(null);
     try {
-      const buyerName = session.user.user_metadata?.name || cards[0]?.senderName || "Gift Card Buyer";
+      // A guest has no account name. The sender name they typed is the name
+      // that appears in admin and on the Slack alert.
+      const buyerName = session
+        ? session.user.user_metadata?.name || cards[0]?.senderName || "Gift Card Buyer"
+        : cards.find((c) => !c.isAnonymous && c.senderName)?.senderName ||
+          guest ||
+          "Guest";
       const order = await createBulkGiftCardOrder(
         {
           fullName: buyerName,
+          ...(session ? {} : { guestEmail: guest ?? undefined }),
           giftCards: cards.map((c) => ({
             themeId: c.theme.id,
             amount: c.amount,
             recipientName: c.recipientName,
             recipientEmail: c.recipientEmail,
-            senderName: c.senderName || buyerName,
+            recipientPhone: c.recipientPhone || undefined,
+            senderName: c.isAnonymous ? undefined : c.senderName || buyerName,
+            isAnonymous: c.isAnonymous ?? false,
             message: c.message,
             deliveryMethod: c.deliveryMethod,
           })),
         },
-        session.access_token,
+        session?.access_token,
       );
       metaPixel.purchase({
         value: cards.reduce((s, c) => s + c.amount, 0) / 100,
@@ -269,6 +333,19 @@ const GiftCardDetailsV2 = () => {
     await placeOrders(summaryCards);
   };
 
+  /**
+   * Guest path (§2). No account is created and no session starts — the order is
+   * owned by the claim token that `createBulkGiftCardOrder` stores.
+   */
+  const handleGuestContinue = async (email: string) => {
+    setGuestEmail(email);
+    // The draft was persisted for an OAuth round-trip that is no longer
+    // happening; drop it so a later sign-in cannot replay this order.
+    localStorage.removeItem(PENDING_KEY);
+    setShowSignIn(false);
+    await placeOrders(summaryCards, email);
+  };
+
   // Sign-in view
   if (showSignIn) {
     return (
@@ -278,9 +355,20 @@ const GiftCardDetailsV2 = () => {
             <button type="button" onClick={() => setShowSignIn(false)}>
               <ArrowLeft className="w-5 h-5 text-foreground" />
             </button>
-            <h1 className="font-semibold text-lg">Sign In</h1>
+            <h1 className="font-semibold text-lg">Checkout</h1>
           </div>
-          <SignInForm containerClassName="px-6 pt-4" />
+          <SignInForm
+            containerClassName="flex-1 flex flex-col items-center justify-start px-6 pt-8 pb-6"
+            title="Sign in to continue"
+            allowGuest
+            guestSubmitting={isCreatingOrder}
+            onGuestContinue={handleGuestContinue}
+          />
+          {createOrderError && (
+            <p className="px-6 pb-6 text-sm text-destructive text-center">
+              {createOrderError}
+            </p>
+          )}
         </div>
       </Layout>
     );
@@ -303,36 +391,44 @@ const GiftCardDetailsV2 = () => {
     );
   }
 
-  // Success view
+  // Post-payment: 30-second window, then whichever outcome is true (§1).
   if (showSuccess) {
-    const isMulti = summaryCards.length > 1;
+    if (pollState === "waiting") {
+      return <PaymentCheckingView />;
+    }
+
+    const firstCard = summaryCards[0];
+    const copy = resolveOutcomeCopy({
+      authState: session ? "user" : "guest",
+      deliveryMethod: firstCard?.deliveryMethod ?? "link",
+      confirmed: pollState === "confirmed",
+      orderKind: "gift_card",
+      buyerEmail: orderStatus?.buyerEmail ?? guestEmail,
+      recipientEmail: firstCard?.recipientEmail,
+      recipientName: firstCard?.recipientName,
+    });
+
+    const handleAction = (action: CtaAction) => {
+      switch (action) {
+        case "order-history":
+          navigate("/account/gifting");
+          break;
+        case "gifting":
+          navigate("/gifting");
+          break;
+        case "shop":
+          navigate("/catalogue");
+          break;
+      }
+    };
+
     return (
-      <div className="fixed inset-0 z-50 bg-background flex flex-col">
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center animate-fade-in">
-          <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mb-6">
-            <CheckCircle className="w-10 h-10 text-emerald-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground mb-2">Order Received!</h1>
-          <p className="text-muted-foreground mb-6">
-            Order ID: <span className="font-semibold text-foreground">{orderId}</span>
-          </p>
-          <Card className="p-4 bg-muted/50 max-w-sm">
-            <p className="text-sm text-muted-foreground">
-              {isMulti
-                ? "Once your payment is confirmed, we'll email your shareable gift card links to you."
-                : "Once your payment is confirmed, we'll email the shareable gift card link to you."}
-            </p>
-          </Card>
-        </div>
-        <div className="p-4 border-t bg-background shrink-0 space-y-2">
-          <Button variant="outline" className="w-full h-12 text-base font-semibold" onClick={() => navigate("/orders")}>
-            View Order Status
-          </Button>
-          <Button variant="shop" className="w-full h-12 text-base font-semibold" onClick={() => navigate("/catalogue")}>
-            Return to Shop
-          </Button>
-        </div>
-      </div>
+      <PaymentOutcomeView
+        copy={copy}
+        orderNumber={orderId}
+        giftCards={orderStatus?.giftCards ?? []}
+        onAction={handleAction}
+      />
     );
   }
 
@@ -344,13 +440,13 @@ const GiftCardDetailsV2 = () => {
   }> = [
     { id: "link", label: "Shareable link", icon: Link2 },
     { id: "email", label: "Email", icon: Mail },
-    { id: "whatsapp", label: "WhatsApp", icon: MessageCircle, disabled: true },
+    { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
   ];
 
   const helperByMethod: Record<DeliveryMethod, string> = {
     link: "We'll generate a private link you can share with the recipient however you like.",
     email: "We'll email the gift card directly to the recipient.",
-    whatsapp: "",
+    whatsapp: "We'll send the gift card straight to the recipient on WhatsApp.",
   };
 
   return (
@@ -448,21 +544,64 @@ const GiftCardDetailsV2 = () => {
               />
             </div>
           )}
+
+          {deliveryMethod === "whatsapp" && (
+            <div className="animate-fade-in space-y-1.5">
+              <Input
+                type="tel"
+                inputMode="tel"
+                placeholder="Recipient's WhatsApp number"
+                value={recipientPhone}
+                onChange={(e) => setRecipientPhone(e.target.value)}
+                onBlur={() => setPhoneTouched(true)}
+                className="text-base"
+                autoComplete="tel"
+                aria-invalid={phoneTouched && !phoneValid}
+              />
+              {phoneTouched && !phoneValid ? (
+                <p className="text-xs text-destructive">
+                  Enter a valid Nigerian mobile number
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Nigerian numbers only, e.g. 0801 234 5678
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Sender Details — only for email delivery */}
-        {deliveryMethod === "email" && (
-          <div className="px-4 mt-6 space-y-2 animate-fade-in">
-            <h3 className="text-sm font-semibold text-foreground">Sender name (optional)</h3>
-            <Input
-              placeholder="Your name"
-              value={senderName}
-              onChange={(e) => setSenderName(e.target.value)}
-              className="text-base"
-            />
-            <p className="text-xs text-muted-foreground">Leave blank to send anonymously.</p>
-          </div>
-        )}
+        {/* Sender Details — shown for every delivery method (§4) */}
+        <div className="px-4 mt-6 space-y-2">
+          <h3 className="text-sm font-semibold text-foreground">Sender name</h3>
+          <Input
+            placeholder="Your name"
+            value={sendAnonymously ? "" : senderName}
+            onChange={(e) => {
+              senderNameTouchedRef.current = true;
+              setSenderName(e.target.value);
+            }}
+            disabled={sendAnonymously}
+            className="text-base"
+            autoComplete="name"
+          />
+          <p className="text-xs text-muted-foreground">
+            This is the name the recipient sees on their gift card page. Change it if
+            you'd like a different name shown.
+          </p>
+
+          {canBeAnonymous && (
+            <label className="flex items-center gap-2 pt-1 cursor-pointer">
+              <Checkbox
+                checked={isAnonymous}
+                onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+              />
+              <span className="text-xs text-muted-foreground">
+                Send anonymously — don't show my name
+              </span>
+            </label>
+          )}
+        </div>
 
         {/* Personal Message */}
         <div className="px-4 mt-6">
@@ -519,7 +658,7 @@ const GiftCardDetailsV2 = () => {
               ];
               if (c.recipientEmail)
                 rows.push({ label: "Email", value: <span className="break-all">{c.recipientEmail}</span> });
-              if (c.senderName) rows.push({ label: "From", value: c.senderName });
+              rows.push({ label: "From", value: c.isAnonymous ? "Anonymous" : c.senderName || "—" });
               if (c.message) rows.push({ label: "Message", value: <span className="italic">"{c.message}"</span> });
               return (
                 <div className="px-4 pb-2 space-y-4">
@@ -557,8 +696,10 @@ const GiftCardDetailsV2 = () => {
                         {c.recipientEmail && (
                           <p className="text-[11px] text-muted-foreground mt-0.5 break-all">{c.recipientEmail}</p>
                         )}
-                        {c.senderName && (
-                          <p className="text-[11px] text-muted-foreground mt-0.5">From {c.senderName}</p>
+                        {(c.isAnonymous || c.senderName) && (
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {c.isAnonymous ? "Sent anonymously" : `From ${c.senderName}`}
+                          </p>
                         )}
                         {c.message && <p className="text-[11px] text-muted-foreground italic mt-1">"{c.message}"</p>}
                       </div>

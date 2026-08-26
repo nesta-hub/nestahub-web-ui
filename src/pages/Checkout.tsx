@@ -26,6 +26,12 @@ import { isZone1Address, isZone1Or2Address } from "@/components/checkout/Checkou
 import { calculateDeliveryTiming, type DeliveryTiming } from "@/lib/delivery-timing";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DesktopCheckoutView } from "@/components/checkout/DesktopCheckoutView";
+import {
+  PaymentCheckingView,
+  PaymentOutcomeView,
+} from "@/components/gifting/PaymentOutcomeView";
+import { useOrderConfirmationPoll } from "@/hooks/useOrderConfirmationPoll";
+import { resolveOutcomeCopy, type CtaAction } from "@/lib/giftOutcomeCopy";
 import { formatGiftPrice } from "@/data/giftCatalogue";
 import type { GiftPackage } from "@/data/giftCatalogue";
 import type { PackagingOption } from "@/lib/giftAdapter";
@@ -83,6 +89,9 @@ const Checkout = () => {
   // View state (mobile)
   const [showPayment, setShowPayment] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  // Only a bank transfer has a payment to confirm. Pay-on-delivery and orders
+  // fully covered by a gift card are already settled, so they skip the window.
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [serverTotalAmount, setServerTotalAmount] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -112,6 +121,12 @@ const Checkout = () => {
       navigate('/catalogue');
     }
   }, [isMobile, items.length, navigate, showPayment, showSuccess, isGiftBundle]);
+
+  // §1: poll for up to 30s after "Payment Made", then release the buyer.
+  const { state: pollState, status: orderStatus } = useOrderConfirmationPoll(
+    awaitingConfirmation ? orderNumber : null,
+    session?.access_token,
+  );
 
   const deliveryFee = (() => {
     if (deliveryMethod === 'pickup') return 0;
@@ -261,6 +276,7 @@ const Checkout = () => {
 
   const handlePaymentConfirmed = () => {
     setShowPayment(false);
+    setAwaitingConfirmation(true);
     setShowSuccess(true);
   };
 
@@ -292,6 +308,46 @@ const Checkout = () => {
   }
 
   // Mobile success overlay
+  // Bank transfer: the 30-second window and its two outcomes (§1b/§1c).
+  if (showSuccess && orderNumber && awaitingConfirmation) {
+    if (pollState === "waiting") {
+      return <PaymentCheckingView />;
+    }
+
+    const copy = resolveOutcomeCopy({
+      // Regular checkout is authenticated; there is no guest path here.
+      authState: "user",
+      deliveryMethod: "link", // unused for a regular order
+      confirmed: pollState === "confirmed",
+      orderKind: "other",
+      buyerEmail: orderStatus?.buyerEmail ?? session?.user?.email,
+    });
+
+    const handleAction = (action: CtaAction) => {
+      switch (action) {
+        case "order-history":
+          navigate("/orders");
+          break;
+        case "gifting":
+          navigate("/gifting");
+          break;
+        case "shop":
+          navigate("/catalogue");
+          break;
+      }
+    };
+
+    return (
+      <PaymentOutcomeView
+        copy={copy}
+        orderNumber={orderNumber}
+        giftCards={[]}
+        onAction={handleAction}
+      />
+    );
+  }
+
+  // Already settled — pay-on-delivery, or fully covered by a gift card.
   if (showSuccess && orderNumber) {
     return <CheckoutSuccessView orderId={orderNumber} paidWithGiftCard={paidWithGiftCard} paymentOption={paymentOption ?? undefined} />;
   }

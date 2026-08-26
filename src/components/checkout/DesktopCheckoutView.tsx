@@ -18,6 +18,12 @@ import { SignInForm } from "@/components/auth/SignInForm";
 import { DeliveryEstimateCard } from "./DeliveryEstimateCard";
 import { DesktopCheckoutPaymentView } from "./DesktopCheckoutPaymentView";
 import { DesktopCheckoutSuccessView } from "./DesktopCheckoutSuccessView";
+import {
+  PaymentCheckingView,
+  PaymentOutcomeView,
+} from "@/components/gifting/PaymentOutcomeView";
+import { useOrderConfirmationPoll } from "@/hooks/useOrderConfirmationPoll";
+import { resolveOutcomeCopy, type CtaAction } from "@/lib/giftOutcomeCopy";
 import { calculateDeliveryTiming, type DeliveryTiming } from "@/lib/delivery-timing";
 
 type DeliveryMethod = "pickup" | "address";
@@ -75,6 +81,8 @@ export function DesktopCheckoutView({
 
   const [showPayment, setShowPayment] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  // Only a bank transfer has a payment to confirm — see Checkout.tsx.
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [serverTotalAmount, setServerTotalAmount] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -184,8 +192,15 @@ export function DesktopCheckoutView({
     }
   };
 
+  // §1: poll for up to 30s after "Payment Made", then release the buyer.
+  const { state: pollState, status: orderStatus } = useOrderConfirmationPoll(
+    awaitingConfirmation ? orderNumber : null,
+    session?.access_token,
+  );
+
   const handlePaymentConfirmedInternal = () => {
     setShowPayment(false);
+    setAwaitingConfirmation(true);
     setShowSuccess(true);
   };
 
@@ -206,6 +221,45 @@ export function DesktopCheckoutView({
         onBack={() => setShowPayment(false)}
         title="Complete payment"
         backLabel="Back to checkout"
+      />
+    );
+  }
+
+  // Bank transfer: the 30-second window and its two outcomes (§1b/§1c).
+  if (showSuccess && orderNumber && awaitingConfirmation) {
+    if (pollState === "waiting") {
+      return <PaymentCheckingView variant="desktop" />;
+    }
+
+    const copy = resolveOutcomeCopy({
+      authState: "user",
+      deliveryMethod: "link", // unused for a regular order
+      confirmed: pollState === "confirmed",
+      orderKind: "other",
+      buyerEmail: orderStatus?.buyerEmail ?? user?.email,
+    });
+
+    const handleOutcomeAction = (action: CtaAction) => {
+      switch (action) {
+        case "order-history":
+          navigate("/orders");
+          break;
+        case "gifting":
+          navigate("/gifting");
+          break;
+        case "shop":
+          navigate("/catalogue");
+          break;
+      }
+    };
+
+    return (
+      <PaymentOutcomeView
+        copy={copy}
+        orderNumber={orderNumber}
+        giftCards={[]}
+        onAction={handleOutcomeAction}
+        variant="desktop"
       />
     );
   }

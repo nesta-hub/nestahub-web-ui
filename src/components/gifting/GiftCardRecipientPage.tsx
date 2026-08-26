@@ -11,7 +11,8 @@ import nestaLogo from "@/assets/nesta-logo.png";
 
 export interface GiftCardRecipientPageProps {
   giftId: string;
-  senderName: string;
+  /** Absent when the buyer sent the card anonymously. */
+  senderName?: string;
   recipientName: string;
   initialValue: number;
   currentBalance: number;
@@ -141,9 +142,11 @@ export function GiftCardRecipientPage({
           {(message || senderName) && (
             <div className="px-6 pb-6 text-center space-y-1.5">
               {message && <p className="text-sm italic text-foreground leading-relaxed">"{message}"</p>}
-              <p className="text-xs text-muted-foreground">
-                — from <span className="font-semibold text-foreground">{senderName}</span>
-              </p>
+              {senderName && (
+                <p className="text-xs text-muted-foreground">
+                  — from <span className="font-semibold text-foreground">{senderName}</span>
+                </p>
+              )}
             </div>
           )}
 
