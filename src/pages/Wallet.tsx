@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Wallet as WalletIcon, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, ReceiptText, Gift } from 'lucide-react';
+import { ArrowLeft, Wallet as WalletIcon, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, ReceiptText } from 'lucide-react';
 import { Layout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { SignInForm } from '@/components/auth/SignInForm';
@@ -9,7 +9,6 @@ import { useWalletData } from '@/hooks/useWalletData';
 import { formatKobo, transactionLabel } from '@/utils/wallet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DesktopWalletView } from '@/components/account/DesktopWalletView';
-import { RedeemGiftCardDialog } from '@/components/wallet/RedeemGiftCardDialog';
 
 type Filter = 'all' | 'earned' | 'used';
 
@@ -32,7 +31,6 @@ const Wallet = () => {
   const { user, session, loading: authLoading } = useAuth();
   const isMobile = useIsMobile();
   const [filter, setFilter] = useState<Filter>('all');
-  const [redeemOpen, setRedeemOpen] = useState(false);
   const typeFilter = filter === 'earned' ? 'credit' : filter === 'used' ? 'debit' : undefined;
   const { summary, summaryLoading, transactions, transactionsLoading, page, totalPages, goToPage } =
     useWalletData(session?.access_token, typeFilter);
@@ -67,57 +65,65 @@ const Wallet = () => {
     );
   }
 
+  // Use pre-computed totals from summary; transactions may be filtered by type
+  const totalEarned = summary?.totalEarned ?? 0;
+  const totalUsed = summary?.totalRedeemed ?? 0;
+  const filteredTransactions = transactions;
+
   return (
     <Layout showNav={false}>
-      <div className="px-6 py-6">
+      <div className="min-h-[calc(100vh-4rem)] pb-10 bg-[#FAF8F5]">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate(-1)} className="p-1 -ml-1 text-foreground">
-            <ArrowLeft className="w-5 h-5" />
+        <div className="px-4 pt-4 pb-2 flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            aria-label="Back"
+            className="w-9 h-9 rounded-full border border-border bg-background flex items-center justify-center hover:bg-secondary/50 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
           </button>
-          <h1 className="text-lg font-semibold text-foreground">My Wallet</h1>
+          <h1 className="text-2xl font-bold text-foreground">My Wallet</h1>
         </div>
 
         {/* Balance hero */}
-        <div className="mt-4">
-          <div className="rounded-2xl shadow-lg bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 border border-primary/10 p-6">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-              <WalletIcon className="w-3.5 h-3.5" />
-              Available balance
-            </div>
-            {summaryLoading ? (
-              <div className="h-10 w-40 rounded bg-muted animate-pulse mt-2" />
-            ) : (
-              <p className="text-4xl font-bold text-foreground mt-2">
-                {formatKobo(summary?.balance ?? 0)}
+        <div className="px-4 mt-4">
+          <div className="rounded-3xl overflow-hidden bg-gradient-to-br from-primary/15 via-primary/10 to-primary/5 border border-primary/10 shadow-lg">
+            <div className="p-6">
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground mb-3">
+                <WalletIcon className="w-3.5 h-3.5" />
+                Available balance
+              </div>
+              {summaryLoading ? (
+                <div className="h-10 w-40 rounded bg-muted animate-pulse" />
+              ) : (
+                <p className="font-display text-[40px] leading-none font-bold text-foreground tabular-nums">
+                  {formatKobo(summary?.balance ?? 0)}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-3 leading-relaxed whitespace-nowrap">
+                Apply at checkout to pay for any order on Nesta Hub.
               </p>
-            )}
-            <p className="text-xs text-muted-foreground mt-2">
-              Use your wallet credit at checkout to pay for any order.
-            </p>
+            </div>
+            <div className="border-t border-primary/10 grid grid-cols-2 divide-x divide-primary/10">
+              <div className="px-5 py-3.5">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Total earned</p>
+                <p className="text-sm font-bold text-foreground tabular-nums">{formatKobo(totalEarned)}</p>
+              </div>
+              <div className="px-5 py-3.5">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">Total used</p>
+                <p className="text-sm font-bold text-foreground tabular-nums">{formatKobo(totalUsed)}</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Redeem gift card */}
-        <button
-          type="button"
-          onClick={() => setRedeemOpen(true)}
-          className="mt-4 w-full flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left hover:bg-muted/50 transition-colors"
-        >
-          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <Gift className="w-4 h-4" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground">Redeem a gift card</p>
-            <p className="text-xs text-muted-foreground">Add a gift card balance to your wallet</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-        </button>
-
         {/* Transactions */}
-        <div className="mt-8">
+        <div className="px-4 mt-8">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold text-foreground">Transaction History</h2>
+            <span className="text-xs text-muted-foreground">
+              {filteredTransactions.length} item{filteredTransactions.length !== 1 ? "s" : ""}
+            </span>
           </div>
 
           {/* Filter pills */}
@@ -146,7 +152,7 @@ const Wallet = () => {
                 <div key={i} className="h-14 rounded-lg bg-muted animate-pulse" />
               ))}
             </div>
-          ) : transactions.length === 0 ? (
+          ) : filteredTransactions.length === 0 ? (
             (() => {
               const copy =
                 filter === 'used'
@@ -166,15 +172,14 @@ const Wallet = () => {
             })()
           ) : (
             <>
-              <div className="divide-y divide-border">
-                {transactions.map((tx) => {
+              <div className="rounded-2xl bg-card border border-foreground/[0.06] divide-y divide-border overflow-hidden shadow-[0_1px_3px_hsl(var(--foreground)/0.04)]">
+                {filteredTransactions.map((tx) => {
                   const isCredit = tx.type === 'credit';
                   return (
-                    <div key={tx.id} className="flex items-center justify-between gap-3 py-4">
+                    <div key={tx.id} className="flex items-center justify-between gap-3 px-4 py-3.5">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div
-                          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${isCredit ? 'bg-emerald-100 text-emerald-700' : 'bg-secondary text-muted-foreground'
-                            }`}
+                          className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${isCredit ? 'bg-emerald-100 text-emerald-700' : 'bg-secondary text-muted-foreground'}`}
                         >
                           {isCredit ? (
                             <ArrowDownLeft className="w-4 h-4" />
@@ -187,14 +192,11 @@ const Wallet = () => {
                             {transactionLabel(tx)}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {formatDate(tx.createdAt)} · Balance {formatKobo(tx.balanceAfter)}
+                            {formatDate(tx.createdAt)} · Bal {formatKobo(tx.balanceAfter)}
                           </p>
                         </div>
                       </div>
-                      <p
-                        className={`text-sm font-semibold shrink-0 ${isCredit ? 'text-emerald-700' : 'text-foreground'
-                          }`}
-                      >
+                      <p className={`text-sm font-bold tabular-nums shrink-0 ${isCredit ? 'text-emerald-700' : 'text-foreground'}`}>
                         {isCredit ? '+' : '−'}
                         {formatKobo(tx.amount)}
                       </p>
@@ -229,7 +231,6 @@ const Wallet = () => {
         </div>
       </div>
 
-      <RedeemGiftCardDialog open={redeemOpen} onOpenChange={setRedeemOpen} />
     </Layout>
   );
 };

@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
@@ -8,8 +8,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 const Orders = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading } = useAuth();
   const isMobile = useIsMobile();
+  const initialOrderNumber: string | undefined = (location.state as { orderNumber?: string } | null)?.orderNumber;
 
   if (loading) {
     return (
@@ -36,14 +38,14 @@ const Orders = () => {
   if (!isMobile) {
     return (
       <Layout showNav={false}>
-        <DesktopOrdersView onBack={() => navigate("/account")} />
+        <DesktopOrdersView onBack={() => navigate("/account")} initialOrderNumber={initialOrderNumber} />
       </Layout>
     );
   }
 
   return (
     <Layout showNav={false}>
-      <OrdersView onBack={() => navigate("/account")} />
+      <OrdersView onBack={() => navigate("/account")} initialOrderNumber={initialOrderNumber} />
     </Layout>
   );
 };

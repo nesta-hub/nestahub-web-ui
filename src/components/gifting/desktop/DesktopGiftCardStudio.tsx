@@ -72,6 +72,18 @@ export function DesktopGiftCardStudio() {
   const [guestEmail, setGuestEmail] = useState<string | null>(null);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const hasAutoPlaced = useRef(false);
+  const senderNameTouchedRef = useRef(false);
+
+  // Prefill sender name from logged-in user's account name.
+  useEffect(() => {
+    if (senderNameTouchedRef.current) return;
+    const meta = session?.user?.user_metadata as Record<string, string> | undefined;
+    const accountName =
+      meta?.name ||
+      meta?.full_name ||
+      [meta?.given_name, meta?.family_name].filter(Boolean).join(" ");
+    if (accountName) setSenderName(accountName);
+  }, [session]);
 
   // After OAuth redirect, restore cards and auto-place order
   useEffect(() => {
@@ -89,7 +101,7 @@ export function DesktopGiftCardStudio() {
     } catch {
       localStorage.removeItem(PENDING_KEY);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.access_token]);
 
   const placeOrders = async (
@@ -100,7 +112,9 @@ export function DesktopGiftCardStudio() {
     const guest = guestEmailOverride ?? guestEmail;
     if (!token && !guest) return;
     setIsCreatingOrder(true);
-    setStep("payment");
+    // Don't change step yet — stay on signin/review while the API call runs so
+    // there's no flash. We move to "payment" only after the order is created.
+    if (step !== "signin") setStep("payment");
     try {
       const result = await createBulkGiftCardOrder(
         {
@@ -130,6 +144,7 @@ export function DesktopGiftCardStudio() {
       );
       setOrderId(result.orderNumber);
       setServerTotal(result.totalAmount ?? cards.reduce((s, c) => s + c.amount, 0));
+      setStep("payment");
     } catch {
       setStep("review");
     } finally {
@@ -165,10 +180,10 @@ export function DesktopGiftCardStudio() {
     icon: typeof Link2;
     disabled?: boolean;
   }> = [
-    { id: "link", label: "Shareable link", icon: Link2 },
-    { id: "email", label: "Email", icon: Mail },
-    { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
-  ];
+      { id: "link", label: "Send it myself", icon: Link2 },
+      { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
+      { id: "email", label: "Email", icon: Mail },
+    ];
 
   const buildCurrentCard = (): ConfiguredGiftCard => ({
     id: `gc-${Date.now()}`,
@@ -324,13 +339,24 @@ export function DesktopGiftCardStudio() {
       }
     };
 
+    const whatsAppPreviewProps =
+      firstCard?.deliveryMethod === "whatsapp" && pollState === "confirmed"
+        ? {
+            recipientName: firstCard.recipientName,
+            senderName: sendAnonymously ? undefined : senderName.trim() || undefined,
+            amount: firstCard.amount / 100,
+            message: message.trim() || undefined,
+            giftUrl: orderStatus?.giftCards?.[0]?.link,
+          }
+        : undefined;
+
     return (
       <PaymentOutcomeView
         copy={copy}
-        orderNumber={orderId}
         giftCards={orderStatus?.giftCards ?? []}
         onAction={handleOutcomeAction}
         variant="desktop"
+        whatsAppPreviewProps={whatsAppPreviewProps}
       />
     );
   }
@@ -427,7 +453,7 @@ export function DesktopGiftCardStudio() {
                                   ) : (
                                     <Link2 className="w-3 h-3 text-[hsl(28,32%,45%)]" />
                                   )}
-                                  {c.deliveryMethod === "email" ? "Email" : "Shareable link"}
+                                  {c.deliveryMethod === "email" ? "Email" : c.deliveryMethod === "whatsapp" ? "WhatsApp" : "Send it myself"}
                                 </span>
                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(28,25%,97%)] ring-1 ring-foreground/[0.06] px-2.5 py-1 text-[11px] text-foreground/80">
                                   <User className="w-3 h-3 text-[hsl(28,32%,45%)]" />
@@ -829,7 +855,7 @@ export function DesktopGiftCardStudio() {
                       <Input
                         type="tel"
                         inputMode="tel"
-                        placeholder="0801 234 5678"
+                        placeholder="Whatsapp number e.g. 08032229581"
                         value={recipientPhone}
                         onChange={(e) => setRecipientPhone(e.target.value)}
                         onBlur={() => setPhoneTouched(true)}
@@ -837,13 +863,9 @@ export function DesktopGiftCardStudio() {
                         autoComplete="tel"
                         aria-invalid={phoneTouched && !phoneValid}
                       />
-                      {phoneTouched && !phoneValid ? (
+                      {phoneTouched && !phoneValid && (
                         <p className="text-xs text-destructive mt-1.5">
                           Enter a valid Nigerian mobile number
-                        </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground mt-1.5">
-                          Nigerian numbers only
                         </p>
                       )}
                     </FieldShell>
@@ -854,27 +876,29 @@ export function DesktopGiftCardStudio() {
               {/* Sender — shown for every delivery method (§4) */}
               <section>
                 <SectionHeader index="05" label="Sender details" />
-                <FieldShell label="Sender name">
+                <FieldShell label="Sender details">
                   <Input
-                    placeholder="Your name"
+                    placeholder="Sender name"
                     value={sendAnonymously ? "" : senderName}
-                    onChange={(e) => setSenderName(e.target.value)}
+                    onChange={(e) => {
+                      senderNameTouchedRef.current = true;
+                      setSenderName(e.target.value);
+                    }}
                     disabled={sendAnonymously}
                     className="h-12 text-base bg-white ring-1 ring-foreground/[0.08] border-0 rounded-xl shadow-[inset_0_1px_0_white] focus-visible:ring-2 focus-visible:ring-[hsl(28,32%,36%)]/40"
                     autoComplete="name"
                   />
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    This is the name the recipient sees on their gift card page.
-                    Change it if you'd like a different name shown.
+                    Name shown to recipient as the sender.{!!session && !!senderName.trim() && " Change it if needed."}
                   </p>
                   {canBeAnonymous && (
-                    <label className="flex items-center gap-2 pt-2 cursor-pointer">
+                    <label className="flex items-center gap-2 pt-3 cursor-pointer">
                       <Checkbox
                         checked={isAnonymous}
                         onCheckedChange={(checked) => setIsAnonymous(checked === true)}
                       />
-                      <span className="text-xs text-muted-foreground">
-                        Send anonymously — don't show my name
+                      <span className="text-base text-muted-foreground leading-relaxed">
+                        Send anonymously
                       </span>
                     </label>
                   )}

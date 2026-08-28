@@ -148,7 +148,7 @@ export function SignInForm({
       {allowGuest ? (
         <div className="w-full max-w-md space-y-4">
           {/* Route 1 — sign in */}
-          <div className="rounded-2xl border bg-card p-5 shadow-sm space-y-4">
+          <div className="rounded-2xl border bg-primary/5 p-9 shadow-sm space-y-4">
             <div className="text-center">
               <h2 className="text-xl font-semibold text-foreground mb-2">
                 {title}
@@ -218,7 +218,7 @@ export function SignInForm({
               <Button
                 className="w-full h-12"
                 onClick={handleGuestContinue}
-                disabled={guestSubmitting || googleLoading || facebookLoading}
+                disabled={guestSubmitting || googleLoading || facebookLoading || !guestEmailValid}
               >
                 {guestSubmitting ? (
                   <>

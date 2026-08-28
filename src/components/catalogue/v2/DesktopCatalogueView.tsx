@@ -495,7 +495,7 @@ function ReorderSidePanel({
                         {v.brand} {v.productName}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">{variantLabel}</p>
-                      <p className="mt-1 text-sm font-bold text-foreground">{formatPrice(v.variant.price)}</p>
+                      <p className="mt-1 text-sm font-bold text-foreground">{formatPrice(v.variant.price / 100)}</p>
                     </div>
                     <span
                       onClick={(e) => handleReorder(v, key, e)}

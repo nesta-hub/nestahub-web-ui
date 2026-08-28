@@ -100,7 +100,7 @@ export function CheckoutSignIn({
   return (
     <div className="flex-1 flex flex-col items-center justify-start px-6 pt-8 pb-6">
       <div className="w-full max-w-md space-y-4">
-        <div className="rounded-2xl border bg-card p-5 shadow-sm space-y-4">
+        <div className="rounded-2xl border bg-primary/5 p-9 shadow-sm space-y-4">
           <div className="text-center">
             <h2 className="text-xl font-semibold text-foreground mb-2">
               Sign in to continue
@@ -163,7 +163,7 @@ export function CheckoutSignIn({
             <Button
               className="w-full h-12"
               onClick={handleGuestContinue}
-              disabled={guestSubmitting}
+              disabled={guestSubmitting || !EMAIL_RE.test(guestEmail.trim())}
             >
               {guestSubmitting ? (
                 <>

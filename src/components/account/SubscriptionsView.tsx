@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, ShoppingCart, Minus, Plus, Hash, Check } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Minus, Plus, Check, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -433,123 +433,144 @@ export function SubscriptionsView({ onBack }: SubscriptionsViewProps) {
   }, [productChangeSub, categoryProductsData]);
 
   return (
-    <div className="px-6 py-6">
+    <div className="min-h-screen bg-[#FAF8F5] px-4 pt-4 pb-10">
       {itemCount > 0 && <FloatingCartIcon />}
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={onBack} className="p-1 -ml-1 text-foreground">
-          <ArrowLeft className="w-5 h-5" />
+        <button
+          onClick={onBack}
+          aria-label="Back"
+          className="w-9 h-9 rounded-full border border-border bg-background flex items-center justify-center hover:bg-secondary/50 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
         </button>
-        <h1 className="text-lg font-semibold text-foreground">My Subscriptions</h1>
+        <h1 className="text-2xl font-bold text-foreground">My Subscriptions</h1>
       </div>
 
-      {/* Overview Strip */}
+      {/* Overview strip */}
       {activeSubs.length > 0 && (
-        <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 mb-5 flex items-center justify-center gap-2 text-xs">
-          <span className="text-muted-foreground font-medium">
-            {activeSubs.length} {activeSubs.length === 1 ? "item" : "items"}
-          </span>
-          <span className="text-muted-foreground">·</span>
-          <span className="text-primary font-semibold">Saving an extra {formatPrice(totalSavings)}</span>
+        <div className="rounded-2xl bg-card border border-foreground/[0.06] shadow-sm grid grid-cols-2 divide-x divide-border overflow-hidden mb-5">
+          <div className="px-4 py-3 text-center">
+            <p className="font-display text-xl font-bold text-foreground tabular-nums">{activeSubs.length}</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mt-0.5">Active</p>
+          </div>
+          <div className="px-4 py-3 text-center">
+            <p className="font-display text-xl font-bold text-emerald-700 tabular-nums">{formatPrice(totalSavings)}</p>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mt-0.5">Saved / cycle</p>
+          </div>
         </div>
       )}
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground text-center py-12">Loading...</p>
       ) : activeSubs.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-12">No active subscriptions</p>
+        <div className="rounded-2xl bg-card border border-foreground/[0.06] py-16 text-center">
+          <RefreshCw className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" strokeWidth={1.25} />
+          <p className="text-sm font-semibold text-foreground mb-1">No active subscriptions</p>
+          <p className="text-xs text-muted-foreground max-w-[28ch] mx-auto">Subscribe to products you use regularly and save on every order.</p>
+        </div>
       ) : (
-        <>
-          {/* Individual Subscription Cards */}
-          <div className="divide-y divide-border">
-            {activeSubs.map((sub) => {
+        <div className="space-y-3">
+          {activeSubs.map((sub) => {
             const qty = sub.quantity;
             const displayVariant = sub.variantAttributes.map((a) => a.value).join(" · ");
 
+            const parsed = sub.nextRenewalDate ? parseDate(sub.nextRenewalDate) : null;
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const dueDay = parsed ? new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()) : null;
+            const diffDays = dueDay ? Math.floor((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : null;
+            const badgeClass = diffDays === null
+              ? "bg-emerald-100 text-emerald-700"
+              : diffDays <= 0
+                ? "bg-red-100 text-red-700"
+                : diffDays <= 7
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-emerald-100 text-emerald-700";
+            const urgencyLabel = diffDays === null
+              ? "Paused"
+              : diffDays <= 0
+                ? "Due today"
+                : diffDays === 1
+                  ? "Tomorrow"
+                  : `In ${diffDays} days`;
+
             return (
-              <div key={sub.id} className="py-4">
-                <div className="flex gap-3">
-                  {/* Product image */}
-                  <div className="w-12 h-12 rounded-lg bg-secondary overflow-hidden flex-shrink-0">
-                    {sub.imageUrl ? (
-                      <img
-                        src={CloudinaryPresets.card(sub.imageUrl)}
-                        alt={`${sub.productBrand} ${sub.productName}`}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-secondary/80 to-secondary/30" />
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    {/* Row 1: Name + Next date badge */}
-                    <div className="flex items-start justify-between mb-1">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {sub.productBrand} {sub.productName}
-                      </p>
-                      <Badge
-                        variant="secondary"
-                        className={`${getDateBadgeClass(sub.nextRenewalDate)} text-[10px] px-2 py-0 flex-shrink-0 ml-2`}
-                      >
-                        Next: {formatNextDelivery(sub.nextRenewalDate)}
-                      </Badge>
+              <div
+                key={sub.id}
+                className="rounded-2xl bg-card border border-foreground/[0.06] shadow-[0_1px_3px_hsl(var(--foreground)/0.04)] overflow-hidden"
+              >
+                <div className="p-4">
+                  <div className="flex gap-3">
+                    {/* Product image */}
+                    <div className="w-16 h-16 rounded-xl bg-secondary overflow-hidden flex-shrink-0">
+                      {sub.imageUrl ? (
+                        <img
+                          src={CloudinaryPresets.card(sub.imageUrl)}
+                          alt={`${sub.productBrand} ${sub.productName}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-secondary/80 to-secondary/30" />
+                      )}
                     </div>
 
-                    {/* Row 2: Variant + Qty */}
-                    <p className="text-xs text-muted-foreground mb-1">
-                      {[displayVariant, `Qty: ${qty}`].filter(Boolean).join(" · ")}
-                    </p>
-
-                    {/* Row 3: Frequency */}
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Every {sub.frequencyWeeks} week{sub.frequencyWeeks !== 1 ? "s" : ""}
-                    </p>
-
-                    {/* Row 4: Pricing */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xs font-semibold text-foreground">
-                        {formatPrice((sub.subscriptionPrice || sub.unitPrice) * sub.quantity)}
-                      </span>
-                      <span className="text-xs text-muted-foreground line-through">
-                        {formatPrice(sub.regularPrice * sub.quantity)}
-                      </span>
-                    </div>
-
-                    {/* CTAs */}
-                    {sub.status === "active" && (
-                      <div className="flex gap-2 w-full">
-                        {isSubscriptionInCart(sub.id) ? (
-                          <Button className="flex-1 h-9 text-xs rounded-lg gap-1.5" disabled>
-                            <Check className="w-3.5 h-3.5" />
-                            Added to Cart
-                          </Button>
-                        ) : (
-                          <Button
-                            className="flex-1 h-9 text-xs rounded-lg gap-1.5"
-                            onClick={() => handleAddToCart(sub)}
-                          >
-                            <ShoppingCart className="w-3.5 h-3.5" />
-                            Order Now
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          className="flex-1 h-9 text-xs rounded-lg"
-                          onClick={() => setManageSub(sub)}
-                        >
-                          Make Changes
-                        </Button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-foreground leading-tight truncate">
+                          {sub.productBrand} {sub.productName}
+                        </p>
+                        <Badge variant="secondary" className={`${badgeClass} text-[10px] px-2 py-0 flex-shrink-0 font-semibold`}>
+                          {urgencyLabel}
+                        </Badge>
                       </div>
-                    )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {[displayVariant, `Qty ${qty}`].filter(Boolean).join(" · ")}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Every {sub.frequencyWeeks} wk{sub.frequencyWeeks !== 1 ? "s" : ""}{sub.nextRenewalDate ? ` · Next ${formatNextDelivery(sub.nextRenewalDate)}` : ""}
+                      </p>
+                      <div className="flex items-baseline gap-2 mt-2">
+                        <span className="text-sm font-bold text-foreground tabular-nums">
+                          {formatPrice((sub.subscriptionPrice || sub.unitPrice) * sub.quantity)}
+                        </span>
+                        <span className="text-xs text-muted-foreground line-through tabular-nums">
+                          {formatPrice(sub.regularPrice * sub.quantity)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
+
+                  {sub.status === "active" && (
+                    <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+                      {isSubscriptionInCart(sub.id) ? (
+                        <Button className="flex-1 h-9 text-xs rounded-xl gap-1.5" disabled>
+                          <Check className="w-3.5 h-3.5" />
+                          Added to Cart
+                        </Button>
+                      ) : (
+                        <Button
+                          className="flex-1 h-9 text-xs rounded-xl gap-1.5"
+                          onClick={() => handleAddToCart(sub)}
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5" />
+                          Order Now
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        className="flex-1 h-9 text-xs rounded-xl"
+                        onClick={() => setManageSub(sub)}
+                      >
+                        Manage
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })}
-          </div>
-        </>
+        </div>
       )}
 
       {/* Manage Subscription Drawer */}

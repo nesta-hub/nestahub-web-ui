@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getOrderStatus, type OrderStatus } from "@/lib/api";
+import { api, getOrderStatus, type OrderStatus } from "@/lib/api";
 
 /** PRD §1a: hold the buyer for at most this long. */
 const WINDOW_MS = 30_000;
@@ -61,7 +61,11 @@ export function useOrderConfirmationPoll(
 
       const elapsed = Date.now() - (startedAt.current ?? Date.now());
       if (elapsed >= WINDOW_MS) {
-        if (!cancelled) setState("unconfirmed");
+        if (!cancelled) {
+          setState("unconfirmed");
+          // Tell the API the window expired so it sends the order-received email.
+          api.notifyPending(orderNumber, accessToken).catch(() => {});
+        }
         return;
       }
 

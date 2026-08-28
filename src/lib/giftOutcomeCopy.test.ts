@@ -44,13 +44,14 @@ describe("resolveOutcomeCopy — the 12 PRD variants", () => {
     expect(labels(c)).toEqual(["View Order Status", "Return to Gifting"]);
   });
 
-  it("3: logged-in · email · confirmed — Gift Sent, names the recipient", () => {
+  it("3: logged-in · email · confirmed — Gift on Its Way, names the recipient", () => {
     const c = call("user", "email", true);
     expect(c.view).toBe("gift-sent");
-    expect(c.heading).toBe("Gift Sent!");
+    expect(c.heading).toBe("Gift on Its Way!");
     expect(sentence(c)).toContain("jane@example.com");
-    // Design overrides PRD §1b: a delivered card does not repeat the link.
+    expect(sentence(c)).toContain("inbox");
     expect(c.showLinks).toBe(false);
+    expect(c.showWhatsAppPreview).toBeFalsy();
     expect(labels(c)).toEqual(["Return to Gifting"]);
   });
 
@@ -61,12 +62,14 @@ describe("resolveOutcomeCopy — the 12 PRD variants", () => {
     expect(sentence(c)).toContain("buyer@example.com");
   });
 
-  it("5: logged-in · whatsapp · confirmed — names the recipient, not an email", () => {
+  it("5: logged-in · whatsapp · confirmed — names the recipient, shows preview flag", () => {
     const c = call("user", "whatsapp", true);
     expect(c.view).toBe("gift-sent");
+    expect(c.heading).toBe("Gift on Its Way!");
     expect(sentence(c)).toContain("Jane");
     expect(sentence(c)).toContain("WhatsApp");
     expect(sentence(c)).not.toContain("@");
+    expect(c.showWhatsAppPreview).toBe(true);
   });
 
   it("6: logged-in · whatsapp · not confirmed", () => {
@@ -91,7 +94,9 @@ describe("resolveOutcomeCopy — the 12 PRD variants", () => {
   it("9: guest · email · confirmed", () => {
     const c = call("guest", "email", true);
     expect(c.view).toBe("gift-sent");
+    expect(c.heading).toBe("Gift on Its Way!");
     expect(c.showLinks).toBe(false);
+    expect(c.showWhatsAppPreview).toBeFalsy();
     expect(labels(c)).toEqual(["Return to Gifting"]);
   });
 
@@ -104,7 +109,9 @@ describe("resolveOutcomeCopy — the 12 PRD variants", () => {
   it("11: guest · whatsapp · confirmed", () => {
     const c = call("guest", "whatsapp", true);
     expect(c.view).toBe("gift-sent");
+    expect(c.heading).toBe("Gift on Its Way!");
     expect(sentence(c)).toContain("WhatsApp");
+    expect(c.showWhatsAppPreview).toBe(true);
   });
 
   it("12: guest · whatsapp · not confirmed", () => {
@@ -203,7 +210,8 @@ describe("resolveOutcomeCopy — invariants across the matrix", () => {
       confirmed: true,
       orderKind: "gift_card",
     });
-    expect(sentence(c)).toBe("Your gift card has been sent to the recipient.");
+    expect(sentence(c)).toContain("the recipient");
+    expect(sentence(c)).not.toContain("your email");
   });
 });
 

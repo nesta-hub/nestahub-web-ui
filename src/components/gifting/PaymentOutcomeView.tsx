@@ -1,9 +1,61 @@
 import { CheckCircle, Clock, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GiftLinkShare } from "@/components/gifting/GiftLinkShare";
-import { formatPrice } from "@/data/bundleData";
 import type { OutcomeCopy, CtaAction } from "@/lib/giftOutcomeCopy";
 import type { OrderStatusGiftCard } from "@/lib/api";
+
+export interface WhatsAppPreviewProps {
+  recipientName: string;
+  senderName?: string;
+  /** Gift value in naira (not kobo). */
+  amount?: number;
+  message?: string;
+  giftUrl?: string;
+}
+
+function WhatsAppMessagePreview({
+  recipientName,
+  senderName,
+  amount,
+  message,
+  giftUrl,
+}: WhatsAppPreviewProps) {
+  const worth = amount ? `₦${amount.toLocaleString("en-NG")}` : "a gift card";
+  const time = new Date().toLocaleTimeString("en-NG", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  return (
+    <div className="w-full max-w-sm text-left mt-2 mb-4">
+      <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground mb-2 text-center">
+        Preview of what {recipientName} will receive
+      </p>
+      <div className="rounded-2xl bg-[hsl(28,25%,92%)] p-3">
+        <div className="rounded-xl bg-white px-4 py-3 shadow-sm text-[13px] leading-relaxed text-foreground/90 space-y-3">
+          <p className="font-bold text-foreground">You've received a gift!</p>
+          <p>Hi {recipientName},</p>
+          <p>
+            {senderName?.trim() || "Someone"} sent you a gift card worth{" "}
+            <span className="font-semibold text-foreground">{worth}</span> on
+            Nesta Hub{message?.trim() ? " and a message!" : "!"}
+          </p>
+          {message?.trim() && <p className="italic">"{message.trim()}"</p>}
+          <p>Click the link below to view and redeem your gift card.</p>
+          {giftUrl && (
+            <p className="break-all text-foreground/80">{giftUrl}</p>
+          )}
+          <div className="flex items-end justify-between gap-3">
+            <span>Happy Shopping!</span>
+            <span className="text-[10px] text-muted-foreground shrink-0">
+              {time}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * The waiting screen (PRD §1a).
@@ -88,10 +140,10 @@ export function PaymentCheckingView({
 
 interface PaymentOutcomeViewProps {
   copy: OutcomeCopy;
-  orderNumber: string;
   giftCards: OrderStatusGiftCard[];
   onAction: (action: CtaAction) => void;
   variant?: OutcomeVariant;
+  whatsAppPreviewProps?: WhatsAppPreviewProps;
 }
 
 /**
@@ -102,10 +154,10 @@ interface PaymentOutcomeViewProps {
  */
 export function PaymentOutcomeView({
   copy,
-  orderNumber,
   giftCards,
   onAction,
   variant = "mobile",
+  whatsAppPreviewProps,
 }: PaymentOutcomeViewProps) {
   const settled = copy.view !== "pending";
   const isDesktop = variant === "desktop";
@@ -171,10 +223,9 @@ export function PaymentOutcomeView({
             )}
             {copy.bodyAfter}
           </p>
-          <p className="text-xs text-muted-foreground mb-6">
-            Order ID:{" "}
-            <span className="font-semibold text-foreground">{orderNumber}</span>
-          </p>
+          {copy.showWhatsAppPreview && whatsAppPreviewProps && (
+            <WhatsAppMessagePreview {...whatsAppPreviewProps} />
+          )}
         </div>
 
         {/* Links and share controls, when there is something to share (§1b) */}
@@ -191,7 +242,7 @@ export function PaymentOutcomeView({
                     Shareable link
                   </span>
                   <span className="ml-auto text-xs text-muted-foreground">
-                    {card.recipientName} · {formatPrice(card.amount / 100)}
+                    {card.recipientName}
                   </span>
                 </div>
 

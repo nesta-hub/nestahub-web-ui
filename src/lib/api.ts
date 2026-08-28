@@ -507,6 +507,14 @@ export const api = {
     return response.json();
   },
 
+  async notifyPending(orderNumber: string, token?: string | null): Promise<void> {
+    await fetch(`${API_BASE_URL}/orders/${orderNumber}/notify-pending`, {
+      method: 'POST',
+      headers: ownershipHeaders(token ?? undefined, getClaimToken(orderNumber)),
+    });
+    // Ignore errors — this is fire-and-forget; a failed notify means a delayed email, not a broken flow.
+  },
+
   async cancelOrder(orderNumber: string, token: string): Promise<OrderResponse> {
     const response = await fetch(`${API_BASE_URL}/orders/${orderNumber}/cancel`, {
       method: 'PATCH',
@@ -643,6 +651,11 @@ export interface MyOrder {
     themeId: string;
     amount: number;
     recipientName: string;
+    recipientEmail?: string | null;
+    recipientPhone?: string | null;
+    senderName?: string | null;
+    isAnonymous?: boolean | null;
+    deliveryMethod?: string | null;
     message?: string | null;
   }> | null;
   /**

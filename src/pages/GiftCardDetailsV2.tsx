@@ -342,8 +342,10 @@ const GiftCardDetailsV2 = () => {
     // The draft was persisted for an OAuth round-trip that is no longer
     // happening; drop it so a later sign-in cannot replay this order.
     localStorage.removeItem(PENDING_KEY);
-    setShowSignIn(false);
+    // Keep sign-in screen visible (button spinner via guestSubmitting) until
+    // placeOrders completes — prevents flash of the main form during the API call.
     await placeOrders(summaryCards, email);
+    setShowSignIn(false);
   };
 
   // Sign-in view
@@ -411,7 +413,7 @@ const GiftCardDetailsV2 = () => {
     const handleAction = (action: CtaAction) => {
       switch (action) {
         case "order-history":
-          navigate("/account/gifting");
+          navigate("/orders", { state: { orderNumber: orderId } });
           break;
         case "gifting":
           navigate("/gifting");
@@ -422,12 +424,23 @@ const GiftCardDetailsV2 = () => {
       }
     };
 
+    const whatsAppPreviewProps =
+      firstCard?.deliveryMethod === "whatsapp" && pollState === "confirmed"
+        ? {
+            recipientName: firstCard.recipientName,
+            senderName: sendAnonymously ? undefined : senderName.trim() || undefined,
+            amount: firstCard.amount / 100,
+            message: message.trim() || undefined,
+            giftUrl: orderStatus?.giftCards?.[0]?.link,
+          }
+        : undefined;
+
     return (
       <PaymentOutcomeView
         copy={copy}
-        orderNumber={orderId}
         giftCards={orderStatus?.giftCards ?? []}
         onAction={handleAction}
+        whatsAppPreviewProps={whatsAppPreviewProps}
       />
     );
   }
@@ -438,9 +451,9 @@ const GiftCardDetailsV2 = () => {
     icon: typeof Link2;
     disabled?: boolean;
   }> = [
-    { id: "link", label: "Shareable link", icon: Link2 },
-    { id: "email", label: "Email", icon: Mail },
+    { id: "link", label: "Send it myself", icon: Link2 },
     { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
+    { id: "email", label: "Email", icon: Mail },
   ];
 
   const helperByMethod: Record<DeliveryMethod, string> = {
@@ -550,7 +563,7 @@ const GiftCardDetailsV2 = () => {
               <Input
                 type="tel"
                 inputMode="tel"
-                placeholder="Recipient's WhatsApp number"
+                placeholder="Whatsapp number e.g. 08032229581"
                 value={recipientPhone}
                 onChange={(e) => setRecipientPhone(e.target.value)}
                 onBlur={() => setPhoneTouched(true)}
@@ -558,13 +571,9 @@ const GiftCardDetailsV2 = () => {
                 autoComplete="tel"
                 aria-invalid={phoneTouched && !phoneValid}
               />
-              {phoneTouched && !phoneValid ? (
+              {phoneTouched && !phoneValid && (
                 <p className="text-xs text-destructive">
                   Enter a valid Nigerian mobile number
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Nigerian numbers only, e.g. 0801 234 5678
                 </p>
               )}
             </div>
@@ -573,9 +582,9 @@ const GiftCardDetailsV2 = () => {
 
         {/* Sender Details — shown for every delivery method (§4) */}
         <div className="px-4 mt-6 space-y-2">
-          <h3 className="text-sm font-semibold text-foreground">Sender name</h3>
+          <h3 className="text-sm font-semibold text-foreground">Sender details</h3>
           <Input
-            placeholder="Your name"
+            placeholder="Sender name"
             value={sendAnonymously ? "" : senderName}
             onChange={(e) => {
               senderNameTouchedRef.current = true;
@@ -586,18 +595,16 @@ const GiftCardDetailsV2 = () => {
             autoComplete="name"
           />
           <p className="text-xs text-muted-foreground">
-            This is the name the recipient sees on their gift card page. Change it if
-            you'd like a different name shown.
+            Name shown to recipient as the sender.{!!session && !!senderName.trim() && " Change it if needed."}
           </p>
-
           {canBeAnonymous && (
-            <label className="flex items-center gap-2 pt-1 cursor-pointer">
+            <label className="flex items-center gap-2 pt-2 cursor-pointer">
               <Checkbox
                 checked={isAnonymous}
                 onCheckedChange={(checked) => setIsAnonymous(checked === true)}
               />
-              <span className="text-xs text-muted-foreground">
-                Send anonymously — don't show my name
+              <span className="text-base text-muted-foreground leading-relaxed">
+                Send anonymously
               </span>
             </label>
           )}
@@ -653,7 +660,7 @@ const GiftCardDetailsV2 = () => {
             (() => {
               const c = summaryCards[0];
               const rows: Array<{ label: string; value: React.ReactNode }> = [
-                { label: "Delivery", value: c.deliveryMethod === "email" ? "Email" : "Shareable link" },
+                { label: "Delivery", value: c.deliveryMethod === "email" ? "Email" : c.deliveryMethod === "whatsapp" ? "WhatsApp" : "Send it myself" },
                 { label: "Recipient", value: c.recipientName },
               ];
               if (c.recipientEmail)
@@ -691,7 +698,7 @@ const GiftCardDetailsV2 = () => {
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           To <span className="text-foreground/80">{c.recipientName}</span> ·{" "}
-                          {c.deliveryMethod === "email" ? "Email" : "Shareable link"}
+                          {c.deliveryMethod === "email" ? "Email" : c.deliveryMethod === "whatsapp" ? "WhatsApp" : "Send it myself"}
                         </p>
                         {c.recipientEmail && (
                           <p className="text-[11px] text-muted-foreground mt-0.5 break-all">{c.recipientEmail}</p>

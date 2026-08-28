@@ -34,6 +34,8 @@ export interface OutcomeCopy {
   bodyAfter?: string;
   /** Show the gift card links with share controls inline. */
   showLinks: boolean;
+  /** Show the WhatsApp message preview block (whatsapp delivery, confirmed). */
+  showWhatsAppPreview?: boolean;
   ctas: OutcomeCta[];
 }
 
@@ -118,7 +120,9 @@ export function resolveOutcomeCopy(input: OutcomeInput): OutcomeCopy {
           view: "pending",
           heading: "We couldn't confirm your payment just yet",
           bodyLead: "We don't want to keep you waiting.",
-          body: `We'll notify you at ${buyerAddress(buyerEmail)} as soon as it's confirmed — usually 2–3 mins.`,
+          body: "We'll notify you at ",
+          bodyHighlight: buyerAddress(buyerEmail),
+          bodyAfter: " as soon as it's confirmed.",
           showLinks: false,
           ctas:
             authState === "user"
@@ -142,19 +146,22 @@ export function resolveOutcomeCopy(input: OutcomeInput): OutcomeCopy {
       };
     }
 
+    // Delivery is fire-and-forget — the screen appears before the send
+    // completes. Copy reflects in-progress, not confirmed delivery.
     return {
       view: "gift-sent",
-      heading: "Gift Sent!",
-      body: "Your gift card has been sent to ",
+      heading: "Gift on Its Way!",
+      body: "We've sent your gift card to ",
       bodyHighlight:
         deliveryMethod === "email"
           ? recipientAddress(recipientEmail)
           : someone(recipientName),
-      bodyAfter: deliveryMethod === "email" ? "." : " on WhatsApp.",
-      // Design: the delivered screen does NOT repeat the link. We sent it for
-      // them, so showing it again invites a second, duplicate share.
-      // (This overrides PRD §1b, which asked for it as buyer reference.)
+      bodyAfter:
+        deliveryMethod === "email"
+          ? ", they'll get it in their inbox immediately."
+          : " on WhatsApp.",
       showLinks: false,
+      showWhatsAppPreview: deliveryMethod === "whatsapp",
       ctas: [RETURN_GIFTING],
     };
   }
@@ -165,9 +172,9 @@ export function resolveOutcomeCopy(input: OutcomeInput): OutcomeCopy {
       view: "pending",
       heading: "We couldn't confirm your payment just yet",
       bodyLead: "We don't want to keep you waiting.",
-      body: buyerEmail
-        ? `Once confirmed, we'll email your gift card link to ${buyerEmail} — usually 2–3 mins.`
-        : `Once confirmed, we'll email you your gift card link — usually 2–3 mins.`,
+      body: buyerEmail ? "Once confirmed, we'll email your gift card link to " : "Once confirmed, we'll email you your gift card link.",
+      bodyHighlight: buyerEmail || undefined,
+      bodyAfter: buyerEmail ? "." : undefined,
       showLinks: false,
       ctas: giftCtas(authState, VIEW_STATUS),
     };
@@ -185,21 +192,27 @@ export function resolveOutcomeCopy(input: OutcomeInput): OutcomeCopy {
         ? `your gift card goes to ${recipientName} on WhatsApp`
         : null;
 
-  const notify = buyerEmail ? `notify you at ${buyerEmail}` : "let you know";
-
-  // The fallback destination already carries its own "we'll", so the
-  // conjunction differs — otherwise the sentence reads "we'll … and we'll …".
-  const clause = knownDestination
-    ? `${knownDestination} and we'll ${notify}`
+  // Build a two-part sentence so the buyer's email can be bolded in the UI.
+  // Part 1 (body): everything up to and including the email address placeholder.
+  // Part 2 (bodyHighlight): the email itself, rendered bold.
+  // Part 3 (bodyAfter): the closing punctuation / WhatsApp suffix.
+  const destination = knownDestination
+    ? `Once confirmed, ${knownDestination} and we'll notify you at `
     : deliveryMethod === "email"
-      ? `we'll send your gift card to the recipient and ${notify}`
-      : `we'll send your gift card to ${someone(recipientName)} on WhatsApp and ${notify}`;
+      ? `Once confirmed, we'll send your gift card to the recipient and notify you at `
+      : `Once confirmed, we'll send your gift card to ${someone(recipientName)} on WhatsApp and notify you at `;
+
+  const [bodyText, bodyHL, bodyTail] = buyerEmail
+    ? [destination, buyerEmail, "."]
+    : [`Once confirmed, we'll let you know.`, undefined, undefined];
 
   return {
     view: "pending",
     heading: "We couldn't confirm your payment just yet",
     bodyLead: "We don't want to keep you waiting.",
-    body: `Once confirmed, ${clause} — usually 2–3 mins.`,
+    body: bodyText,
+    bodyHighlight: bodyHL,
+    bodyAfter: bodyTail,
     showLinks: false,
     ctas: giftCtas(authState, VIEW_STATUS),
   };

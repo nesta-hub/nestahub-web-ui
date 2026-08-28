@@ -60,14 +60,15 @@ function orderTypeIcon(order: MyOrder) {
 
 interface DesktopOrdersViewProps {
   onBack: () => void;
+  initialOrderNumber?: string;
 }
 
-export function DesktopOrdersView({ onBack }: DesktopOrdersViewProps) {
+export function DesktopOrdersView({ onBack, initialOrderNumber }: DesktopOrdersViewProps) {
   const navigate = useNavigate();
   const { session } = useAuth();
   const queryClient = useQueryClient();
 
-  const [selectedOrderNumber, setSelectedOrderNumber] = useState<string | null>(null);
+  const [selectedOrderNumber, setSelectedOrderNumber] = useState<string | null>(initialOrderNumber ?? null);
   const [cancelTarget, setCancelTarget] = useState<MyOrder | null>(null);
   const [payingOrder, setPayingOrder] = useState<MyOrder | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -467,10 +468,25 @@ function BundleDetail({ order }: { order: MyOrder }) {
 }
 
 function GiftCardDetail({ order }: { order: MyOrder }) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyLink = (link: string, id: string) => {
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedId(id);
+      toast.success("Link copied!");
+      setTimeout(() => setCopiedId((prev) => (prev === id ? null : prev)), 2000);
+    });
+  };
+
   if (order.giftCardOrderItems && order.giftCardOrderItems.length > 0) {
     return (
       <div className="space-y-3">
-        {order.giftCardOrderItems.map((item, i) => (
+        {order.giftCardOrderItems.map((item, i) => {
+          const issuedCard = order.giftCards?.find(
+            (gc) => gc.themeId === item.themeId && gc.recipientName === item.recipientName
+          );
+          const shareableLink = issuedCard?.deliveryMethod === 'link' ? issuedCard.link : undefined;
+          return (
           <div key={item.id} className="rounded-2xl bg-secondary/40 p-4 space-y-2">
             {order.giftCardOrderItems!.length > 1 && (
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -481,7 +497,54 @@ function GiftCardDetail({ order }: { order: MyOrder }) {
               <InfoCard label="Amount" value={formatPrice(item.amount)} />
               <InfoCard label="Theme" value={item.themeId.replace(/-/g, " ")} />
               <InfoCard label="Recipient" value={item.recipientName} />
+              {item.deliveryMethod && (
+                <InfoCard
+                  label="Delivery Mode"
+                  value={item.deliveryMethod === 'whatsapp' ? 'WhatsApp' : item.deliveryMethod}
+                />
+              )}
+              {(item.senderName || item.isAnonymous) && (
+                <InfoCard
+                  label="Sender"
+                  value={item.isAnonymous ? 'Anonymous' : (item.senderName ?? '')}
+                />
+              )}
             </div>
+            {item.recipientEmail && (
+              <div className="bg-card rounded-xl px-3 py-2.5 mt-1">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Recipient Email</p>
+                <p className="text-sm font-mono text-foreground mt-0.5">{item.recipientEmail}</p>
+              </div>
+            )}
+            {item.recipientPhone && (
+              <div className="bg-card rounded-xl px-3 py-2.5 mt-1">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Recipient Phone</p>
+                <p className="text-sm font-mono text-foreground mt-0.5">{item.recipientPhone}</p>
+              </div>
+            )}
+            {shareableLink && (
+              <div className="mt-1">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                  Gift card link (you send it)
+                </p>
+                <div className="flex items-center gap-2 bg-background border border-border rounded-xl px-3 py-2">
+                  <p className="text-xs font-mono text-foreground truncate flex-1">{shareableLink}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyLink(shareableLink, `${order.orderNumber}-${i}`)}
+                    className="shrink-0 gap-1.5"
+                  >
+                    {copiedId === `${order.orderNumber}-${i}` ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                    {copiedId === `${order.orderNumber}-${i}` ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+              </div>
+            )}
             {item.message && (
               <div className="bg-card rounded-xl px-3 py-2.5 mt-1">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Message</p>
@@ -489,7 +552,8 @@ function GiftCardDetail({ order }: { order: MyOrder }) {
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
         <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-card border border-border">
           <span className="text-sm font-bold text-foreground">Total</span>
           <span className="text-lg font-bold text-foreground tabular-nums">
