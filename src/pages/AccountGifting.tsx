@@ -1,17 +1,21 @@
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout";
-import { ArrowLeft, Copy, Check, Gift, Package, ChevronRight, ChevronDown } from "lucide-react";
+import { ArrowLeft, Gift, Package, ChevronRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/data/bundleData";
 import {
-  INITIAL_GIFTING_HISTORY,
   STATUS_LABEL,
   STATUS_NOTE,
   DELIVERY_LABEL,
   type GiftingHistoryEntry,
   type GiftingStatus,
-} from "@/components/gifting/mockGiftingHistory";
+} from "@/components/gifting/giftingHistory";
+import { GiftLinkShare } from "@/components/gifting/GiftLinkShare";
+import { useGiftingHistory } from "@/hooks/useGiftingHistory";
+import { SignInForm } from "@/components/auth/SignInForm";
+import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,26 +34,6 @@ function formatDate(iso: string) {
     month: "short",
     year: "numeric",
   });
-}
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const handle = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {}
-  };
-  return (
-    <button
-      onClick={handle}
-      className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
-    >
-      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-      {copied ? "Copied" : "Copy link"}
-    </button>
-  );
 }
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -97,7 +81,7 @@ function GiftEntryCard({ entry }: { entry: GiftingHistoryEntry }) {
           <div className="flex items-start justify-between gap-2 flex-wrap">
             <p className="text-sm font-semibold text-foreground leading-snug">{entry.title}</p>
             <p className="text-sm font-bold text-foreground tabular-nums shrink-0">
-              {formatPrice(entry.amount)}
+              {formatPrice(entry.amount / 100)}
             </p>
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -127,7 +111,7 @@ function GiftEntryCard({ entry }: { entry: GiftingHistoryEntry }) {
 
           {/* Details grid */}
           <div className="space-y-1.5">
-            <DetailRow label="Order ID" value={entry.id} />
+            <DetailRow label="Order ID" value={entry.orderNumber} />
             {entry.recipientName && <DetailRow label="Recipient" value={entry.recipientName} />}
             {entry.recipientContact && <DetailRow label="Contact" value={entry.recipientContact} />}
             {entry.theme && <DetailRow label="Theme" value={entry.theme.replace(/-/g, " ")} />}
@@ -154,13 +138,25 @@ function GiftEntryCard({ entry }: { entry: GiftingHistoryEntry }) {
             </div>
           )}
 
-          {/* Shareable link */}
+          {/* Shareable link — present once the card has been issued (§6a) */}
           {entry.shareableLink && (
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/50 px-3 py-2.5">
-              <p className="text-xs text-muted-foreground truncate">{entry.shareableLink}</p>
-              <div className="flex items-center gap-2 shrink-0">
-                <CopyButton text={entry.shareableLink} />
+            <div className="space-y-2.5">
+              <div className="rounded-xl bg-muted/50 px-3 py-2.5">
+                <p className="text-xs text-muted-foreground break-all">
+                  {entry.shareableLink}
+                </p>
               </div>
+              <GiftLinkShare
+                link={entry.shareableLink}
+                recipientName={entry.recipientName}
+                size="sm"
+              />
+              {entry.deliveryMode !== "link" && !entry.deliveredAt && (
+                <p className="text-xs text-amber-700">
+                  We haven't been able to send this to {entry.recipientName} yet
+                  — you can share the link yourself in the meantime.
+                </p>
+              )}
             </div>
           )}
 
@@ -179,8 +175,10 @@ function GiftEntryCard({ entry }: { entry: GiftingHistoryEntry }) {
 const AccountGifting = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const entries = INITIAL_GIFTING_HISTORY;
+  const { session } = useAuth();
+  const { data, isLoading, isError, refetch } = useGiftingHistory();
 
+  const entries = data ?? [];
   const giftCards = entries.filter((e) => e.kind === "gift-card");
   const bundles = entries.filter((e) => e.kind === "gift-bundle");
 
@@ -206,7 +204,28 @@ const AccountGifting = () => {
         </div>
 
         <div className="px-4 md:px-8 md:max-w-2xl md:mx-auto">
-          {entries.length === 0 ? (
+          {!session ? (
+            <SignInForm
+              title="Sign in to see your gifts"
+              description="Your gifting history lives with your account"
+            />
+          ) : isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : isError ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <h2 className="text-base font-semibold text-foreground mb-1">
+                Couldn't load your gifts
+              </h2>
+              <p className="text-sm text-muted-foreground mb-6 max-w-[28ch]">
+                Something went wrong on our side. Your gifts are safe.
+              </p>
+              <Button variant="shop" onClick={() => refetch()}>
+                Try again
+              </Button>
+            </div>
+          ) : entries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
                 <Gift className="w-8 h-8 text-muted-foreground" />

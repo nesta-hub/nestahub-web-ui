@@ -294,6 +294,11 @@ export interface OrderResponse {
   totalAmount: number; // in kobo
   createdAt: string;
   paymentMadeAt?: string | null;
+  /**
+   * Guest orders only, returned ONCE at creation and never again. Persisted by
+   * `createBulkGiftCardOrder`; read it back with `getClaimToken`.
+   */
+  claimToken?: string;
 }
 
 export const api = {
@@ -490,18 +495,24 @@ export const api = {
     return response.json();
   },
 
-  async markPaymentMade(orderNumber: string, token: string): Promise<OrderResponse> {
+  async markPaymentMade(orderNumber: string, token?: string): Promise<OrderResponse> {
     const response = await fetch(`${API_BASE_URL}/orders/${orderNumber}/payment-made`, {
       method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: ownershipHeaders(token, getClaimToken(orderNumber)),
     });
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || 'Failed to confirm payment');
     }
     return response.json();
+  },
+
+  async notifyPending(orderNumber: string, token?: string | null): Promise<void> {
+    await fetch(`${API_BASE_URL}/orders/${orderNumber}/notify-pending`, {
+      method: 'POST',
+      headers: ownershipHeaders(token ?? undefined, getClaimToken(orderNumber)),
+    });
+    // Ignore errors — this is fire-and-forget; a failed notify means a delayed email, not a broken flow.
   },
 
   async cancelOrder(orderNumber: string, token: string): Promise<OrderResponse> {
@@ -640,6 +651,26 @@ export interface MyOrder {
     themeId: string;
     amount: number;
     recipientName: string;
+    recipientEmail?: string | null;
+    recipientPhone?: string | null;
+    senderName?: string | null;
+    isAnonymous?: boolean | null;
+    deliveryMethod?: string | null;
+    message?: string | null;
+  }> | null;
+  /**
+   * Cards actually issued — only present once payment is confirmed. Carries
+   * the shareable link, which the order items do not.
+   */
+  giftCards?: Array<{
+    id: string;
+    link: string;
+    themeId: string;
+    amount: number;
+    recipientName: string;
+    deliveryMethod: 'link' | 'email' | 'whatsapp';
+    recipientEmail?: string | null;
+    deliveredAt?: string | null;
     message?: string | null;
   }> | null;
 }
@@ -942,12 +973,69 @@ export interface GiftCardPublic {
   themeId: string;
   initialValue: number;
   currentBalance: number;
-  senderName: string;
+  /** Absent when the card was sent anonymously. */
+  senderName?: string;
   recipientName: string;
   message?: string;
   status: string;
   code: string;
   redeemedByCurrentUser?: boolean;
+}
+
+/**
+ * Guest order credentials.
+ *
+ * A guest has no session, so their claim token IS their proof of ownership for
+ * the one order it was issued against. It is returned once at order creation
+ * and cannot be recovered — losing it means falling back to the links emailed
+ * to them.
+ */
+const CLAIM_TOKEN_KEY = 'nesta_order_claim_tokens';
+
+type ClaimTokenMap = Record<string, string>;
+
+function readClaimTokens(): ClaimTokenMap {
+  try {
+    return JSON.parse(localStorage.getItem(CLAIM_TOKEN_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+export function storeClaimToken(orderNumber: string, token: string): void {
+  try {
+    const all = readClaimTokens();
+    all[orderNumber] = token;
+    localStorage.setItem(CLAIM_TOKEN_KEY, JSON.stringify(all));
+  } catch {
+    // Private browsing with storage disabled. The order still exists and the
+    // links still reach them by email; only in-app polling is lost.
+  }
+}
+
+export function getClaimToken(orderNumber: string): string | undefined {
+  return readClaimTokens()[orderNumber];
+}
+
+export function getAllClaimTokens(): ClaimTokenMap {
+  return readClaimTokens();
+}
+
+export function clearClaimToken(orderNumber: string): void {
+  try {
+    const all = readClaimTokens();
+    delete all[orderNumber];
+    localStorage.setItem(CLAIM_TOKEN_KEY, JSON.stringify(all));
+  } catch {
+    /* nothing to clean up */
+  }
+}
+
+/** Bearer session when signed in, claim token when not. Never both. */
+function ownershipHeaders(token?: string, claimToken?: string): HeadersInit {
+  if (token) return { Authorization: `Bearer ${token}` };
+  if (claimToken) return { 'x-claim-token': claimToken };
+  return {};
 }
 
 export interface BulkGiftCardItem {
@@ -956,22 +1044,105 @@ export interface BulkGiftCardItem {
   recipientName: string;
   recipientEmail?: string;
   senderName?: string;
+  /** Hide the sender name from the recipient. Email/WhatsApp delivery only. */
+  isAnonymous?: boolean;
+  /** Nigerian number, required for whatsapp delivery. */
+  recipientPhone?: string;
   message?: string;
-  deliveryMethod: 'link' | 'email';
+  deliveryMethod: 'link' | 'email' | 'whatsapp';
 }
 
+/**
+ * Create a gift card order, signed in or as a guest.
+ *
+ * Pass `token` for a signed-in buyer, or `data.guestEmail` for a guest. A guest
+ * response carries `claimToken` — stored here, because it is the only chance to
+ * keep it.
+ */
 export async function createBulkGiftCardOrder(
-  data: { fullName: string; giftCards: BulkGiftCardItem[] },
-  token: string,
+  data: { fullName: string; guestEmail?: string; giftCards: BulkGiftCardItem[] },
+  token?: string,
 ): Promise<OrderResponse> {
   const response = await fetch(`${API_BASE_URL}/orders/gift-cards/bulk`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(data),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.message || 'Failed to create gift card order');
+  }
+  const order: OrderResponse = await response.json();
+  if (order.claimToken) storeClaimToken(order.orderNumber, order.claimToken);
+  return order;
+}
+
+export interface OrderStatusGiftCard {
+  id: string;
+  link: string;
+  recipientName: string;
+  amount: number;
+  deliveryMethod: 'link' | 'email' | 'whatsapp';
+  recipientEmail?: string | null;
+  deliveredAt?: string | null;
+  senderName?: string | null;
+  isAnonymous?: boolean | null;
+  message?: string | null;
+}
+
+export interface OrderStatus {
+  orderNumber: string;
+  status: string;
+  orderType: string;
+  confirmed: boolean;
+  isGuest: boolean;
+  buyerEmail?: string | null;
+  totalAmount: number;
+  paymentMadeAt?: string | null;
+  giftCards: OrderStatusGiftCard[];
+}
+
+/** Poll one order's confirmation state. Drives the post-payment wait (§1). */
+export async function getOrderStatus(
+  orderNumber: string,
+  token?: string,
+): Promise<OrderStatus> {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderNumber}/status`, {
+    headers: ownershipHeaders(token, getClaimToken(orderNumber)),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to read order status');
+  }
+  return response.json();
+}
+
+/**
+ * Attach a guest order to the account that just signed in.
+ *
+ * The server consumes the token, so the local copy is dropped either way — on
+ * success it is spent, and on failure it will never work.
+ */
+export async function claimGuestOrder(
+  orderNumber: string,
+  claimToken: string,
+  token: string,
+): Promise<{ orderNumber: string }> {
+  const response = await fetch(`${API_BASE_URL}/orders/claim`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ claimToken }),
+  });
+  clearClaimToken(orderNumber);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to claim order');
   }
   return response.json();
 }

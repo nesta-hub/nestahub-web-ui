@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { GiftCardPreview } from "@/components/gifting/GiftCardPreview";
@@ -27,14 +28,31 @@ import { formatPrice, createBulkGiftCardOrder } from "@/lib/api";
 import type { ConfiguredGiftCard } from "@/pages/GiftCardDetailsV2";
 import { DesktopCheckoutPaymentView } from "@/components/checkout/DesktopCheckoutPaymentView";
 import { DesktopCheckoutSuccessView } from "@/components/checkout/DesktopCheckoutSuccessView";
+import {
+  PaymentCheckingView,
+  PaymentOutcomeView,
+} from "@/components/gifting/PaymentOutcomeView";
+import { useOrderConfirmationPoll } from "@/hooks/useOrderConfirmationPoll";
+import { resolveOutcomeCopy, type CtaAction } from "@/lib/giftOutcomeCopy";
 import { CheckoutSignIn } from "@/components/checkout/CheckoutSignIn";
 
 type DeliveryMethod = "link" | "email" | "whatsapp";
 type StudioStep = "form" | "review" | "signin" | "payment" | "success";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** 08012345678 / 8012345678 / +2348012345678 / 2348012345678 */
+const nigerianPhoneRegex = /^(?:\+?234|0)?[789][01]\d{8}$/;
 const MIN_AMOUNT_KOBO = 1_000_000; // ₦10,000
 const PENDING_KEY = "pending_gift_card_purchase_v2";
+const ACTIVE_ORDER_KEY = "active_gift_card_order_v1";
+
+interface ActiveOrder {
+  orderId: string;
+  phase: "payment" | "success";
+  summaryCards: ConfiguredGiftCard[];
+  serverTotal: number;
+  timestamp: number;
+}
 
 export function DesktopGiftCardStudio() {
   const navigate = useNavigate();
@@ -56,7 +74,42 @@ export function DesktopGiftCardStudio() {
   const [orderId, setOrderId] = useState("");
   const [serverTotal, setServerTotal] = useState<number>(0);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [recipientPhone, setRecipientPhone] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
+  // Set when the buyer takes the guest route; mutually exclusive with session.
+  const [guestEmail, setGuestEmail] = useState<string | null>(null);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const hasAutoPlaced = useRef(false);
+  const senderNameTouchedRef = useRef(false);
+
+  const [restoredOrder] = useState<ActiveOrder | null>(() => {
+    try {
+      const raw = localStorage.getItem(ACTIVE_ORDER_KEY);
+      if (!raw) return null;
+      const parsed: ActiveOrder = JSON.parse(raw);
+      if (Date.now() - parsed.timestamp > 2 * 60 * 60 * 1000) {
+        localStorage.removeItem(ACTIVE_ORDER_KEY);
+        return null;
+      }
+      if (localStorage.getItem(PENDING_KEY)) return null;
+      return parsed;
+    } catch {
+      localStorage.removeItem(ACTIVE_ORDER_KEY);
+      return null;
+    }
+  });
+
+  // Prefill sender name from logged-in user's account name.
+  useEffect(() => {
+    if (senderNameTouchedRef.current) return;
+    const meta = session?.user?.user_metadata as Record<string, string> | undefined;
+    const accountName =
+      meta?.name ||
+      meta?.full_name ||
+      [meta?.given_name, meta?.family_name].filter(Boolean).join(" ");
+    if (accountName) setSenderName(accountName);
+  }, [session]);
 
   // After OAuth redirect, restore cards and auto-place order
   useEffect(() => {
@@ -74,30 +127,72 @@ export function DesktopGiftCardStudio() {
     } catch {
       localStorage.removeItem(PENDING_KEY);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.access_token]);
 
-  const placeOrders = async (cards: ConfiguredGiftCard[], token: string) => {
+  // Restore payment/success phase from a previous session.
+  useEffect(() => {
+    if (!restoredOrder) return;
+    setOrderId(restoredOrder.orderId);
+    setServerTotal(restoredOrder.serverTotal);
+    if (restoredOrder.phase === "success") {
+      setAwaitingConfirmation(true);
+      setStep("success");
+    } else {
+      setStep("payment");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const placeOrders = async (
+    cards: ConfiguredGiftCard[],
+    token?: string,
+    guestEmailOverride?: string,
+  ) => {
+    const guest = guestEmailOverride ?? guestEmail;
+    if (!token && !guest) return;
     setIsCreatingOrder(true);
-    setStep("payment");
+    // Don't change step yet — stay on signin/review while the API call runs so
+    // there's no flash. We move to "payment" only after the order is created.
+    if (step !== "signin") setStep("payment");
     try {
       const result = await createBulkGiftCardOrder(
         {
-          fullName: session?.user?.user_metadata?.name ?? cards[0]?.recipientName ?? "Customer",
+          // A guest has no account name; the sender name they typed is what
+          // appears in admin and on the Slack alert.
+          fullName: token
+            ? (session?.user?.user_metadata?.name ??
+              cards[0]?.recipientName ??
+              "Customer")
+            : (cards.find((c) => !c.isAnonymous && c.senderName)?.senderName ??
+              guest ??
+              "Guest"),
+          ...(token ? {} : { guestEmail: guest ?? undefined }),
           giftCards: cards.map((c) => ({
             themeId: c.theme.id,
             amount: c.amount,
             recipientName: c.recipientName,
             recipientEmail: c.recipientEmail,
-            senderName: c.senderName,
+            recipientPhone: c.recipientPhone || undefined,
+            senderName: c.isAnonymous ? undefined : c.senderName,
+            isAnonymous: c.isAnonymous ?? false,
             message: c.message,
-            deliveryMethod: c.deliveryMethod as "link" | "email",
+            deliveryMethod: c.deliveryMethod,
           })),
         },
         token,
       );
+      const total = result.totalAmount ?? cards.reduce((s, c) => s + c.amount, 0);
       setOrderId(result.orderNumber);
-      setServerTotal(result.totalAmount ?? cards.reduce((s, c) => s + c.amount, 0));
+      setServerTotal(total);
+      setStep("payment");
+      localStorage.setItem(ACTIVE_ORDER_KEY, JSON.stringify({
+        orderId: result.orderNumber,
+        phase: "payment",
+        summaryCards: cards,
+        serverTotal: total,
+        timestamp: Date.now(),
+      } satisfies ActiveOrder));
     } catch {
       setStep("review");
     } finally {
@@ -109,13 +204,22 @@ export function DesktopGiftCardStudio() {
   const effectiveAmount = isCustom ? (parseInt(customAmount) || 0) * 100 : selectedAmount || 0;
 
   const emailValid = deliveryMethod !== "email" || emailRegex.test(recipientEmail.trim());
+  const phoneValid =
+    deliveryMethod !== "whatsapp" || nigerianPhoneRegex.test(recipientPhone.trim());
+  // Anonymity means something only where WE deliver; with a shareable link the
+  // buyer hands it over themselves.
+  const canBeAnonymous = deliveryMethod === "email" || deliveryMethod === "whatsapp";
+  const sendAnonymously = canBeAnonymous && isAnonymous;
   const isValid =
-    effectiveAmount >= MIN_AMOUNT_KOBO && recipientName.trim().length > 0 && emailValid && deliveryMethod !== "whatsapp";
+    effectiveAmount >= MIN_AMOUNT_KOBO &&
+    recipientName.trim().length > 0 &&
+    emailValid &&
+    phoneValid;
 
   const helperByMethod: Record<DeliveryMethod, string> = {
     link: "We'll generate a private link you can share with the recipient however you like.",
     email: "We'll email the gift card directly to the recipient.",
-    whatsapp: "",
+    whatsapp: "We'll send the gift card straight to the recipient on WhatsApp.",
   };
 
   const deliveryOptions: Array<{
@@ -124,20 +228,22 @@ export function DesktopGiftCardStudio() {
     icon: typeof Link2;
     disabled?: boolean;
   }> = [
-    { id: "link", label: "Shareable link", icon: Link2 },
-    { id: "email", label: "Email", icon: Mail },
-    { id: "whatsapp", label: "WhatsApp", icon: MessageCircle, disabled: true },
-  ];
+      { id: "link",     label: "Send it myself", icon: Link2 },
+      { id: "email",    label: "Email",           icon: Mail },
+      { id: "whatsapp", label: "WhatsApp",        icon: MessageCircle, disabled: true },
+    ];
 
   const buildCurrentCard = (): ConfiguredGiftCard => ({
     id: `gc-${Date.now()}`,
     theme,
     amount: effectiveAmount,
-    deliveryMethod: deliveryMethod === "whatsapp" ? "link" : deliveryMethod,
+    deliveryMethod,
     recipientName: recipientName.trim(),
-    recipientPhone: "",
+    recipientPhone:
+      deliveryMethod === "whatsapp" ? recipientPhone.trim().replace(/[\s-]/g, "") : "",
     recipientEmail: deliveryMethod === "email" ? recipientEmail.trim() : undefined,
-    senderName: deliveryMethod === "email" ? senderName.trim() || undefined : undefined,
+    senderName: sendAnonymously ? undefined : senderName.trim() || undefined,
+    isAnonymous: sendAnonymously,
     message: message.trim() || undefined,
   });
 
@@ -157,7 +263,9 @@ export function DesktopGiftCardStudio() {
     setDeliveryMethod("link");
     setRecipientName("");
     setRecipientEmail("");
-    setSenderName("");
+    setRecipientPhone("");
+    setPhoneTouched(false);
+    setIsAnonymous(false);
     setMessage("");
   };
 
@@ -169,8 +277,21 @@ export function DesktopGiftCardStudio() {
     setStep("form");
   };
 
+  // §1: poll for up to 30s after "Payment Made", then release the buyer.
+  const { state: pollState, status: orderStatus } = useOrderConfirmationPoll(
+    awaitingConfirmation ? orderId : null,
+    session?.access_token,
+  );
+
+  // Clear the persisted order once confirmed so a reload shows a fresh form.
+  useEffect(() => {
+    if (pollState === "confirmed") {
+      localStorage.removeItem(ACTIVE_ORDER_KEY);
+    }
+  }, [pollState]);
+
   const handleProceedToPayment = () => {
-    if (!session?.access_token) {
+    if (!session?.access_token && !guestEmail) {
       localStorage.setItem(PENDING_KEY, JSON.stringify({ cards: summaryCards }));
       setStep("signin");
       return;
@@ -188,12 +309,23 @@ export function DesktopGiftCardStudio() {
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back
           </button>
-          <h1 className="font-display text-lg font-bold text-foreground ml-2">Sign In</h1>
+          <h1 className="font-display text-lg font-bold text-foreground ml-2">Checkout</h1>
         </div>
         <div className="flex-1 flex items-center justify-center px-4 py-12">
           <div className="w-full max-w-md">
             <div className="bg-card rounded-3xl border border-foreground/[0.06] shadow-sm p-8">
-              <CheckoutSignIn />
+              <CheckoutSignIn
+                allowGuest
+                guestSubmitting={isCreatingOrder}
+                onGuestContinue={(email) => {
+                  setGuestEmail(email);
+                  // The draft was persisted for an OAuth round-trip that is no
+                  // longer happening; drop it so a later sign-in cannot replay
+                  // this order.
+                  localStorage.removeItem(PENDING_KEY);
+                  void placeOrders(summaryCards, undefined, email);
+                }}
+              />
             </div>
           </div>
         </div>
@@ -213,17 +345,84 @@ export function DesktopGiftCardStudio() {
       );
     }
 
-    const itemsLabel = `${summaryCards.length} gift card${summaryCards.length === 1 ? "" : "s"}`;
+    const cardCount = summaryCards.length || restoredOrder?.summaryCards.length || 0;
+    const itemsLabel = `${cardCount} gift card${cardCount === 1 ? "" : "s"}`;
     return (
       <DesktopCheckoutPaymentView
         orderId={orderId}
         totalAmount={serverTotal || summaryTotal}
-        onPaymentConfirmed={() => setStep("success")}
+        onPaymentConfirmed={() => {
+          const raw = localStorage.getItem(ACTIVE_ORDER_KEY);
+          if (raw) {
+            const stored = JSON.parse(raw) as ActiveOrder;
+            localStorage.setItem(ACTIVE_ORDER_KEY, JSON.stringify({ ...stored, phase: "success" }));
+          }
+          setAwaitingConfirmation(true);
+          setStep("success");
+        }}
         onBack={() => setStep("review")}
         hideGiftCardRedeem
         title="Complete payment"
         backLabel="Back to review"
         summaryLines={[{ label: "Items", value: itemsLabel }]}
+      />
+    );
+  }
+
+  // §1b/§1c: the window and its outcomes, before the legacy success view.
+  if (step === "success" && awaitingConfirmation) {
+    if (pollState === "waiting") {
+      return <PaymentCheckingView variant="desktop" />;
+    }
+
+    const effectiveSummaryCards =
+      summaryCards.length > 0 ? summaryCards : restoredOrder?.summaryCards ?? [];
+    const firstCard = effectiveSummaryCards[0];
+    const copy = resolveOutcomeCopy({
+      authState: session ? "user" : "guest",
+      deliveryMethod: firstCard?.deliveryMethod ?? "link",
+      confirmed: pollState === "confirmed",
+      orderKind: "gift_card",
+      buyerEmail: orderStatus?.buyerEmail ?? guestEmail,
+      recipientEmail: firstCard?.recipientEmail,
+      recipientName: firstCard?.recipientName,
+    });
+
+    const handleOutcomeAction = (action: CtaAction) => {
+      localStorage.removeItem(ACTIVE_ORDER_KEY);
+      switch (action) {
+        case "order-history":
+          navigate("/account/gifting");
+          break;
+        case "gifting":
+          navigate("/gifting");
+          break;
+        case "shop":
+          navigate("/catalogue");
+          break;
+      }
+    };
+
+    const waCard = orderStatus?.giftCards?.find((gc) => gc.deliveryMethod === "whatsapp");
+    const whatsAppPreviewProps =
+      waCard && pollState === "confirmed"
+        ? {
+            recipientName: waCard.recipientName,
+            senderName: waCard.senderName ?? undefined,
+            isAnonymous: waCard.isAnonymous ?? false,
+            amount: waCard.amount / 100,
+            message: waCard.message ?? undefined,
+            giftUrl: waCard.link,
+          }
+        : undefined;
+
+    return (
+      <PaymentOutcomeView
+        copy={copy}
+        giftCards={orderStatus?.giftCards ?? []}
+        onAction={handleOutcomeAction}
+        variant="desktop"
+        whatsAppPreviewProps={whatsAppPreviewProps}
       />
     );
   }
@@ -320,7 +519,7 @@ export function DesktopGiftCardStudio() {
                                   ) : (
                                     <Link2 className="w-3 h-3 text-[hsl(28,32%,45%)]" />
                                   )}
-                                  {c.deliveryMethod === "email" ? "Email" : "Shareable link"}
+                                  {c.deliveryMethod === "email" ? "Email" : c.deliveryMethod === "whatsapp" ? "WhatsApp" : "Send it myself"}
                                 </span>
                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(28,25%,97%)] ring-1 ring-foreground/[0.06] px-2.5 py-1 text-[11px] text-foreground/80">
                                   <User className="w-3 h-3 text-[hsl(28,32%,45%)]" />
@@ -694,7 +893,7 @@ export function DesktopGiftCardStudio() {
                 <div
                   className={cn(
                     "grid gap-4",
-                    deliveryMethod === "email" ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1",
+                    deliveryMethod === "link" ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2",
                   )}
                 >
                   <FieldShell label="Recipient name">
@@ -717,27 +916,64 @@ export function DesktopGiftCardStudio() {
                       />
                     </FieldShell>
                   )}
+                  {deliveryMethod === "whatsapp" && (
+                    <FieldShell label="WhatsApp number">
+                      <Input
+                        type="tel"
+                        inputMode="tel"
+                        placeholder="Whatsapp number e.g. 08032229581"
+                        value={recipientPhone}
+                        onChange={(e) => setRecipientPhone(e.target.value)}
+                        onBlur={() => setPhoneTouched(true)}
+                        className="h-12 text-base bg-white ring-1 ring-foreground/[0.08] border-0 rounded-xl shadow-[inset_0_1px_0_white] focus-visible:ring-2 focus-visible:ring-[hsl(28,32%,36%)]/40"
+                        autoComplete="tel"
+                        aria-invalid={phoneTouched && !phoneValid}
+                      />
+                      {phoneTouched && !phoneValid && (
+                        <p className="text-xs text-destructive mt-1.5">
+                          Enter a valid Nigerian mobile number
+                        </p>
+                      )}
+                    </FieldShell>
+                  )}
                 </div>
               </section>
 
-              {/* Sender (only when email) */}
-              {deliveryMethod === "email" && (
-                <section className="animate-fade-in">
-                  <SectionHeader index="05" label="Sender details" />
-                  <FieldShell label="Your name (optional)">
-                    <Input
-                      placeholder="Leave blank to send anonymously"
-                      value={senderName}
-                      onChange={(e) => setSenderName(e.target.value)}
-                      className="h-12 text-base bg-white ring-1 ring-foreground/[0.08] border-0 rounded-xl shadow-[inset_0_1px_0_white] focus-visible:ring-2 focus-visible:ring-[hsl(28,32%,36%)]/40"
-                    />
-                  </FieldShell>
-                </section>
-              )}
+              {/* Sender — shown for every delivery method (§4) */}
+              <section>
+                <SectionHeader index="05" label="Sender details" />
+                <FieldShell label="Sender details">
+                  <Input
+                    placeholder="Sender name"
+                    value={sendAnonymously ? "" : senderName}
+                    onChange={(e) => {
+                      senderNameTouchedRef.current = true;
+                      setSenderName(e.target.value);
+                    }}
+                    disabled={sendAnonymously}
+                    className="h-12 text-base bg-white ring-1 ring-foreground/[0.08] border-0 rounded-xl shadow-[inset_0_1px_0_white] focus-visible:ring-2 focus-visible:ring-[hsl(28,32%,36%)]/40"
+                    autoComplete="name"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Name shown to recipient as the sender.{!!session && !!senderName.trim() && " Change it if needed."}
+                  </p>
+                  {canBeAnonymous && (
+                    <label className="flex items-center gap-2 pt-3 cursor-pointer">
+                      <Checkbox
+                        checked={isAnonymous}
+                        onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+                      />
+                      <span className="text-base text-muted-foreground leading-relaxed">
+                        Send anonymously
+                      </span>
+                    </label>
+                  )}
+                </FieldShell>
+              </section>
 
               {/* Message */}
               <section>
-                <SectionHeader index={deliveryMethod === "email" ? "06" : "05"} label="Personal message" />
+                <SectionHeader index="06" label="Personal message" />
                 <div className="flex flex-wrap gap-2 mb-3">
                   {messageSuggestions.map((s) => (
                     <button

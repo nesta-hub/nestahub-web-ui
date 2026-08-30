@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet, useLocation } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WalletProvider } from "@/contexts/WalletContext";
@@ -29,6 +29,7 @@ import GiftingBundlesV2 from "./pages/GiftingBundlesV2";
 import GiftingV2 from "./pages/GiftingV2";
 import GiftingCardsV2 from "./pages/GiftingCardsV2";
 import GiftCardDetailsV2 from "./pages/GiftCardDetailsV2";
+import GiftingCheckout from "./pages/GiftingCheckout";
 import GiftBundleDetail from "./pages/GiftBundleDetail";
 import CustomGiftBuilder from "./pages/CustomGiftBuilder";
 import Subscribe from "./pages/Subscribe";
@@ -39,6 +40,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ImagePreview from "./pages/ImagePreview";
 import IconPreview from "./pages/IconPreview";
 import { AuthCallback } from "./pages/AuthCallback";
+import { GiftCardCartProvider } from "./contexts/GiftCardCartContext";
 import NotFound from "./pages/NotFound";
 import Wallet from "./pages/Wallet";
 import Referrals from "./pages/Referrals";
@@ -109,7 +111,10 @@ const App = () => (
               <Route path="/catalogue/:slug" element={<ProductPage />} />
               <Route path="/gifting" element={<GiftingPage />} />
               <Route path="/gifting/cards" element={<GiftingCardsPage />} />
-              <Route path="/gifting/cards/details" element={<GiftCardDetailsPage />} />
+              <Route element={<GiftCardCartProvider><Outlet /></GiftCardCartProvider>}>
+                <Route path="/gifting/cards/details" element={<GiftCardDetailsPage />} />
+                <Route path="/gifting/checkout" element={<GiftingCheckout />} />
+              </Route>
               <Route path="/gifting/bundles" element={<GiftingBundlesPage />} />
               <Route path="/gifting/bundles/:packageId" element={<GiftBundleDetail />} />
               <Route path="/gifting/build" element={<CustomGiftBuilder />} />

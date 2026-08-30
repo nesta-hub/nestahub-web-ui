@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { api, getWalletSummary, attributeReferral } from '@/lib/api';
+import { api, getWalletSummary, attributeReferral, getAllClaimTokens, claimGuestOrder } from '@/lib/api';
 import { getReferralCookie, clearReferralCookie } from '@/utils/wallet';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -63,6 +63,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  /**
+   * Attach any orders placed as a guest to the account that just signed in.
+   *
+   * Fire-and-forget and individually guarded: a token can be expired, already
+   * consumed on another device, or simply stale. None of those should disturb
+   * a successful sign-in, and the client drops each token either way.
+   */
+  const claimGuestOrders = useCallback(async (accessToken: string) => {
+    const tokens = getAllClaimTokens();
+    for (const [orderNumber, claimToken] of Object.entries(tokens)) {
+      try {
+        await claimGuestOrder(orderNumber, claimToken, accessToken);
+      } catch {
+        // Already claimed or expired — nothing to recover, and the buyer still
+        // has the links in their email.
+      }
+    }
+  }, []);
+
   const syncUserToBackend = useCallback(async (accessToken: string) => {
     try {
       const response = await fetch(`${API_BASE}/auth/sync-user`, {
@@ -75,13 +94,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Fire-and-forget: wallet balance + referral attribution
         fetchWalletBalance(accessToken);
         handleReferralAttribution(accessToken);
+        claimGuestOrders(accessToken);
       }
     } catch (error) {
       console.error('Failed to sync user to backend:', error);
     } finally {
       setLoading(false);
     }
-  }, [fetchWalletBalance, handleReferralAttribution]);
+  }, [fetchWalletBalance, handleReferralAttribution, claimGuestOrders]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {

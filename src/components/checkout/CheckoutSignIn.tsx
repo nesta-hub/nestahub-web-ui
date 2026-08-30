@@ -1,4 +1,8 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 function GoogleIcon({ className }: { className?: string }) {
@@ -20,40 +24,158 @@ function FacebookIcon({ className }: { className?: string }) {
   );
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 interface CheckoutSignInProps {
   onSignIn?: () => void;
+  /**
+   * Show the guest route (PRD §2). Off by default — regular checkout needs an
+   * account for addresses, wallet and subscriptions. Only gift cards opt in.
+   */
+  allowGuest?: boolean;
+  /** Receives the guest's email once it validates. */
+  onGuestContinue?: (email: string) => void;
+  /** Disables the guest button while the caller creates the order. */
+  guestSubmitting?: boolean;
 }
 
-export function CheckoutSignIn({ onSignIn: _ }: CheckoutSignInProps) {
+export function CheckoutSignIn({
+  onSignIn: _,
+  allowGuest = false,
+  onGuestContinue,
+  guestSubmitting = false,
+}: CheckoutSignInProps) {
   const { signInWithGoogle, signInWithFacebook } = useAuth();
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestError, setGuestError] = useState<string | null>(null);
 
+  const handleGuestContinue = () => {
+    const email = guestEmail.trim();
+    if (!EMAIL_RE.test(email) || email.length > 255) {
+      setGuestError("Enter a valid email address");
+      return;
+    }
+    setGuestError(null);
+    onGuestContinue?.(email);
+  };
+
+  const socialButtons = (
+    <div className="space-y-3">
+      <Button
+        variant="outline"
+        className="w-full h-12 gap-2"
+        onClick={() => signInWithGoogle()}
+      >
+        <GoogleIcon className="w-5 h-5" />
+        Continue with Google
+      </Button>
+
+      <Button
+        variant="outline"
+        className="w-full h-12 gap-2"
+        onClick={() => signInWithFacebook()}
+      >
+        <FacebookIcon className="w-5 h-5" />
+        Continue with Facebook
+      </Button>
+    </div>
+  );
+
+  if (!allowGuest) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+        <h2 className="text-xl font-semibold text-foreground mb-2 text-center">
+          Sign in to continue
+        </h2>
+        <p className="text-sm text-muted-foreground mb-8 text-center max-w-xs">
+          This is a one-time process to complete your order
+        </p>
+        <div className="w-full max-w-sm">{socialButtons}</div>
+      </div>
+    );
+  }
+
+  // Two equal-weight routes in separate cards, per the Lovable design — which
+  // rejects a divider with the guest route as an afterthought beneath it.
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-      <h2 className="text-xl font-semibold text-foreground mb-2 text-center">
-        Sign in to continue
-      </h2>
-      <p className="text-sm text-muted-foreground mb-8 text-center max-w-xs">
-        This is a one-time process to complete your order
-      </p>
+    <div className="flex-1 flex flex-col items-center justify-start px-6 pt-8 pb-6">
+      <div className="w-full max-w-md space-y-4">
+        <div className="rounded-2xl border bg-primary/5 p-9 shadow-sm space-y-4">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Sign in to continue
+            </h2>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+              Simply log in with your Google or Facebook account and you'll be
+              able to track this order under a profile.
+            </p>
+          </div>
+          {socialButtons}
+        </div>
 
-      <div className="w-full max-w-sm space-y-3">
-        <Button
-          variant="outline"
-          className="w-full h-12 gap-2"
-          onClick={() => signInWithGoogle()}
-        >
-          <GoogleIcon className="w-5 h-5" />
-          Continue with Google
-        </Button>
+        <div className="relative flex items-center justify-center">
+          <span className="bg-background px-3 text-sm font-medium text-muted-foreground">
+            or
+          </span>
+        </div>
 
-        <Button
-          variant="outline"
-          className="w-full h-12 gap-2"
-          onClick={() => signInWithFacebook()}
-        >
-          <FacebookIcon className="w-5 h-5" />
-          Continue with Facebook
-        </Button>
+        <div className="rounded-2xl border bg-card p-5 shadow-sm space-y-4">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Continue as guest
+            </h2>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+              No account needed. We'll send your receipt and gift card details
+              to this email.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="space-y-1.5 text-left">
+              <Label
+                htmlFor="guest-email"
+                className="text-xs text-muted-foreground"
+              >
+                Email address
+              </Label>
+              <Input
+                id="guest-email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                maxLength={255}
+                placeholder="you@email.com"
+                value={guestEmail}
+                onChange={(e) => {
+                  setGuestEmail(e.target.value);
+                  if (guestError) setGuestError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleGuestContinue();
+                }}
+                className="h-12 bg-background"
+              />
+              {guestError && (
+                <p className="text-xs text-destructive">{guestError}</p>
+              )}
+            </div>
+
+            <Button
+              className="w-full h-12"
+              onClick={handleGuestContinue}
+              disabled={guestSubmitting || !EMAIL_RE.test(guestEmail.trim())}
+            >
+              {guestSubmitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  Continuing...
+                </>
+              ) : (
+                "Continue"
+              )}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
