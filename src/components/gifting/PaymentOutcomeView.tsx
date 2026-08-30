@@ -7,6 +7,7 @@ import type { OrderStatusGiftCard } from "@/lib/api";
 export interface WhatsAppPreviewProps {
   recipientName: string;
   senderName?: string;
+  isAnonymous?: boolean;
   /** Gift value in naira (not kobo). */
   amount?: number;
   message?: string;
@@ -16,11 +17,14 @@ export interface WhatsAppPreviewProps {
 function WhatsAppMessagePreview({
   recipientName,
   senderName,
+  isAnonymous,
   amount,
   message,
   giftUrl,
 }: WhatsAppPreviewProps) {
   const worth = amount ? `₦${amount.toLocaleString("en-NG")}` : "a gift card";
+  const hasMessage = !!message?.trim();
+  const anonymous = isAnonymous || !senderName?.trim();
   const time = new Date().toLocaleTimeString("en-NG", {
     hour: "numeric",
     minute: "2-digit",
@@ -33,23 +37,26 @@ function WhatsAppMessagePreview({
       </p>
       <div className="rounded-2xl bg-[hsl(28,25%,92%)] p-3">
         <div className="rounded-xl bg-white px-4 py-3 shadow-sm text-[13px] leading-relaxed text-foreground/90 space-y-3">
-          <p className="font-bold text-foreground">You've received a gift!</p>
-          <p>Hi {recipientName},</p>
+          <p className="font-bold text-foreground">Gift card received</p>
           <p>
-            {senderName?.trim() || "Someone"} sent you a gift card worth{" "}
-            <span className="font-semibold text-foreground">{worth}</span> on
-            Nesta Hub{message?.trim() ? " and a message!" : "!"}
+            Hi {recipientName},{" "}
+            {anonymous ? (
+              <>someone just sent you a gift card worth <span className="font-semibold text-foreground">{worth}</span>{hasMessage ? " and a message" : ""} on Nesta Hub.</>
+            ) : (
+              <><span className="font-semibold text-foreground">{senderName}</span> just sent you a gift card worth <span className="font-semibold text-foreground">{worth}</span>{hasMessage ? " and a message" : ""} on Nesta Hub.</>
+            )}
           </p>
-          {message?.trim() && <p className="italic">"{message.trim()}"</p>}
-          <p>Click the link below to view and redeem your gift card.</p>
+          {anonymous && (
+            <p className="font-semibold text-foreground">The Sender chose to be anonymous.</p>
+          )}
+          {hasMessage && <p className="italic">"{message!.trim()}"</p>}
+          <p>Your gift card is ready to be viewed and redeemed.</p>
           {giftUrl && (
             <p className="break-all text-foreground/80">{giftUrl}</p>
           )}
-          <div className="flex items-end justify-between gap-3">
-            <span>Happy Shopping!</span>
-            <span className="text-[10px] text-muted-foreground shrink-0">
-              {time}
-            </span>
+          <p>Click the link above to view your gift card.</p>
+          <div className="flex justify-end">
+            <span className="text-[10px] text-muted-foreground">{time}</span>
           </div>
         </div>
       </div>

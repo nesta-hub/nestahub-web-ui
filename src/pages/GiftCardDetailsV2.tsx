@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import { Layout } from "@/components/layout";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -8,21 +8,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Link2, Mail, MessageCircle, Send, Trash2, Gift, Info } from "lucide-react";
+import { ArrowLeft, Link2, Mail, MessageCircle, Send, Trash2, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GiftCardPreview } from "@/components/gifting/GiftCardPreview";
 import { type GiftCardTheme } from "@/components/gifting/GiftCardThemes";
-import { formatPrice, api, createBulkGiftCardOrder } from "@/lib/api";
+import { formatPrice } from "@/lib/api";
 import { metaPixel } from "@/lib/metaPixel";
 import { useAuth } from "@/contexts/AuthContext";
-import { SignInForm } from "@/components/auth/SignInForm";
-import { CheckoutPaymentView } from "@/components/checkout/CheckoutPaymentView";
-import {
-  PaymentCheckingView,
-  PaymentOutcomeView,
-} from "@/components/gifting/PaymentOutcomeView";
-import { useOrderConfirmationPoll } from "@/hooks/useOrderConfirmationPoll";
-import { resolveOutcomeCopy, type CtaAction } from "@/lib/giftOutcomeCopy";
+import { useGiftCardCart } from "@/contexts/GiftCardCartContext";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from "@/components/ui/drawer";
 
 export interface ConfiguredGiftCard {
@@ -32,7 +25,7 @@ export interface ConfiguredGiftCard {
   amount: number;
   deliveryMethod: "link" | "email" | "whatsapp";
   recipientName: string;
-  /** Required by the backend gift-card order DTO (used to verify the recipient). */
+  /** Required by the backend gift-card order DTO. */
   recipientPhone: string;
   recipientEmail?: string;
   senderName?: string;
@@ -52,138 +45,58 @@ type DeliveryMethod = "link" | "email" | "whatsapp";
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** 08012345678 / 8012345678 / +2348012345678 / 2348012345678 */
 const nigerianPhoneRegex = /^(?:\+?234|0)?[789][01]\d{8}$/;
-const PENDING_KEY = "pending_gift_card_purchase_v2";
 
 const GiftCardDetailsV2 = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = useAuth();
+  const { cards, addCards } = useGiftCardCart();
 
   const state = location.state as LocationState | null;
+  const theme = state?.theme ?? null;
+  const amount = state?.amount ?? 0;
 
-  // Restore synchronously from localStorage if returning from OAuth.
-  const [restored] = useState<{
-    theme: GiftCardTheme;
-    amount: number;
-    addedCards: ConfiguredGiftCard[];
-  } | null>(() => {
-    if (state?.theme && state?.amount) return null;
-    try {
-      const pending = localStorage.getItem(PENDING_KEY);
-      if (!pending) return null;
-      const data = JSON.parse(pending);
-      if (Date.now() - data.timestamp > 30 * 60 * 1000) {
-        localStorage.removeItem(PENDING_KEY);
-        return null;
-      }
-      return { theme: data.theme, amount: data.amount, addedCards: data.summaryCards ?? [] };
-    } catch {
-      localStorage.removeItem(PENDING_KEY);
-      return null;
-    }
+  // Prefill from the last card in the cart (survives OAuth redirect via localStorage).
+  const prefill = cards.length > 0 ? cards[cards.length - 1] : null;
+
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>(
+    prefill?.deliveryMethod ?? "link",
+  );
+  const [recipientName, setRecipientName] = useState(prefill?.recipientName ?? "");
+  const [recipientPhone, setRecipientPhone] = useState(prefill?.recipientPhone ?? "");
+  const [recipientEmail, setRecipientEmail] = useState(prefill?.recipientEmail ?? "");
+  const [senderName, setSenderName] = useState(() => {
+    const meta = session?.user?.user_metadata as Record<string, string> | undefined;
+    const fromSession =
+      meta?.name ||
+      meta?.full_name ||
+      [meta?.given_name, meta?.family_name].filter(Boolean).join(" ");
+    return fromSession || prefill?.senderName || "";
   });
-
-  const theme = state?.theme ?? restored?.theme ?? null;
-  const amount = state?.amount ?? restored?.amount ?? 0;
-
-  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("link");
-  const [recipientName, setRecipientName] = useState("");
-  const [recipientPhone, setRecipientPhone] = useState("");
-  const [recipientEmail, setRecipientEmail] = useState("");
-  const [senderName, setSenderName] = useState("");
-  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(prefill?.isAnonymous ?? false);
   const [phoneTouched, setPhoneTouched] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(prefill?.message ?? "");
 
+  // addedCards: from navigation state (add-another flow) or all-but-last from cart.
   const [addedCards, setAddedCards] = useState<ConfiguredGiftCard[]>(
-    state?.addedCards ?? restored?.addedCards ?? [],
+    state?.addedCards ?? (cards.length > 1 ? cards.slice(0, -1) : []),
   );
 
   const [showSummaryDrawer, setShowSummaryDrawer] = useState(false);
-  const [showSignIn, setShowSignIn] = useState(false);
-  // Set once the buyer chooses the guest path. Distinct from `session`: these
-  // two are mutually exclusive, and `session` always wins.
-  const [guestEmail, setGuestEmail] = useState<string | null>(null);
-  const [showPayment, setShowPayment] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [orderId, setOrderId] = useState("");
-  const [serverTotal, setServerTotal] = useState(0);
-  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
-  const [createOrderError, setCreateOrderError] = useState<string | null>(null);
-
-  // §1: starts when "Payment Made" is clicked, stops on confirm or at 30s.
-  const { state: pollState, status: orderStatus } = useOrderConfirmationPoll(
-    showSuccess ? orderId : null,
-    session?.access_token,
-  );
 
   const senderNameTouchedRef = useRef(false);
   const currentCardIdRef = useRef(`gc-current-${Date.now()}`);
   const pendingNavigateAwayRef = useRef(false);
   const suppressNextSummaryCloseRef = useRef(false);
 
-  // With a shareable link the buyer hands the link over themselves, so hiding
-  // the name would be theatre. Anonymity is email/WhatsApp only.
   const canBeAnonymous = deliveryMethod === "email" || deliveryMethod === "whatsapp";
   const sendAnonymously = canBeAnonymous && isAnonymous;
 
-  // Link/email delivery — no recipient phone is collected (matches the design).
   const emailValid = deliveryMethod !== "email" || emailRegex.test(recipientEmail.trim());
   const phoneValid =
     deliveryMethod !== "whatsapp" || nigerianPhoneRegex.test(recipientPhone.trim());
   const isValid = recipientName.trim().length > 0 && emailValid && phoneValid;
-
-  const buildCurrentCard = (): ConfiguredGiftCard => ({
-    id: currentCardIdRef.current,
-    theme: theme!,
-    amount,
-    deliveryMethod,
-    recipientName: recipientName.trim(),
-    recipientEmail: deliveryMethod === "email" ? recipientEmail.trim() : undefined,
-    recipientPhone:
-      deliveryMethod === "whatsapp" ? recipientPhone.trim().replace(/[\s-]/g, "") : "",
-    senderName: sendAnonymously ? undefined : senderName.trim() || undefined,
-    isAnonymous: sendAnonymously,
-    message: message.trim() || undefined,
-  });
-
-  const summaryCards: ConfiguredGiftCard[] = isValid
-    ? [...addedCards, buildCurrentCard()]
-    : [...addedCards];
-  const summaryTotal = summaryCards.reduce((sum, c) => sum + c.amount, 0);
-
-  // §4: logged-in buyers get their account name prefilled; guests get a blank
-  // field. Either way it stays editable — the point of the change is that the
-  // buyer can see and control what the recipient reads.
-  useEffect(() => {
-    if (senderNameTouchedRef.current) return;
-    const meta = session?.user?.user_metadata as Record<string, string> | undefined;
-    const accountName =
-      meta?.name ||
-      meta?.full_name ||
-      [meta?.given_name, meta?.family_name].filter(Boolean).join(" ");
-    if (accountName) setSenderName(accountName);
-  }, [session]);
-
-  // Auto-create orders after returning from OAuth sign-in.
-  useEffect(() => {
-    if (!session) return;
-    const pending = localStorage.getItem(PENDING_KEY);
-    if (!pending) return;
-    try {
-      const data = JSON.parse(pending);
-      if (Date.now() - data.timestamp > 30 * 60 * 1000) {
-        localStorage.removeItem(PENDING_KEY);
-        return;
-      }
-      localStorage.removeItem(PENDING_KEY);
-      void placeOrders(data.summaryCards as ConfiguredGiftCard[]);
-    } catch {
-      localStorage.removeItem(PENDING_KEY);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
 
   if (!theme || !amount) {
     return <Navigate to="/gifting/cards" replace />;
@@ -204,71 +117,31 @@ const GiftCardDetailsV2 = () => {
     );
   }
 
-  /**
-   * Create the order for either a signed-in buyer or a guest.
-   *
-   * `guestEmailOverride` exists because React state set in the same tick as the
-   * "Continue as Guest" click is not visible here yet.
-   */
-  const placeOrders = async (
-    cards: ConfiguredGiftCard[],
-    guestEmailOverride?: string,
-  ) => {
-    const guest = guestEmailOverride ?? guestEmail;
-    if ((!session && !guest) || cards.length === 0) return;
-    setIsCreatingOrder(true);
-    setCreateOrderError(null);
-    try {
-      // A guest has no account name. The sender name they typed is the name
-      // that appears in admin and on the Slack alert.
-      const buyerName = session
-        ? session.user.user_metadata?.name || cards[0]?.senderName || "Gift Card Buyer"
-        : cards.find((c) => !c.isAnonymous && c.senderName)?.senderName ||
-          guest ||
-          "Guest";
-      const order = await createBulkGiftCardOrder(
-        {
-          fullName: buyerName,
-          ...(session ? {} : { guestEmail: guest ?? undefined }),
-          giftCards: cards.map((c) => ({
-            themeId: c.theme.id,
-            amount: c.amount,
-            recipientName: c.recipientName,
-            recipientEmail: c.recipientEmail,
-            recipientPhone: c.recipientPhone || undefined,
-            senderName: c.isAnonymous ? undefined : c.senderName || buyerName,
-            isAnonymous: c.isAnonymous ?? false,
-            message: c.message,
-            deliveryMethod: c.deliveryMethod,
-          })),
-        },
-        session?.access_token,
-      );
-      metaPixel.purchase({
-        value: cards.reduce((s, c) => s + c.amount, 0) / 100,
-        currency: 'NGN',
-        num_items: cards.length,
-        order_id: order.orderNumber,
-      });
-      setOrderId(order.orderNumber);
-      setServerTotal(order.totalAmount);
-      setShowSummaryDrawer(false);
-      setShowPayment(true);
-    } catch (err) {
-      setCreateOrderError(
-        err instanceof Error ? err.message : "Failed to create order. Please try again.",
-      );
-    } finally {
-      setIsCreatingOrder(false);
-    }
-  };
+  const buildCurrentCard = (): ConfiguredGiftCard => ({
+    id: currentCardIdRef.current,
+    theme: theme!,
+    amount,
+    deliveryMethod,
+    recipientName: recipientName.trim(),
+    recipientEmail: deliveryMethod === "email" ? recipientEmail.trim() : undefined,
+    recipientPhone:
+      deliveryMethod === "whatsapp" ? recipientPhone.trim().replace(/[\s-]/g, "") : "",
+    senderName: sendAnonymously ? undefined : senderName.trim() || undefined,
+    isAnonymous: sendAnonymously,
+    message: message.trim() || undefined,
+  });
+
+  const summaryCards: ConfiguredGiftCard[] = isValid
+    ? [...addedCards, buildCurrentCard()]
+    : [...addedCards];
+  const summaryTotal = summaryCards.reduce((sum, c) => sum + c.amount, 0);
 
   const handleProceed = () => {
     if (!isValid) return;
-    metaPixel.customEvent('GiftCardReviewOrder', {
+    metaPixel.customEvent("GiftCardReviewOrder", {
       num_cards: summaryCards.length,
       total_value: summaryCards.reduce((s, c) => s + c.amount, 0) / 100,
-      currency: 'NGN',
+      currency: "NGN",
     });
     setShowSummaryDrawer(true);
   };
@@ -313,137 +186,17 @@ const GiftCardDetailsV2 = () => {
     }
   };
 
-  const handleProceedToPayment = async () => {
+  const handleProceedToPayment = () => {
     if (summaryCards.length === 0) return;
     metaPixel.initiateCheckout({
       num_items: summaryCards.length,
       value: summaryCards.reduce((s, c) => s + c.amount, 0) / 100,
-      currency: 'NGN',
+      currency: "NGN",
     });
-    if (!session) {
-      // Persist before OAuth redirect, then restore + auto-create on return.
-      localStorage.setItem(
-        PENDING_KEY,
-        JSON.stringify({ theme, amount, summaryCards, timestamp: Date.now() }),
-      );
-      setShowSummaryDrawer(false);
-      setShowSignIn(true);
-      return;
-    }
-    await placeOrders(summaryCards);
+    addCards(summaryCards);
+    setShowSummaryDrawer(false);
+    navigate("/gifting/checkout");
   };
-
-  /**
-   * Guest path (§2). No account is created and no session starts — the order is
-   * owned by the claim token that `createBulkGiftCardOrder` stores.
-   */
-  const handleGuestContinue = async (email: string) => {
-    setGuestEmail(email);
-    // The draft was persisted for an OAuth round-trip that is no longer
-    // happening; drop it so a later sign-in cannot replay this order.
-    localStorage.removeItem(PENDING_KEY);
-    // Keep sign-in screen visible (button spinner via guestSubmitting) until
-    // placeOrders completes — prevents flash of the main form during the API call.
-    await placeOrders(summaryCards, email);
-    setShowSignIn(false);
-  };
-
-  // Sign-in view
-  if (showSignIn) {
-    return (
-      <Layout showNav={false}>
-        <div className="min-h-screen flex flex-col">
-          <div className="flex items-center gap-3 px-4 py-4 border-b shrink-0">
-            <button type="button" onClick={() => setShowSignIn(false)}>
-              <ArrowLeft className="w-5 h-5 text-foreground" />
-            </button>
-            <h1 className="font-semibold text-lg">Checkout</h1>
-          </div>
-          <SignInForm
-            containerClassName="flex-1 flex flex-col items-center justify-start px-6 pt-8 pb-6"
-            title="Sign in to continue"
-            allowGuest
-            guestSubmitting={isCreatingOrder}
-            onGuestContinue={handleGuestContinue}
-          />
-          {createOrderError && (
-            <p className="px-6 pb-6 text-sm text-destructive text-center">
-              {createOrderError}
-            </p>
-          )}
-        </div>
-      </Layout>
-    );
-  }
-
-  // Payment view
-  if (showPayment) {
-    return (
-      <CheckoutPaymentView
-        orderId={orderId}
-        totalAmount={serverTotal}
-        token={session?.access_token || ""}
-        onPaymentConfirmed={() => {
-          setShowPayment(false);
-          setShowSuccess(true);
-        }}
-        onBack={() => setShowPayment(false)}
-        hideGiftCardRedeem
-      />
-    );
-  }
-
-  // Post-payment: 30-second window, then whichever outcome is true (§1).
-  if (showSuccess) {
-    if (pollState === "waiting") {
-      return <PaymentCheckingView />;
-    }
-
-    const firstCard = summaryCards[0];
-    const copy = resolveOutcomeCopy({
-      authState: session ? "user" : "guest",
-      deliveryMethod: firstCard?.deliveryMethod ?? "link",
-      confirmed: pollState === "confirmed",
-      orderKind: "gift_card",
-      buyerEmail: orderStatus?.buyerEmail ?? guestEmail,
-      recipientEmail: firstCard?.recipientEmail,
-      recipientName: firstCard?.recipientName,
-    });
-
-    const handleAction = (action: CtaAction) => {
-      switch (action) {
-        case "order-history":
-          navigate("/orders", { state: { orderNumber: orderId } });
-          break;
-        case "gifting":
-          navigate("/gifting");
-          break;
-        case "shop":
-          navigate("/catalogue");
-          break;
-      }
-    };
-
-    const whatsAppPreviewProps =
-      firstCard?.deliveryMethod === "whatsapp" && pollState === "confirmed"
-        ? {
-            recipientName: firstCard.recipientName,
-            senderName: sendAnonymously ? undefined : senderName.trim() || undefined,
-            amount: firstCard.amount / 100,
-            message: message.trim() || undefined,
-            giftUrl: orderStatus?.giftCards?.[0]?.link,
-          }
-        : undefined;
-
-    return (
-      <PaymentOutcomeView
-        copy={copy}
-        giftCards={orderStatus?.giftCards ?? []}
-        onAction={handleAction}
-        whatsAppPreviewProps={whatsAppPreviewProps}
-      />
-    );
-  }
 
   const deliveryOptions: Array<{
     id: DeliveryMethod;
@@ -451,9 +204,9 @@ const GiftCardDetailsV2 = () => {
     icon: typeof Link2;
     disabled?: boolean;
   }> = [
-    { id: "link", label: "Send it myself", icon: Link2 },
-    { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
-    { id: "email", label: "Email", icon: Mail },
+    { id: "link",     label: "Send it myself", icon: Link2 },
+    { id: "whatsapp", label: "WhatsApp",        icon: MessageCircle },
+    { id: "email",    label: "Email",           icon: Mail },
   ];
 
   const helperByMethod: Record<DeliveryMethod, string> = {
@@ -580,7 +333,7 @@ const GiftCardDetailsV2 = () => {
           )}
         </div>
 
-        {/* Sender Details — shown for every delivery method (§4) */}
+        {/* Sender Details */}
         <div className="px-4 mt-6 space-y-2">
           <h3 className="text-sm font-semibold text-foreground">Sender details</h3>
           <Input
@@ -595,7 +348,7 @@ const GiftCardDetailsV2 = () => {
             autoComplete="name"
           />
           <p className="text-xs text-muted-foreground">
-            Name shown to recipient as the sender.{!!session && !!senderName.trim() && " Change it if needed."}
+            Name shown to recipient as the sender.
           </p>
           {canBeAnonymous && (
             <label className="flex items-center gap-2 pt-2 cursor-pointer">
@@ -741,19 +494,15 @@ const GiftCardDetailsV2 = () => {
               </p>
             </div>
           )}
+
           <DrawerFooter className="gap-2">
-            {createOrderError && (
-              <div className="mb-1 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <p className="text-sm text-destructive">{createOrderError}</p>
-              </div>
-            )}
             <Button
               variant="shop"
               className="w-full h-12 text-base font-semibold"
               onClick={handleProceedToPayment}
-              disabled={summaryCards.length === 0 || isCreatingOrder}
+              disabled={summaryCards.length === 0}
             >
-              {isCreatingOrder ? "Creating order…" : "Proceed to Payment"}
+              Proceed to Payment
             </Button>
             <Button variant="outline" className="w-full h-11 text-sm font-semibold" onClick={handleAddAnother}>
               Add another gift card

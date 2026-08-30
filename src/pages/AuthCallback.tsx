@@ -14,14 +14,11 @@ export function AuthCallback() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [referralFromCookie, setReferralFromCookie] = useState(false);
-  const [redirectUrl, setRedirectUrl] = useState("/checkout");
-
-  useEffect(() => {
-    // Get saved redirect URL and clean up
-    const savedRedirectUrl = localStorage.getItem('auth_redirect_url') || '/checkout';
-    setRedirectUrl(savedRedirectUrl);
+  const [redirectUrl] = useState(() => {
+    const saved = localStorage.getItem('auth_redirect_url') || '/checkout';
     localStorage.removeItem('auth_redirect_url');
-  }, []);
+    return saved;
+  });
 
   useEffect(() => {
     // Once user is synced, check if phone is needed

@@ -44,6 +44,15 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const nigerianPhoneRegex = /^(?:\+?234|0)?[789][01]\d{8}$/;
 const MIN_AMOUNT_KOBO = 1_000_000; // ₦10,000
 const PENDING_KEY = "pending_gift_card_purchase_v2";
+const ACTIVE_ORDER_KEY = "active_gift_card_order_v1";
+
+interface ActiveOrder {
+  orderId: string;
+  phase: "payment" | "success";
+  summaryCards: ConfiguredGiftCard[];
+  serverTotal: number;
+  timestamp: number;
+}
 
 export function DesktopGiftCardStudio() {
   const navigate = useNavigate();
@@ -74,6 +83,23 @@ export function DesktopGiftCardStudio() {
   const hasAutoPlaced = useRef(false);
   const senderNameTouchedRef = useRef(false);
 
+  const [restoredOrder] = useState<ActiveOrder | null>(() => {
+    try {
+      const raw = localStorage.getItem(ACTIVE_ORDER_KEY);
+      if (!raw) return null;
+      const parsed: ActiveOrder = JSON.parse(raw);
+      if (Date.now() - parsed.timestamp > 2 * 60 * 60 * 1000) {
+        localStorage.removeItem(ACTIVE_ORDER_KEY);
+        return null;
+      }
+      if (localStorage.getItem(PENDING_KEY)) return null;
+      return parsed;
+    } catch {
+      localStorage.removeItem(ACTIVE_ORDER_KEY);
+      return null;
+    }
+  });
+
   // Prefill sender name from logged-in user's account name.
   useEffect(() => {
     if (senderNameTouchedRef.current) return;
@@ -103,6 +129,20 @@ export function DesktopGiftCardStudio() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.access_token]);
+
+  // Restore payment/success phase from a previous session.
+  useEffect(() => {
+    if (!restoredOrder) return;
+    setOrderId(restoredOrder.orderId);
+    setServerTotal(restoredOrder.serverTotal);
+    if (restoredOrder.phase === "success") {
+      setAwaitingConfirmation(true);
+      setStep("success");
+    } else {
+      setStep("payment");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const placeOrders = async (
     cards: ConfiguredGiftCard[],
@@ -142,9 +182,17 @@ export function DesktopGiftCardStudio() {
         },
         token,
       );
+      const total = result.totalAmount ?? cards.reduce((s, c) => s + c.amount, 0);
       setOrderId(result.orderNumber);
-      setServerTotal(result.totalAmount ?? cards.reduce((s, c) => s + c.amount, 0));
+      setServerTotal(total);
       setStep("payment");
+      localStorage.setItem(ACTIVE_ORDER_KEY, JSON.stringify({
+        orderId: result.orderNumber,
+        phase: "payment",
+        summaryCards: cards,
+        serverTotal: total,
+        timestamp: Date.now(),
+      } satisfies ActiveOrder));
     } catch {
       setStep("review");
     } finally {
@@ -180,9 +228,9 @@ export function DesktopGiftCardStudio() {
     icon: typeof Link2;
     disabled?: boolean;
   }> = [
-      { id: "link", label: "Send it myself", icon: Link2 },
-      { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
-      { id: "email", label: "Email", icon: Mail },
+      { id: "link",     label: "Send it myself", icon: Link2 },
+      { id: "email",    label: "Email",           icon: Mail },
+      { id: "whatsapp", label: "WhatsApp",        icon: MessageCircle, disabled: true },
     ];
 
   const buildCurrentCard = (): ConfiguredGiftCard => ({
@@ -234,6 +282,13 @@ export function DesktopGiftCardStudio() {
     awaitingConfirmation ? orderId : null,
     session?.access_token,
   );
+
+  // Clear the persisted order once confirmed so a reload shows a fresh form.
+  useEffect(() => {
+    if (pollState === "confirmed") {
+      localStorage.removeItem(ACTIVE_ORDER_KEY);
+    }
+  }, [pollState]);
 
   const handleProceedToPayment = () => {
     if (!session?.access_token && !guestEmail) {
@@ -290,12 +345,18 @@ export function DesktopGiftCardStudio() {
       );
     }
 
-    const itemsLabel = `${summaryCards.length} gift card${summaryCards.length === 1 ? "" : "s"}`;
+    const cardCount = summaryCards.length || restoredOrder?.summaryCards.length || 0;
+    const itemsLabel = `${cardCount} gift card${cardCount === 1 ? "" : "s"}`;
     return (
       <DesktopCheckoutPaymentView
         orderId={orderId}
         totalAmount={serverTotal || summaryTotal}
         onPaymentConfirmed={() => {
+          const raw = localStorage.getItem(ACTIVE_ORDER_KEY);
+          if (raw) {
+            const stored = JSON.parse(raw) as ActiveOrder;
+            localStorage.setItem(ACTIVE_ORDER_KEY, JSON.stringify({ ...stored, phase: "success" }));
+          }
           setAwaitingConfirmation(true);
           setStep("success");
         }}
@@ -314,7 +375,9 @@ export function DesktopGiftCardStudio() {
       return <PaymentCheckingView variant="desktop" />;
     }
 
-    const firstCard = summaryCards[0];
+    const effectiveSummaryCards =
+      summaryCards.length > 0 ? summaryCards : restoredOrder?.summaryCards ?? [];
+    const firstCard = effectiveSummaryCards[0];
     const copy = resolveOutcomeCopy({
       authState: session ? "user" : "guest",
       deliveryMethod: firstCard?.deliveryMethod ?? "link",
@@ -326,6 +389,7 @@ export function DesktopGiftCardStudio() {
     });
 
     const handleOutcomeAction = (action: CtaAction) => {
+      localStorage.removeItem(ACTIVE_ORDER_KEY);
       switch (action) {
         case "order-history":
           navigate("/account/gifting");
@@ -339,14 +403,16 @@ export function DesktopGiftCardStudio() {
       }
     };
 
+    const waCard = orderStatus?.giftCards?.find((gc) => gc.deliveryMethod === "whatsapp");
     const whatsAppPreviewProps =
-      firstCard?.deliveryMethod === "whatsapp" && pollState === "confirmed"
+      waCard && pollState === "confirmed"
         ? {
-            recipientName: firstCard.recipientName,
-            senderName: sendAnonymously ? undefined : senderName.trim() || undefined,
-            amount: firstCard.amount / 100,
-            message: message.trim() || undefined,
-            giftUrl: orderStatus?.giftCards?.[0]?.link,
+            recipientName: waCard.recipientName,
+            senderName: waCard.senderName ?? undefined,
+            isAnonymous: waCard.isAnonymous ?? false,
+            amount: waCard.amount / 100,
+            message: waCard.message ?? undefined,
+            giftUrl: waCard.link,
           }
         : undefined;
 

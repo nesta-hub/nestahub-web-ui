@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { ArrowLeft, Package, RefreshCw } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Package, RefreshCw, Loader2 } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
@@ -19,7 +19,7 @@ import {
   type PaymentOption,
 } from "@/components/checkout";
 import { SignInForm } from "@/components/auth/SignInForm";
-import { api, formatPrice } from "@/lib/api";
+import { api, formatPrice, getOrderStatus } from "@/lib/api";
 import { metaPixel } from "@/lib/metaPixel";
 import { useGiftBundle, usePackagingOptions } from "@/hooks/useGifting";
 import { isZone1Address, isZone1Or2Address } from "@/components/checkout/CheckoutAddressSection";
@@ -43,10 +43,9 @@ type DeliverySpeed = 'standard' | 'weekend' | 'sameday' | 'nextday';
 const Checkout = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const location = useLocation();
   const { items, totalAmount, clearCart } = useCart();
   const isMobile = useIsMobile();
-  const { user, session, walletBalance } = useAuth();
+  const { user, session, walletBalance, loading } = useAuth();
 
   // Curated gift-bundle checkout
   const isGiftBundle = searchParams.get('source') === 'gift-bundle';
@@ -95,6 +94,7 @@ const Checkout = () => {
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [serverTotalAmount, setServerTotalAmount] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [paidWithGiftCard, setPaidWithGiftCard] = useState(false);
   const contactRef = useRef<HTMLDivElement>(null);
@@ -104,23 +104,40 @@ const Checkout = () => {
     source === 'gifting' ? 'bundle' : source === 'custom-gift' ? 'custom_gift' : 'shop';
   const bundleId = searchParams.get('bundleId');
   const giftSizeId = searchParams.get('giftSizeId');
+  const orderParam = searchParams.get('order');
+  const stepParam = searchParams.get('step');
 
-  // Resume flow (mobile)
+  // Restore screen from URL on mount, wait for Supabase session to resolve first.
   useEffect(() => {
-    const state = location.state as { resumeOrderNumber?: string; resumeAmount?: number } | null;
-    if (state?.resumeOrderNumber) {
-      setOrderNumber(state.resumeOrderNumber);
-      setServerTotalAmount(state.resumeAmount ?? null);
-      setShowPayment(true);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (loading) return;
 
-  // Redirect to catalogue if cart is empty (mobile only — desktop handled inside DesktopCheckoutView)
-  useEffect(() => {
-    if (isMobile && items.length === 0 && !showPayment && !showSuccess && !isGiftBundle) {
-      navigate('/catalogue');
+    if (orderParam) {
+      setIsLoadingOrder(true);
+      getOrderStatus(orderParam, session?.access_token ?? undefined)
+        .then((status) => {
+          setOrderNumber(status.orderNumber);
+          setServerTotalAmount(status.totalAmount);
+          const pastPayment =
+            !!status.paymentMadeAt ||
+            status.status === 'payment_made' ||
+            status.status === 'processing' ||
+            status.status === 'completed';
+          if (stepParam === 'success' || pastPayment) {
+            setAwaitingConfirmation(true);
+            setShowSuccess(true);
+          } else {
+            setShowPayment(true);
+          }
+        })
+        .catch(() => navigate('/catalogue', { replace: true }))
+        .finally(() => setIsLoadingOrder(false));
+      return;
     }
-  }, [isMobile, items.length, navigate, showPayment, showSuccess, isGiftBundle]);
+
+    if (isMobile && items.length === 0 && !isGiftBundle) {
+      navigate('/catalogue', { replace: true });
+    }
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // §1: poll for up to 30s after "Payment Made", then release the buyer.
   const { state: pollState, status: orderStatus } = useOrderConfirmationPoll(
@@ -214,8 +231,10 @@ const Checkout = () => {
         setServerTotalAmount(result.totalAmount);
         if (paymentOption === 'pay-on-delivery') {
           metaPixel.purchase({ value: result.totalAmount / 100, currency: 'NGN', order_id: result.orderNumber });
+          navigate(`?order=${result.orderNumber}&step=success`, { replace: true });
           setShowSuccess(true);
         } else {
+          navigate(`?order=${result.orderNumber}`, { replace: true });
           setShowPayment(true);
         }
       } catch (err) {
@@ -263,8 +282,10 @@ const Checkout = () => {
 
       if (paymentOption === 'pay-on-delivery') {
         metaPixel.purchase({ value: result.totalAmount / 100, currency: 'NGN', order_id: result.orderNumber });
+        navigate(`?order=${result.orderNumber}&step=success`, { replace: true });
         setShowSuccess(true);
       } else {
+        navigate(`?order=${result.orderNumber}`, { replace: true });
         setShowPayment(true);
       }
     } catch (err) {
@@ -275,6 +296,7 @@ const Checkout = () => {
   };
 
   const handlePaymentConfirmed = () => {
+    navigate(`?order=${orderNumber}&step=success`, { replace: true });
     setShowPayment(false);
     setAwaitingConfirmation(true);
     setShowSuccess(true);
@@ -291,6 +313,19 @@ const Checkout = () => {
       console.error('Failed to confirm gift card payment:', err);
     }
   };
+
+  const spinner = (title: string, subtitle?: string) => (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-center">
+        <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+        <p className="text-lg font-medium text-foreground">{title}</p>
+        {subtitle && <p className="text-sm text-muted-foreground mt-2">{subtitle}</p>}
+      </div>
+    </div>
+  );
+
+  if (loading || isLoadingOrder) return spinner("Loading your order…", "Please wait a moment");
+  if (isSubmitting) return spinner("Placing your order…", "Please wait a moment");
 
   // Mobile payment overlay
   if (showPayment && orderNumber) {
@@ -340,7 +375,6 @@ const Checkout = () => {
     return (
       <PaymentOutcomeView
         copy={copy}
-        orderNumber={orderNumber}
         giftCards={[]}
         onAction={handleAction}
       />

@@ -73,7 +73,7 @@ export function GiftLinkShare({
 
   const shareNative = async () => {
     try {
-      await navigator.share({ title: "Your gift card", text: message, url: link });
+      await navigator.share({ text: message });
     } catch {
       // Dismissed. Not an error.
     }

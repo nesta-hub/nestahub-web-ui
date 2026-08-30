@@ -1088,6 +1088,9 @@ export interface OrderStatusGiftCard {
   deliveryMethod: 'link' | 'email' | 'whatsapp';
   recipientEmail?: string | null;
   deliveredAt?: string | null;
+  senderName?: string | null;
+  isAnonymous?: boolean | null;
+  message?: string | null;
 }
 
 export interface OrderStatus {
@@ -1097,6 +1100,8 @@ export interface OrderStatus {
   confirmed: boolean;
   isGuest: boolean;
   buyerEmail?: string | null;
+  totalAmount: number;
+  paymentMadeAt?: string | null;
   giftCards: OrderStatusGiftCard[];
 }
 
