@@ -9,7 +9,6 @@ import {
   Plus,
   Sparkles,
   Settings2,
-  Truck,
   Check,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -329,7 +328,6 @@ export function DesktopSubscriptionsView({ onBack }: DesktopSubscriptionsViewPro
                 <h3 className="text-sm font-bold text-foreground">Why subscribe</h3>
                 {[
                   { icon: Sparkles, text: "5% off every recurring order, automatically" },
-                  { icon: Truck, text: "Free standard delivery on every cycle" },
                   { icon: Settings2, text: "Skip, pause or change frequency anytime" },
                 ].map(({ icon: Icon, text }) => (
                   <div key={text} className="flex items-start gap-3">

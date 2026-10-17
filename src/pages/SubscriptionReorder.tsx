@@ -8,8 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { CheckoutDeliverySection } from "@/components/checkout/CheckoutDeliverySection";
 import { CheckoutPickupSection } from "@/components/checkout/CheckoutPickupSection";
-import { CheckoutAddressSection, getDeliveryFee, isZone1Or2Address } from "@/components/checkout/CheckoutAddressSection";
-import { CheckoutDeliverySpeedSection } from "@/components/checkout/CheckoutDeliverySpeedSection";
+import { CheckoutAddressSection, getDeliveryFee } from "@/components/checkout/CheckoutAddressSection";
 import { CheckoutPaymentView } from "@/components/checkout/CheckoutPaymentView";
 import { useQuery } from "@tanstack/react-query";
 import { getMySubscriptions, formatPrice, getPickupStations, reorderSubscription, reorderMultipleSubscriptions } from "@/lib/api";
@@ -18,7 +17,6 @@ import type { PickupStation } from "@/lib/api";
 import { toast } from "sonner";
 
 type DeliveryMethod = "pickup" | "address";
-type DeliverySpeed = "standard" | "weekend";
 type Step = "confirm" | "payment" | "success";
 
 const SubscriptionReorder = () => {
@@ -60,12 +58,12 @@ const SubscriptionReorder = () => {
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
   const [selectedStation, setSelectedStation] = useState<PickupStation | null>(null);
-  const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed | null>(null);
   const [addressLat, setAddressLat] = useState<number | null>(null);
   const [addressLng, setAddressLng] = useState<number | null>(null);
   const [addressDeliveryFee, setAddressDeliveryFee] = useState<number | null>(null);
-  const [isZone1Or2, setIsZone1Or2] = useState<boolean>(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  // What the server stored for the order; the payment screen must use this, not our own sum
+  const [serverTotal, setServerTotal] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -101,12 +99,6 @@ const SubscriptionReorder = () => {
         setSelectedAddress(recentSub.lastDeliveryAddress);
       }
 
-      // Auto-populate delivery speed if user used address delivery last time
-      if (recentSub.lastDeliverySpeed) {
-        console.log('⚡ [SubscriptionReorder] Setting deliverySpeed:', recentSub.lastDeliverySpeed);
-        setDeliverySpeed(recentSub.lastDeliverySpeed as DeliverySpeed);
-      }
-
       // Auto-populate coordinates and calculate delivery fee
       if (recentSub.lastDeliveryLat != null && recentSub.lastDeliveryLng != null) {
         console.log('🌍 [SubscriptionReorder] Setting coordinates:', recentSub.lastDeliveryLat, recentSub.lastDeliveryLng);
@@ -119,11 +111,6 @@ const SubscriptionReorder = () => {
           console.log('💰 [SubscriptionReorder] Calculated delivery fee:', fee);
           setAddressDeliveryFee(fee);
         }
-
-        // Determine if address is in Zone 1 or 2 for weekend delivery eligibility
-        const zone1Or2 = isZone1Or2Address(recentSub.lastDeliveryLat, recentSub.lastDeliveryLng);
-        console.log('📍 [SubscriptionReorder] Is Zone 1 or 2:', zone1Or2);
-        setIsZone1Or2(zone1Or2);
       }
 
       if (recentSub.lastPickupStationId && pickupStationsData.length > 0) {
@@ -154,7 +141,6 @@ const SubscriptionReorder = () => {
             deliveryMethod,
             {
               deliveryAddress: selectedAddress || undefined,
-              deliverySpeed: deliverySpeed || undefined,
               deliveryLat: addressLat ?? undefined,
               deliveryLng: addressLng ?? undefined,
               pickupStationId: selectedStation?.id,
@@ -167,7 +153,6 @@ const SubscriptionReorder = () => {
             deliveryMethod,
             {
               deliveryAddress: selectedAddress || undefined,
-              deliverySpeed: deliverySpeed || undefined,
               deliveryLat: addressLat ?? undefined,
               deliveryLng: addressLng ?? undefined,
               pickupStationId: selectedStation?.id,
@@ -177,6 +162,7 @@ const SubscriptionReorder = () => {
           );
 
       setOrderNumber(result.orderId);
+      setServerTotal(result.totalAmount);
       setStep("payment");
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to create order. Please try again.');
@@ -228,20 +214,9 @@ const SubscriptionReorder = () => {
   // Calculate combined product total for all subscriptions
   const productTotal = selectedSubs.reduce((sum, s) => sum + (s.unitPrice * s.quantity), 0);
 
-  // Calculate delivery fee based on method and speed
-  const deliveryFee = (() => {
-    if (deliveryMethod === 'pickup') return 0;
-    if (deliveryMethod === 'address' && deliverySpeed) {
-      if (deliverySpeed === 'standard') {
-        return addressDeliveryFee ?? 0;
-      }
-      // Weekend delivery: ₦500 for all zones
-      if (deliverySpeed === 'weekend') {
-        return 50000; // ₦500 in kobo
-      }
-    }
-    return 0;
-  })();
+  // Delivery is priced like a normal order: pickup is free, an address pays its
+  // zone fee. This is only a preview; the payment screen uses the server's total.
+  const deliveryFee = deliveryMethod === 'address' ? (addressDeliveryFee ?? 0) : 0;
 
   const orderTotal = productTotal + deliveryFee;
 
@@ -249,7 +224,7 @@ const SubscriptionReorder = () => {
     deliveryMethod === "pickup"
       ? !!selectedStation
       : deliveryMethod === "address"
-      ? !!selectedAddress && !!deliverySpeed
+      ? !!selectedAddress && addressLat != null && addressLng != null && addressDeliveryFee != null
       : false;
 
   // Payment step
@@ -258,7 +233,7 @@ const SubscriptionReorder = () => {
       <Layout showNav={false}>
         <CheckoutPaymentView
           orderId={orderNumber}
-          totalAmount={orderTotal}
+          totalAmount={serverTotal ?? orderTotal}
           token={token}
           onPaymentConfirmed={(paymentRef?: string) => {
             // Payment completed, proceed to success
@@ -493,30 +468,20 @@ const SubscriptionReorder = () => {
                   setAddressDeliveryFee(fee);
                   setAddressLat(lat);
                   setAddressLng(lng);
-                  setIsZone1Or2(isZone1Or2Address(lat, lng));
                 }}
                 onChangeAddress={() => {
                   setSelectedAddress(null);
                   setAddressDeliveryFee(null);
                   setAddressLat(null);
                   setAddressLng(null);
-                  setDeliverySpeed(null);
-                  setIsZone1Or2(false);
                 }}
               />
 
-              {/* Delivery Speed Selection - show after address is set */}
-              {selectedAddress && (
-                <div className="mt-6 animate-fade-in">
-                  <CheckoutDeliverySpeedSection
-                    selectedSpeed={deliverySpeed}
-                    onSelectSpeed={setDeliverySpeed}
-                    onChangeSpeed={() => setDeliverySpeed(null)}
-                    address={selectedAddress}
-                    standardDeliveryFee={addressDeliveryFee ?? 0}
-                    isZone1Or2={isZone1Or2}
-                  />
-                </div>
+              {/* A saved address from an older order can lack coordinates (or sit outside the delivery area), and the server needs both to price delivery */}
+              {selectedAddress && (addressLat == null || addressLng == null || addressDeliveryFee == null) && (
+                <p className="mt-3 text-sm text-destructive">
+                  Please re-select your delivery address so we can price delivery.
+                </p>
               )}
             </>
           )}
