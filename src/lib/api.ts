@@ -706,7 +706,7 @@ export interface MySubscription {
   lastSkipped: boolean; // Indicates if user has already skipped recently
   lastMoved: boolean; // Indicates if user has already moved date recently
   lastDeliveryMethod: string | null; // 'pickup' | 'address' from original order
-  lastDeliverySpeed: string | null; // 'standard' | 'weekend' from original order
+  lastDeliverySpeed: string | null; // legacy: the speed string stored on the original order
   lastDeliveryAddress: string | null; // Address from original order
   lastDeliveryLat: number | null; // Latitude from original order
   lastDeliveryLng: number | null; // Longitude from original order
@@ -902,26 +902,34 @@ export async function changeSubscriptionVariant(
   return response.json();
 }
 
+/** What a reorder returns: the order, and the amount the buyer must pay for it. */
+export interface ReorderResult {
+  orderId: string;
+  nextRenewalDate: string;
+  /** Items plus delivery, kobo. Show this on the payment screen, never a locally computed sum. */
+  totalAmount: number;
+  /** Kobo; 0 for pickup. */
+  deliveryFee: number;
+}
+
 export async function reorderSubscription(
   id: string,
   deliveryMethod: string,
   deliveryDetails: {
     addressId?: string;
     deliveryAddress?: string;
-    deliverySpeed?: string;
     deliveryLat?: number;
     deliveryLng?: number;
     pickupStationId?: string;
   },
   paymentReference: string | undefined,
   token: string,
-): Promise<{ orderId: string; nextRenewalDate: string }> {
+): Promise<ReorderResult> {
   const response = await fetch(`${API_BASE_URL}/subscriptions/${id}/reorder`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       deliveryMethod,
-      deliverySpeed: deliveryDetails.deliverySpeed,
       deliveryAddress: deliveryDetails.deliveryAddress,
       deliveryLat: deliveryDetails.deliveryLat,
       deliveryLng: deliveryDetails.deliveryLng,
@@ -930,7 +938,10 @@ export async function reorderSubscription(
       paymentReference,
     }),
   });
-  if (!response.ok) throw new Error('Failed to process reorder');
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to process reorder');
+  }
   return response.json();
 }
 
@@ -940,21 +951,19 @@ export async function reorderMultipleSubscriptions(
   deliveryDetails: {
     addressId?: string;
     deliveryAddress?: string;
-    deliverySpeed?: string;
     deliveryLat?: number;
     deliveryLng?: number;
     pickupStationId?: string;
   },
   paymentReference: string | undefined,
   token: string,
-): Promise<{ orderId: string; nextRenewalDate: string }> {
+): Promise<ReorderResult> {
   const response = await fetch(`${API_BASE_URL}/subscriptions/reorder-multiple`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       subscriptionIds,
       deliveryMethod,
-      deliverySpeed: deliveryDetails.deliverySpeed,
       deliveryAddress: deliveryDetails.deliveryAddress,
       deliveryLat: deliveryDetails.deliveryLat,
       deliveryLng: deliveryDetails.deliveryLng,
@@ -963,7 +972,10 @@ export async function reorderMultipleSubscriptions(
       paymentReference,
     }),
   });
-  if (!response.ok) throw new Error('Failed to process consolidated reorder');
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to process consolidated reorder');
+  }
   return response.json();
 }
 
