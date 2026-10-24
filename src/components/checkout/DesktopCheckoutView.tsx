@@ -4,18 +4,20 @@ import { metaPixel } from "@/lib/metaPixel";
 import { ArrowLeft, ShieldCheck, Clock, Package, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatPrice } from "@/lib/api";
+import { formatPrice, DeliveryQuoteStaleError } from "@/lib/api";
 import type { PickupStation } from "@/lib/api";
+import { useDeliveryOptions } from "@/hooks/useDeliveryOptions";
+import { describeOrderDelivery, type OrderDeliveryFacts, type OrderDeliveryFields } from "@/lib/delivery-choice";
 import {
   CheckoutDeliverySection,
   CheckoutPickupSection,
   CheckoutAddressSection,
   CheckoutPaymentOptionSection,
+  DeliveryOptionsSection,
   ContactForm,
   type PaymentOption,
 } from "@/components/checkout";
 import { SignInForm } from "@/components/auth/SignInForm";
-import { DeliveryEstimateCard } from "./DeliveryEstimateCard";
 import { DesktopCheckoutPaymentView } from "./DesktopCheckoutPaymentView";
 import { DesktopCheckoutSuccessView } from "./DesktopCheckoutSuccessView";
 import {
@@ -24,27 +26,24 @@ import {
 } from "@/components/gifting/PaymentOutcomeView";
 import { useOrderConfirmationPoll } from "@/hooks/useOrderConfirmationPoll";
 import { resolveOutcomeCopy, type CtaAction } from "@/lib/giftOutcomeCopy";
-import { calculateDeliveryTiming, type DeliveryTiming } from "@/lib/delivery-timing";
 
 type DeliveryMethod = "pickup" | "address";
-type DeliverySpeed = "standard" | "weekend" | "sameday" | "nextday";
 
 export interface CheckoutProceedParams {
   fullName: string;
   phoneNumber: string;
   deliveryMethod: "pickup" | "address";
-  deliverySpeed: DeliverySpeed | null;
   paymentOption: PaymentOption | null;
   pickupStationId: string | null;
   deliveryAddress: string | null;
-  deliveryLat: number | null;
-  deliveryLng: number | null;
+  /** The signed quote, the option chosen and the coordinates it was issued for. Null for pickup. */
+  deliveryFields: OrderDeliveryFields | null;
 }
 
 interface DesktopCheckoutViewProps {
   productsTotal: number;
   orderSummary: ReactNode;
-  onProceed: (params: CheckoutProceedParams) => Promise<{ orderNumber: string; totalAmount: number }>;
+  onProceed: (params: CheckoutProceedParams) => Promise<{ orderNumber: string; totalAmount: number } & OrderDeliveryFacts>;
   onOrderCreated?: () => void;
   successMessage: string;
   returnToPath: string;
@@ -69,12 +68,15 @@ export function DesktopCheckoutView({
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
   const [pickupStation, setPickupStation] = useState<PickupStation | null>(null);
   const [address, setAddress] = useState<string | null>(null);
-  const [addressDeliveryFee, setAddressDeliveryFee] = useState<number | null>(null);
   const [addressLat, setAddressLat] = useState<number | null>(null);
   const [addressLng, setAddressLng] = useState<number | null>(null);
-  const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed | null>(null);
   const [paymentOption, setPaymentOption] = useState<PaymentOption | null>(null);
-  const [deliveryTiming, setDeliveryTiming] = useState<DeliveryTiming | null>(null);
+
+  // What delivery costs at the chosen address, and when, as the server works it out
+  const delivery = useDeliveryOptions(
+    session?.access_token,
+    addressLat != null && addressLng != null ? { lat: addressLat, lng: addressLng } : null,
+  );
 
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -85,6 +87,8 @@ export function DesktopCheckoutView({
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [serverTotalAmount, setServerTotalAmount] = useState<number | null>(null);
+  // How and when the order is being delivered, as the server stored it
+  const [deliverySummary, setDeliverySummary] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -114,19 +118,12 @@ export function DesktopCheckoutView({
     }
   }, [productsTotal, showPayment, showSuccess, navigate, enableEmptyCartRedirect]);
 
-  const deliveryFee = (() => {
-    if (deliveryMethod === "pickup") return 0;
-    if (deliveryMethod === "address" && deliverySpeed) {
-      if (deliverySpeed === "weekend") return 50000;
-      return addressDeliveryFee ?? 0;
-    }
-    return 0;
-  })();
+  const deliveryFee = deliveryMethod === "address" ? (delivery.selected?.feeKobo ?? 0) : 0;
 
   const grandTotal = productsTotal + deliveryFee;
 
   const isPickup = deliveryMethod === "pickup";
-  const hasDeliveryDetails = isPickup ? !!pickupStation : !!address && !!deliverySpeed;
+  const hasDeliveryDetails = isPickup ? !!pickupStation : !!address && !!delivery.selected;
   const hasPaymentOption = isPickup || !!paymentOption;
   const showContactForm = hasDeliveryDetails && hasPaymentOption;
   const isContactValid = fullName.trim().length >= 2 && phoneNumber.trim().length >= 10;
@@ -142,21 +139,15 @@ export function DesktopCheckoutView({
     setDeliveryMethod(null);
     setPickupStation(null);
     setAddress(null);
-    setAddressDeliveryFee(null);
     setAddressLat(null);
     setAddressLng(null);
-    setDeliverySpeed(null);
     setPaymentOption(null);
-    setDeliveryTiming(null);
   };
 
   const handleAddressChange = () => {
     setAddress(null);
-    setAddressDeliveryFee(null);
     setAddressLat(null);
     setAddressLng(null);
-    setDeliverySpeed(null);
-    setDeliveryTiming(null);
   };
 
   const handleProceedToPayment = async () => {
@@ -169,15 +160,14 @@ export function DesktopCheckoutView({
         fullName: fullName.trim(),
         phoneNumber: phoneNumber.trim(),
         deliveryMethod: deliveryMethod!,
-        deliverySpeed,
         paymentOption,
         pickupStationId: deliveryMethod === "pickup" ? (pickupStation?.id ?? null) : null,
         deliveryAddress: deliveryMethod === "address" ? address : null,
-        deliveryLat: deliveryMethod === "address" ? addressLat : null,
-        deliveryLng: deliveryMethod === "address" ? addressLng : null,
+        deliveryFields: deliveryMethod === "address" ? delivery.orderFields : null,
       });
       setOrderNumber(result.orderNumber);
       setServerTotalAmount(result.totalAmount);
+      setDeliverySummary(describeOrderDelivery(result));
       if (paymentOption === "pay-on-delivery") {
         metaPixel.purchase({ value: result.totalAmount / 100, currency: 'NGN', order_id: result.orderNumber });
         setShowSuccess(true);
@@ -186,6 +176,10 @@ export function DesktopCheckoutView({
       }
       onOrderCreated?.();
     } catch (err) {
+      if (err instanceof DeliveryQuoteStaleError) {
+        // What they were shown is no longer true: show what is, and let them choose again.
+        delivery.applyStale(err);
+      }
       setSubmitError(err instanceof Error ? err.message : "Failed to place order. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -286,6 +280,7 @@ export function DesktopCheckoutView({
         onViewOrder={() => navigate("/orders")}
         onReturnToShop={() => navigate(returnToPath)}
         steps={resolvedSteps}
+        deliverySummary={deliverySummary}
       />
     );
   }
@@ -343,7 +338,6 @@ export function DesktopCheckoutView({
                   selectedMethod={deliveryMethod}
                   onSelectMethod={setDeliveryMethod}
                   onChangeMethod={handleMethodChange}
-                  addressDeliveryFee={addressDeliveryFee}
                 />
                 {deliveryMethod === "pickup" && (
                   <div className="animate-fade-in">
@@ -358,25 +352,24 @@ export function DesktopCheckoutView({
                   <div className="animate-fade-in">
                     <CheckoutAddressSection
                       selectedAddress={address}
-                      deliveryFee={addressDeliveryFee}
-                      onSelectAddress={(addr, fee, lat, lng) => {
+                      onSelectAddress={(addr, lat, lng) => {
                         setAddress(addr);
-                        setAddressDeliveryFee(fee);
                         setAddressLat(lat);
                         setAddressLng(lng);
-                        const timing = calculateDeliveryTiming();
-                        setDeliveryTiming(timing);
-                        setDeliverySpeed(timing.speed as DeliverySpeed);
                       }}
                       onChangeAddress={handleAddressChange}
                     />
                   </div>
                 )}
-                {deliveryMethod === "address" && address && deliveryTiming && (
+                {deliveryMethod === "address" && address && (
                   <div className="animate-fade-in">
-                    <DeliveryEstimateCard
-                      timing={deliveryTiming}
-                      deliveryFee={addressDeliveryFee ?? 0}
+                    <DeliveryOptionsSection
+                      options={delivery.options}
+                      isLoading={delivery.isLoading}
+                      error={delivery.error}
+                      onRetry={() => delivery.refetch()}
+                      choice={delivery.choice}
+                      onChoose={delivery.setChoice}
                     />
                   </div>
                 )}

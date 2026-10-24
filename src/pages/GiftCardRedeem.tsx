@@ -55,10 +55,10 @@ export default function GiftCardRedeem() {
               {errorMessage}
             </p>
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/shop")}
               className="inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground px-6 py-3 text-sm font-semibold hover:bg-primary/90 transition-colors"
             >
-              Go to Home
+              Go to the shop
             </button>
           </div>
         </div>
@@ -81,10 +81,10 @@ export default function GiftCardRedeem() {
               This gift card has been cancelled and is no longer available.
             </p>
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/shop")}
               className="inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground px-6 py-3 text-sm font-semibold hover:bg-primary/90 transition-colors"
             >
-              Go to Home
+              Go to the shop
             </button>
           </div>
         </div>
@@ -107,10 +107,10 @@ export default function GiftCardRedeem() {
               This gift card has been fully used and has no remaining balance.
             </p>
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/shop")}
               className="inline-flex items-center justify-center rounded-xl bg-primary text-primary-foreground px-6 py-3 text-sm font-semibold hover:bg-primary/90 transition-colors"
             >
-              Go to Home
+              Go to the shop
             </button>
           </div>
         </div>

@@ -8,10 +8,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { CheckoutDeliverySection } from "@/components/checkout/CheckoutDeliverySection";
 import { CheckoutPickupSection } from "@/components/checkout/CheckoutPickupSection";
-import { CheckoutAddressSection, getDeliveryFee } from "@/components/checkout/CheckoutAddressSection";
+import { CheckoutAddressSection } from "@/components/checkout/CheckoutAddressSection";
+import { DeliveryOptionsSection } from "@/components/checkout/DeliveryOptionsSection";
 import { CheckoutPaymentView } from "@/components/checkout/CheckoutPaymentView";
 import { useQuery } from "@tanstack/react-query";
-import { getMySubscriptions, formatPrice, getPickupStations, reorderSubscription, reorderMultipleSubscriptions } from "@/lib/api";
+import { getMySubscriptions, formatPrice, getPickupStations, reorderSubscription, reorderMultipleSubscriptions, DeliveryQuoteStaleError } from "@/lib/api";
+import { useDeliveryOptions } from "@/hooks/useDeliveryOptions";
+import { describeOrderDelivery } from "@/lib/delivery-choice";
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import type { PickupStation } from "@/lib/api";
 import { toast } from "sonner";
@@ -60,12 +63,19 @@ const SubscriptionReorder = () => {
   const [selectedStation, setSelectedStation] = useState<PickupStation | null>(null);
   const [addressLat, setAddressLat] = useState<number | null>(null);
   const [addressLng, setAddressLng] = useState<number | null>(null);
-  const [addressDeliveryFee, setAddressDeliveryFee] = useState<number | null>(null);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   // What the server stored for the order; the payment screen must use this, not our own sum
   const [serverTotal, setServerTotal] = useState<number | null>(null);
+  // How and when the order is being delivered, as the server stored it
+  const [deliverySummary, setDeliverySummary] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // What delivery costs at the chosen address, and when, as the server works it out
+  const delivery = useDeliveryOptions(
+    token || undefined,
+    addressLat != null && addressLng != null ? { lat: addressLat, lng: addressLng } : null,
+  );
 
   // Track if we've initialized state from subscription data
   const hasInitialized = useRef(false);
@@ -99,18 +109,12 @@ const SubscriptionReorder = () => {
         setSelectedAddress(recentSub.lastDeliveryAddress);
       }
 
-      // Auto-populate coordinates and calculate delivery fee
+      // Auto-populate coordinates. The delivery options for them load by themselves (see
+      // useDeliveryOptions below), so a saved address needs no re-selecting.
       if (recentSub.lastDeliveryLat != null && recentSub.lastDeliveryLng != null) {
         console.log('🌍 [SubscriptionReorder] Setting coordinates:', recentSub.lastDeliveryLat, recentSub.lastDeliveryLng);
         setAddressLat(recentSub.lastDeliveryLat);
         setAddressLng(recentSub.lastDeliveryLng);
-
-        // Calculate delivery fee from coordinates
-        const fee = getDeliveryFee(recentSub.lastDeliveryLat, recentSub.lastDeliveryLng);
-        if (fee !== 'unsupported') {
-          console.log('💰 [SubscriptionReorder] Calculated delivery fee:', fee);
-          setAddressDeliveryFee(fee);
-        }
       }
 
       if (recentSub.lastPickupStationId && pickupStationsData.length > 0) {
@@ -134,39 +138,44 @@ const SubscriptionReorder = () => {
     setIsSubmitting(true);
     setSubmitError(null);
 
+    // An address order carries the quote the buyer was shown; pickup has no delivery price to quote.
+    const details = {
+      deliveryAddress: selectedAddress || undefined,
+      pickupStationId: selectedStation?.id,
+      ...(deliveryMethod === 'address' ? delivery.orderFields : null),
+    };
+
     try {
       const result = isMultipleOrder
         ? await reorderMultipleSubscriptions(
             subscriptionIds,
             deliveryMethod,
-            {
-              deliveryAddress: selectedAddress || undefined,
-              deliveryLat: addressLat ?? undefined,
-              deliveryLng: addressLng ?? undefined,
-              pickupStationId: selectedStation?.id,
-            },
+            details,
             undefined, // No payment ref yet - order created before payment
             token
           )
         : await reorderSubscription(
             subscriptionIds[0],
             deliveryMethod,
-            {
-              deliveryAddress: selectedAddress || undefined,
-              deliveryLat: addressLat ?? undefined,
-              deliveryLng: addressLng ?? undefined,
-              pickupStationId: selectedStation?.id,
-            },
+            details,
             undefined, // No payment ref yet - order created before payment
             token
           );
 
       setOrderNumber(result.orderId);
       setServerTotal(result.totalAmount);
+      setDeliverySummary(describeOrderDelivery(result));
       setStep("payment");
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to create order. Please try again.');
-      toast.error("Failed to create order. Please try again.");
+      if (err instanceof DeliveryQuoteStaleError) {
+        // What they were shown is no longer true: show what is, and let them choose again.
+        delivery.applyStale(err);
+        setSubmitError(err.message);
+        toast.error(err.message);
+      } else {
+        setSubmitError(err instanceof Error ? err.message : 'Failed to create order. Please try again.');
+        toast.error("Failed to create order. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -214,9 +223,10 @@ const SubscriptionReorder = () => {
   // Calculate combined product total for all subscriptions
   const productTotal = selectedSubs.reduce((sum, s) => sum + (s.unitPrice * s.quantity), 0);
 
-  // Delivery is priced like a normal order: pickup is free, an address pays its
-  // zone fee. This is only a preview; the payment screen uses the server's total.
-  const deliveryFee = deliveryMethod === 'address' ? (addressDeliveryFee ?? 0) : 0;
+  // Delivery is priced like a normal order: pickup is free, an address pays the fee of the
+  // option chosen (Instant or Community Delivery), as the server quoted it. The payment screen
+  // uses the server's total.
+  const deliveryFee = deliveryMethod === 'address' ? (delivery.selected?.feeKobo ?? 0) : 0;
 
   const orderTotal = productTotal + deliveryFee;
 
@@ -224,7 +234,7 @@ const SubscriptionReorder = () => {
     deliveryMethod === "pickup"
       ? !!selectedStation
       : deliveryMethod === "address"
-      ? !!selectedAddress && addressLat != null && addressLng != null && addressDeliveryFee != null
+      ? !!selectedAddress && addressLat != null && addressLng != null && !!delivery.selected
       : false;
 
   // Payment step
@@ -280,6 +290,12 @@ const SubscriptionReorder = () => {
           <p className="text-muted-foreground mb-6">
             Order ID: <span className="font-semibold text-foreground">{orderNumber}</span>
           </p>
+
+          {deliverySummary && (
+            <p className="text-sm text-muted-foreground mb-4" data-testid="delivery-summary">
+              Delivery: {deliverySummary}
+            </p>
+          )}
 
           {/* Confirmation message */}
           <Card className="w-full p-4 bg-muted/50 max-w-sm mb-4">
@@ -411,7 +427,7 @@ const SubscriptionReorder = () => {
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-sm font-semibold text-foreground">
-                      {formatPrice(orderTotal)}
+                      {formatPrice(productTotal)}
                     </span>
                     <span className="text-xs text-muted-foreground line-through">
                       {formatPrice(selectedSubs[0].regularPrice * selectedSubs[0].quantity)}
@@ -441,10 +457,9 @@ const SubscriptionReorder = () => {
                       "en-GB",
                       { day: "numeric", month: "short", year: "numeric" }
                     )} and available for pickup immediately.`
-                  : `Your order${isMultipleOrder ? 's' : ''} will be prepared on ${new Date(selectedSubs[0].nextRenewalDate).toLocaleDateString(
-                      "en-GB",
-                      { day: "numeric", month: "short", year: "numeric" }
-                    )} and delivered the next day.`}
+                  : delivery.selected
+                    ? `Your order${isMultipleOrder ? 's' : ''} will be delivered ${delivery.selected.dateLabel === 'Today' || delivery.selected.dateLabel === 'Tomorrow' ? delivery.selected.dateLabel.toLowerCase() : `on ${delivery.selected.dateLabel}`}.`
+                    : 'Choose how you would like it delivered below.'}
               </p>
             )}
           </div>
@@ -462,23 +477,34 @@ const SubscriptionReorder = () => {
             <>
               <CheckoutAddressSection
                 selectedAddress={selectedAddress}
-                deliveryFee={addressDeliveryFee}
-                onSelectAddress={(address, fee, lat, lng) => {
+                onSelectAddress={(address, lat, lng) => {
                   setSelectedAddress(address);
-                  setAddressDeliveryFee(fee);
                   setAddressLat(lat);
                   setAddressLng(lng);
                 }}
                 onChangeAddress={() => {
                   setSelectedAddress(null);
-                  setAddressDeliveryFee(null);
                   setAddressLat(null);
                   setAddressLng(null);
                 }}
               />
 
-              {/* A saved address from an older order can lack coordinates (or sit outside the delivery area), and the server needs both to price delivery */}
-              {selectedAddress && (addressLat == null || addressLng == null || addressDeliveryFee == null) && (
+              {/* Instant and Community Delivery for this address, with the server's prices and days */}
+              {selectedAddress && addressLat != null && addressLng != null && (
+                <div className="mt-4">
+                  <DeliveryOptionsSection
+                    options={delivery.options}
+                    isLoading={delivery.isLoading}
+                    error={delivery.error}
+                    onRetry={() => delivery.refetch()}
+                    choice={delivery.choice}
+                    onChoose={delivery.setChoice}
+                  />
+                </div>
+              )}
+
+              {/* A saved address from an older order can lack coordinates, and the server needs them to price delivery */}
+              {selectedAddress && (addressLat == null || addressLng == null) && (
                 <p className="mt-3 text-sm text-destructive">
                   Please re-select your delivery address so we can price delivery.
                 </p>

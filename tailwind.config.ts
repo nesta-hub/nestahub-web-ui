@@ -69,6 +69,19 @@ export default {
           tan: "hsl(var(--nesta-tan))",
           brown: "hsl(var(--nesta-brown-dark))",
         },
+        // The redesigned shop (src/components/catalogue/v3): a darker brown that reads as
+        // text, plus the warm greys around it.
+        shop: {
+          ink: "#33261C",
+          brown: "#795A3E",
+          "brown-dark": "#654A32",
+          muted: "#6B5F55",
+          line: "#E2DBD3",
+          "line-soft": "#DCD4CA",
+          cream: "#FBF9F6",
+          surface: "#EFE9E5",
+          page: "#F5F3F0",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

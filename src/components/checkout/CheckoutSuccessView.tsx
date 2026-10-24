@@ -7,9 +7,11 @@ interface CheckoutSuccessViewProps {
   orderId: string;
   paidWithGiftCard?: boolean;
   paymentOption?: string;
+  /** How and when this order is being delivered. */
+  deliverySummary?: string | null;
 }
 
-export function CheckoutSuccessView({ orderId, paidWithGiftCard, paymentOption }: CheckoutSuccessViewProps) {
+export function CheckoutSuccessView({ orderId, paidWithGiftCard, paymentOption, deliverySummary }: CheckoutSuccessViewProps) {
   const navigate = useNavigate();
 
   const handleReturnShopping = () => {
@@ -31,9 +33,14 @@ export function CheckoutSuccessView({ orderId, paidWithGiftCard, paymentOption }
         </h1>
 
         {/* Order ID */}
-        <p className="text-muted-foreground mb-6">
+        <p className={deliverySummary ? "text-muted-foreground mb-2" : "text-muted-foreground mb-6"}>
           Order ID: <span className="font-semibold text-foreground">{orderId}</span>
         </p>
+        {deliverySummary && (
+          <p className="text-sm text-muted-foreground mb-6" data-testid="delivery-summary">
+            Delivery: {deliverySummary}
+          </p>
+        )}
 
         {/* Confirmation message */}
         <Card className="p-4 bg-muted/50 max-w-sm">

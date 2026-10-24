@@ -64,6 +64,23 @@ export function optimizeCloudinaryUrl(
 }
 
 /**
+ * A cutout of a photo: the same picture with its background removed, so the product stands
+ * on whatever it is placed on. It uses Cloudinary's AI background removal add-on, then
+ * resizes, then lets Cloudinary pick WebP or AVIF, which both keep the transparency.
+ * (The background has to come out first, so it is its own step ahead of the resize.)
+ *
+ * Returns null when the URL is not a plain Cloudinary one (or already has transformations),
+ * so the caller can keep showing the photo as it is. Cloudinary does the removal once per
+ * image and caches it; the script scripts/warm-category-cutouts.js asks for every category's
+ * cutout ahead of time, and builds the same address, so keep the two in step.
+ */
+export function cutoutCloudinaryUrl(url: string | null | undefined, width = 480): string | null {
+  if (!url || !url.includes('cloudinary.com') || !url.includes('/upload/')) return null;
+  if (/\/upload\/[^/]*(e_background_removal|f_auto|q_auto)/.test(url)) return null;
+  return url.replace('/upload/', `/upload/e_background_removal/c_fit,w_${width},f_auto,q_auto/`);
+}
+
+/**
  * Preset transformations for common use cases
  */
 export const CloudinaryPresets = {

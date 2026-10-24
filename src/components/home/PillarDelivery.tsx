@@ -35,7 +35,7 @@ export function PillarDelivery() {
             <div className="absolute -bottom-4 -right-2 md:-right-6 bg-nesta-cream border border-nesta-brown/30 rounded-md px-4 py-2 shadow-md rotate-[4deg]">
               <p className="flex items-center gap-1.5 text-base text-nesta-brown" style={handwriting}>
                 <MapPin className="w-4 h-4 text-nesta-sage" />
-                Delivery as low as ₦500
+                Instant or Community Delivery
               </p>
             </div>
           </div>

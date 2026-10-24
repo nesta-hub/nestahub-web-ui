@@ -287,11 +287,102 @@ export interface CategoryProductsResponse {
   total: number;
 }
 
+// ─── Delivery options ────────────────────────────────────────────────────────
+// The server decides every delivery price and day. The storefront asks for them once an
+// address is chosen, shows them, and sends the signed quote back with the order, so the buyer
+// pays exactly what they were shown. There is no fee table or date rule in the browser.
+
+export type DeliveryChoice = 'instant' | 'community';
+
+export interface DeliveryOptions {
+  lat: number;
+  lng: number;
+  instant:
+    | {
+        available: true;
+        feeKobo: number;
+        roadKm: number | null;
+        source: 'approved' | 'ring_fallback';
+        /** "YYYY-MM-DD", Lagos. */
+        date: string;
+        /** "Today", "Tomorrow" or "Wed 22 Oct". */
+        dateLabel: string;
+        /** About how long a delivery today takes, in minutes. Null for any other day, or when unknown. */
+        etaMinutes: number | null;
+      }
+    | { available: false; reason: 'outside_area' | 'beyond_range' | 'no_delivery_days' };
+  /** Null only when the address is outside the delivery area altogether. */
+  community:
+    | {
+        status: 'available';
+        zoneId: string;
+        name: string;
+        feeKobo: number;
+        date: string;
+        dateLabel: string;
+        /** Every day the area is served, e.g. "Wed & Sat". */
+        daysLabel: string;
+      }
+    /** Shown greyed out. Nobody can choose it and nobody is charged it. */
+    | { status: 'coming_soon'; feeKobo: number }
+    | null;
+  /** Send back with the order. Null when the server could not issue one. */
+  quote: string | null;
+  expiresAt: string | null;
+}
+
+/**
+ * The server refused an order because what the buyer was shown is no longer true (a day's
+ * cutoff passed, an area changed, or the quote expired). It carries fresh options so the
+ * page can show the new price and day and let the buyer choose again.
+ */
+export class DeliveryQuoteStaleError extends Error {
+  constructor(
+    message: string,
+    readonly options: DeliveryOptions | null,
+  ) {
+    super(message);
+    this.name = 'DeliveryQuoteStaleError';
+  }
+}
+
+/** Throws the right error for a failed order request: a stale quote is its own kind of error. */
+async function throwOrderError(response: Response, fallback: string): Promise<never> {
+  const err = await response.json().catch(() => ({}));
+  if (response.status === 409 && err?.code === 'DELIVERY_QUOTE_STALE') {
+    throw new DeliveryQuoteStaleError(
+      err.message || 'Your delivery price has changed. Please choose again.',
+      err.options ?? null,
+    );
+  }
+  throw new Error(err.message || fallback);
+}
+
+export async function fetchDeliveryOptions(token: string, lat: number, lng: number): Promise<DeliveryOptions> {
+  const response = await fetch(`${API_BASE_URL}/delivery/options`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ lat, lng }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || 'Could not work out delivery for this address');
+  }
+  return response.json();
+}
+
 export interface OrderResponse {
   orderNumber: string;
   status: string;
   orderType: string;
   totalAmount: number; // in kobo
+  /** Kobo; null for pickup. Part of totalAmount. */
+  deliveryFee?: number | null;
+  /** 'instant' | 'community' when priced from a delivery quote; null on pickup and older orders. */
+  deliveryType?: string | null;
+  /** The day the buyer was promised, "YYYY-MM-DD" (Lagos). */
+  scheduledDeliveryDate?: string | null;
+  deliveryZoneName?: string | null;
   createdAt: string;
   paymentMadeAt?: string | null;
   /**
@@ -319,6 +410,8 @@ export const api = {
   // Browse products with filters
   async getProducts(params: {
     category?: string;
+    /** A category group's slug: every product in any category of that group. */
+    group?: string;
     subcategory?: string;
     brand?: string;
     search?: string;
@@ -417,12 +510,14 @@ export const api = {
       fullName: string;
       phoneNumber: string;
       deliveryMethod?: 'pickup' | 'address';
-      deliverySpeed?: 'standard' | 'weekend' | 'sameday' | 'nextday';
       paymentOption?: 'pay-now' | 'pay-on-delivery';
       pickupStationId?: string | null;
       deliveryAddress?: string | null;
       deliveryLat?: number;
       deliveryLng?: number;
+      /** The signed quote from fetchDeliveryOptions, and which option was chosen. Sets the fee and day. */
+      deliveryQuote?: string;
+      deliveryOption?: DeliveryChoice;
       bundleId?: string | null;
       giftSizeId?: string | null;
       giftRecipientName?: string;
@@ -452,10 +547,7 @@ export const api = {
       },
       body: JSON.stringify(data),
     });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message || 'Failed to create order');
-    }
+    if (!response.ok) return throwOrderError(response, 'Failed to create order');
     return response.json();
   },
 
@@ -467,12 +559,13 @@ export const api = {
       fullName: string;
       phoneNumber?: string;
       deliveryMethod: 'pickup' | 'address';
-      deliverySpeed?: 'standard' | 'weekend' | 'sameday' | 'nextday';
       paymentOption?: 'pay-now' | 'pay-on-delivery';
       pickupStationId?: string | null;
       deliveryAddress?: string | null;
       deliveryLat?: number;
       deliveryLng?: number;
+      deliveryQuote?: string;
+      deliveryOption?: DeliveryChoice;
       packagingOptionId?: string | null;
       giftRecipientName?: string;
       giftRecipientPhone?: string;
@@ -488,10 +581,7 @@ export const api = {
       },
       body: JSON.stringify(data),
     });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message || 'Failed to create gift bundle order');
-    }
+    if (!response.ok) return throwOrderError(response, 'Failed to create gift bundle order');
     return response.json();
   },
 
@@ -627,6 +717,13 @@ export interface MyOrder {
   totalAmount: number; // kobo
   createdAt: string;
   deliveryMethod: string;
+  /** Kobo; null for pickup. Part of totalAmount. */
+  deliveryFee: number | null;
+  /** 'instant' | 'community'; null on pickup and orders placed before delivery quotes existed. */
+  deliveryType: string | null;
+  deliveryZoneName: string | null;
+  /** The day the buyer was promised, "YYYY-MM-DD" (Lagos). */
+  scheduledDeliveryDate: string | null;
   fullName: string;
   deliveryAddress: string | null;
   pickupStationName: string | null;
@@ -910,6 +1007,10 @@ export interface ReorderResult {
   totalAmount: number;
   /** Kobo; 0 for pickup. */
   deliveryFee: number;
+  /** 'instant' | 'community' when priced from a delivery quote. */
+  deliveryType: string | null;
+  /** The day the buyer was promised, "YYYY-MM-DD" (Lagos). */
+  scheduledDeliveryDate: string | null;
 }
 
 export async function reorderSubscription(
@@ -921,6 +1022,8 @@ export async function reorderSubscription(
     deliveryLat?: number;
     deliveryLng?: number;
     pickupStationId?: string;
+    deliveryQuote?: string;
+    deliveryOption?: DeliveryChoice;
   },
   paymentReference: string | undefined,
   token: string,
@@ -935,13 +1038,12 @@ export async function reorderSubscription(
       deliveryLng: deliveryDetails.deliveryLng,
       addressId: deliveryDetails.addressId,
       pickupStationId: deliveryDetails.pickupStationId,
+      deliveryQuote: deliveryDetails.deliveryQuote,
+      deliveryOption: deliveryDetails.deliveryOption,
       paymentReference,
     }),
   });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.message || 'Failed to process reorder');
-  }
+  if (!response.ok) return throwOrderError(response, 'Failed to process reorder');
   return response.json();
 }
 
@@ -954,6 +1056,8 @@ export async function reorderMultipleSubscriptions(
     deliveryLat?: number;
     deliveryLng?: number;
     pickupStationId?: string;
+    deliveryQuote?: string;
+    deliveryOption?: DeliveryChoice;
   },
   paymentReference: string | undefined,
   token: string,
@@ -969,13 +1073,12 @@ export async function reorderMultipleSubscriptions(
       deliveryLng: deliveryDetails.deliveryLng,
       addressId: deliveryDetails.addressId,
       pickupStationId: deliveryDetails.pickupStationId,
+      deliveryQuote: deliveryDetails.deliveryQuote,
+      deliveryOption: deliveryDetails.deliveryOption,
       paymentReference,
     }),
   });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.message || 'Failed to process consolidated reorder');
-  }
+  if (!response.ok) return throwOrderError(response, 'Failed to process consolidated reorder');
   return response.json();
 }
 
@@ -1113,6 +1216,12 @@ export interface OrderStatus {
   isGuest: boolean;
   buyerEmail?: string | null;
   totalAmount: number;
+  /** Kobo; null for pickup. */
+  deliveryFee?: number | null;
+  deliveryType?: string | null;
+  deliveryZoneName?: string | null;
+  /** The day the buyer was promised, "YYYY-MM-DD" (Lagos). */
+  scheduledDeliveryDate?: string | null;
   paymentMadeAt?: string | null;
   giftCards: OrderStatusGiftCard[];
 }

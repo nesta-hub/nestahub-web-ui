@@ -25,12 +25,12 @@ export function Layout({ children, showNav = true }: LayoutProps) {
       {/* Desktop Header */}
       {!isMobile && showNav && <DesktopHeader />}
 
-      {/* Mobile header w/ hamburger — only on home & referrals/share */}
-      {isMobile && showNav && (location.pathname === "/" || location.pathname === "/referrals" || location.pathname === "/referrals/activity" || location.pathname === "/share" || location.pathname === "/share/activity") && (
+      {/* Mobile header w/ hamburger — only on referrals/share */}
+      {isMobile && showNav && (location.pathname === "/referrals" || location.pathname === "/referrals/activity" || location.pathname === "/share" || location.pathname === "/share/activity") && (
         <MobileScrollHeader alwaysVisible={location.pathname === "/referrals" || location.pathname === "/referrals/activity" || location.pathname === "/share" || location.pathname === "/share/activity"} />
       )}
 
-      {/* Floating Cart Icon for Mobile (except home) */}
+      {/* Floating Cart Icon for Mobile */}
       {showFloatingCart && <FloatingCartIcon />}
 
       {/* Main Content */}
@@ -38,12 +38,8 @@ export function Layout({ children, showNav = true }: LayoutProps) {
         {children}
       </main>
 
-      {/* Footer: always on desktop, only on home for mobile */}
-      {(showNav || (isMobile && location.pathname === "/")) && (!isMobile || location.pathname === "/") && (
-        <div className={isMobile ? "mb-16" : ""}>
-          <Footer />
-        </div>
-      )}
+      {/* Footer: on desktop only (the phone has the bottom nav instead) */}
+      {!isMobile && showNav && <Footer />}
 
       {/* Mobile Bottom Nav (hidden on referrals/share) */}
       {isMobile && showNav && location.pathname !== "/referrals" && location.pathname !== "/referrals/activity" && location.pathname !== "/share" && location.pathname !== "/share/activity" && <MobileNav />}

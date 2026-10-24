@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMyOrders, formatPrice, MyOrder, api } from "@/lib/api";
+import { describeOrderDelivery } from "@/lib/delivery-choice";
 import { DesktopCheckoutPaymentView } from "@/components/checkout/DesktopCheckoutPaymentView";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -404,7 +405,14 @@ function ShopOrderDetail({ order }: { order: MyOrder }) {
               <p className="text-muted-foreground">{order.pickupStationAddress}</p>
             </>
           ) : (
-            <p className="text-muted-foreground">{order.deliveryAddress}</p>
+            <>
+              <p className="text-muted-foreground">{order.deliveryAddress}</p>
+              {describeOrderDelivery(order) && (
+                <p className="text-muted-foreground" data-testid="order-delivery">
+                  {describeOrderDelivery(order)}
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -459,7 +467,14 @@ function BundleDetail({ order }: { order: MyOrder }) {
               <p className="text-muted-foreground">{order.pickupStationAddress}</p>
             </>
           ) : (
-            <p className="text-muted-foreground">{order.deliveryAddress}</p>
+            <>
+              <p className="text-muted-foreground">{order.deliveryAddress}</p>
+              {describeOrderDelivery(order) && (
+                <p className="text-muted-foreground" data-testid="order-delivery">
+                  {describeOrderDelivery(order)}
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
