@@ -46,7 +46,7 @@ describe("a cutout's address", () => {
 describe("the warm-up script", () => {
   // scripts/warm-category-cutouts.js asks Cloudinary for each category's cutout ahead of time. It
   // can only help if it asks for the very same address the shop does, so run its builder here.
-  const source = readFileSync(resolve(__dirname, "../../../scripts/warm-category-cutouts.js"), "utf8");
+  const source = readFileSync(resolve(__dirname, "../../scripts/warm-category-cutouts.js"), "utf8");
   const body = source.match(/function cutoutUrl\([\s\S]*?\n}\n/)?.[0];
   const scriptBuilder = new Function(`${body}; return cutoutUrl;`)() as (url: string | null | undefined, width: number) => string | null;
 

@@ -71,7 +71,7 @@ export function optimizeCloudinaryUrl(
  *
  * Returns null when the URL is not a plain Cloudinary one (or already has transformations),
  * so the caller can keep showing the photo as it is. Cloudinary does the removal once per
- * image and caches it; the script scripts/warm-category-cutouts.js asks for every category's
+ * image and caches it; the script web-ui/scripts/warm-category-cutouts.js asks for every category's
  * cutout ahead of time, and builds the same address, so keep the two in step.
  */
 export function cutoutCloudinaryUrl(url: string | null | undefined, width = 480): string | null {
