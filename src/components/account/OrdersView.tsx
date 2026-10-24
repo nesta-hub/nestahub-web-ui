@@ -13,6 +13,7 @@ import { CheckoutPaymentView } from "@/components/checkout/CheckoutPaymentView";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMyOrders, formatPrice, MyOrder, api } from "@/lib/api";
+import { describeOrderDelivery } from "@/lib/delivery-choice";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -386,7 +387,14 @@ export function OrdersView({ onBack, initialOrderNumber }: OrdersViewProps) {
                                     <p className="text-muted-foreground">{order.pickupStationAddress}</p>
                                   </>
                                 ) : (
-                                  <p className="text-muted-foreground">{order.deliveryAddress}</p>
+                                  <>
+                                    <p className="text-muted-foreground">{order.deliveryAddress}</p>
+                                    {describeOrderDelivery(order) && (
+                                      <p className="text-muted-foreground" data-testid="order-delivery">
+                                        {describeOrderDelivery(order)}
+                                      </p>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -429,7 +437,14 @@ export function OrdersView({ onBack, initialOrderNumber }: OrdersViewProps) {
                                     <p className="text-muted-foreground">{order.pickupStationAddress}</p>
                                   </>
                                 ) : (
-                                  <p className="text-muted-foreground">{order.deliveryAddress}</p>
+                                  <>
+                                    <p className="text-muted-foreground">{order.deliveryAddress}</p>
+                                    {describeOrderDelivery(order) && (
+                                      <p className="text-muted-foreground" data-testid="order-delivery">
+                                        {describeOrderDelivery(order)}
+                                      </p>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             </div>

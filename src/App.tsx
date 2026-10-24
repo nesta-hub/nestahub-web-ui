@@ -2,14 +2,14 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import { Analytics } from "@vercel/analytics/react";
 import { metaPixel } from "@/lib/metaPixel";
-import Index from "./pages/Index";
+import MumTools from "./pages/MumTools";
 import Shop from "./pages/Shop";
 import Bundles from "./pages/Bundles";
 import BundleOptions from "./pages/BundleOptions";
@@ -101,9 +101,13 @@ const App = () => (
             <ReferralCapture />
             <CartDrawer />
             <Routes>
-              <Route path="/" element={<Index />} />
+              {/* There is no home page: opening Nesta Hub opens the shop. */}
+              <Route path="/" element={<Navigate to="/shop" replace />} />
+              <Route path="/mum-tools" element={<MumTools />} />
               <Route path="/prices" element={<Prices />} />
               <Route path="/shop" element={<CataloguePage />} />
+              <Route path="/shop/:groupSlug" element={<CataloguePage />} />
+              <Route path="/shop/:groupSlug/:categorySlug" element={<CataloguePage />} />
               <Route path="/bundles" element={<Bundles />} />
               <Route path="/bundles/:stageId" element={<BundleOptions />} />
               <Route path="/configure/:bundleId" element={<BundleConfigurator />} />

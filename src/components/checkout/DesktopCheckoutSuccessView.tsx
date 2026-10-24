@@ -15,6 +15,8 @@ interface DesktopCheckoutSuccessViewProps {
   onViewOrder: () => void;
   onReturnToShop: () => void;
   steps?: SuccessStep[];
+  /** How and when this order is being delivered. */
+  deliverySummary?: string | null;
 }
 
 const CARD_CLASS =
@@ -33,6 +35,7 @@ export function DesktopCheckoutSuccessView({
   onViewOrder,
   onReturnToShop,
   steps = defaultSteps,
+  deliverySummary,
 }: DesktopCheckoutSuccessViewProps) {
   return (
     <div className="min-h-screen bg-[#FAF8F5]">
@@ -55,10 +58,15 @@ export function DesktopCheckoutSuccessView({
             <h2 className="font-display text-4xl font-bold text-foreground tracking-[-0.02em] mb-3">
               Order Received!
             </h2>
-            <p className="text-sm text-muted-foreground mb-10">
+            <p className={cn("text-sm text-muted-foreground", deliverySummary ? "mb-2" : "mb-10")}>
               Order ID:{" "}
               <span className="font-semibold text-foreground">{orderId}</span>
             </p>
+            {deliverySummary && (
+              <p className="text-sm text-muted-foreground mb-10" data-testid="delivery-summary">
+                Delivery: {deliverySummary}
+              </p>
+            )}
 
             <div className={cn(CARD_CLASS, "p-7 text-left")}>
               <span className="block uppercase tracking-[0.18em] text-[10px] text-muted-foreground mb-5">

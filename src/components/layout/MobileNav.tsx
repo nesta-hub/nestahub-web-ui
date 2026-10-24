@@ -1,13 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
-import { Store, ShoppingBag, Gift, MessageCircle, User } from "lucide-react";
+import { ShoppingBag, Gift, CalendarHeart, MessageCircle, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const navItems = [
-  { href: "/", icon: Store, label: "Home" },
-  { href: "/catalogue", icon: ShoppingBag, label: "Shop" },
+  // The shop lives at /shop, and its product pages at /catalogue/:slug.
+  { href: "/shop", also: ["/catalogue"], icon: ShoppingBag, label: "Shop" },
   { href: "/gifting", icon: Gift, label: "Gifting" },
+  { href: "/mum-tools", icon: CalendarHeart, label: "Mum Tools" },
   { href: "/contact", icon: MessageCircle, label: "Contact" },
   { href: "/account", icon: User, label: "Account" },
 ];
@@ -31,10 +32,9 @@ export function MobileNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border">
       <div className="flex items-center justify-around h-16">
         {navItems.map((item) => {
-          const isActive =
-            location.pathname === item.href ||
-            location.pathname.startsWith(item.href + "/") ||
-            (item.href === "/catalogue" && location.pathname === "/shop");
+          const isActive = [item.href, ...(item.also ?? [])].some(
+            (href) => location.pathname === href || location.pathname.startsWith(href + "/"),
+          );
 
           // Special rendering for Account nav item when user is logged in
           const isAccountItem = item.href === "/account";
@@ -45,7 +45,7 @@ export function MobileNav() {
               key={item.href}
               to={item.href}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-lg transition-colors",
+                "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg whitespace-nowrap transition-colors",
                 isActive
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"

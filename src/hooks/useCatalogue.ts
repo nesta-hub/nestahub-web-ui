@@ -13,18 +13,19 @@ export function useCategoryTree() {
   });
 }
 
-/** Products in a category (and optional subcategory). */
+/** Products in a category (and optional subcategory), or in a whole category group. */
 export function useCategoryProducts(params: {
   category?: string;
+  group?: string;
   subcategory?: string;
   enabled?: boolean;
 }) {
-  const { category, subcategory, enabled = true } = params;
+  const { category, group, subcategory, enabled = true } = params;
   return useQuery({
-    queryKey: ['catalogue', 'products', category ?? null, subcategory ?? null],
+    queryKey: ['catalogue', 'products', category ?? null, subcategory ?? null, group ?? null],
     queryFn: () =>
-      api.getProducts({ category, subcategory, limit: 100 }),
-    enabled: enabled && (!!category || !!subcategory),
+      api.getProducts({ category, group, subcategory, limit: 100 }),
+    enabled: enabled && (!!category || !!subcategory || !!group),
   });
 }
 

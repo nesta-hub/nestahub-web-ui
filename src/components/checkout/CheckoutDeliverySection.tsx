@@ -1,7 +1,6 @@
 import { MapPin, Truck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { DeliverySummaryCard } from "./DeliverySummaryCard";
-import { formatPrice } from "@/lib/api";
 import { metaPixel } from "@/lib/metaPixel";
 
 type DeliveryMethod = 'pickup' | 'address';
@@ -10,18 +9,16 @@ interface CheckoutDeliverySectionProps {
   selectedMethod: DeliveryMethod | null;
   onSelectMethod: (method: DeliveryMethod) => void;
   onChangeMethod: () => void;
-  addressDeliveryFee?: number | null;
 }
 
 export function CheckoutDeliverySection({
   selectedMethod,
   onSelectMethod,
   onChangeMethod,
-  addressDeliveryFee,
 }: CheckoutDeliverySectionProps) {
   // Show summary card if method is selected
   if (selectedMethod) {
-    const addressSubtitle = 'From ₦500';
+    const addressSubtitle = 'Priced for your address';
 
     return (
       <div className="space-y-2">
@@ -77,7 +74,7 @@ export function CheckoutDeliverySection({
             </div>
             <div>
               <p className="text-sm font-medium">Deliver to Address</p>
-              <p className="text-xs text-muted-foreground">From ₦500</p>
+              <p className="text-xs text-muted-foreground">Priced for your address</p>
             </div>
           </div>
         </Card>

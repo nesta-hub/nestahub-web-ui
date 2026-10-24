@@ -10,9 +10,11 @@ interface WalletBalancePillProps {
   className?: string;
   size?: 'sm' | 'md';
   iconOnly?: boolean;
+  /** "outlined" is the redesigned shop's pill: a hairline outline, "Wallet" then the bold balance. */
+  variant?: 'filled' | 'outlined';
 }
 
-export function WalletBalancePill({ className = '', size = 'md', iconOnly = false }: WalletBalancePillProps) {
+export function WalletBalancePill({ className = '', size = 'md', iconOnly = false, variant = 'filled' }: WalletBalancePillProps) {
   const navigate = useNavigate();
   const { session } = useAuth();
   const token = session?.access_token;
@@ -26,6 +28,23 @@ export function WalletBalancePill({ className = '', size = 'md', iconOnly = fals
 
   if (!token) return null;
   const balance = summary?.balance ?? 0;
+
+  if (variant === 'outlined') {
+    return (
+      <button
+        type="button"
+        onClick={() => navigate('/account/wallet')}
+        aria-label={`Open wallet, balance ${formatKobo(balance)}`}
+        className={cn(
+          'inline-flex items-center gap-[7px] whitespace-nowrap rounded-full border border-shop-line-soft text-shop-muted transition-colors hover:border-shop-brown',
+          size === 'sm' ? 'h-8 px-3 text-xs' : 'h-[38px] px-3.5 text-[12.5px]',
+          className,
+        )}
+      >
+        Wallet <strong className="font-extrabold text-shop-ink">{formatKobo(balance)}</strong>
+      </button>
+    );
+  }
 
   return (
     <button
