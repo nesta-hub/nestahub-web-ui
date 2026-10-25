@@ -42,9 +42,12 @@ const FALLBACK_ICONS: Record<string, React.ComponentType<{ className?: string }>
 interface CategoryTileProps {
   category: CatalogueCategory;
   onClick: () => void;
+  /** "flat" is the redesigned shop's tile: no shadow or outline, a warmer fill, a slightly bolder label. */
+  variant?: "default" | "flat";
 }
 
-export function CategoryTile({ category, onClick }: CategoryTileProps) {
+export function CategoryTile({ category, onClick, variant = "default" }: CategoryTileProps) {
+  const flat = variant === "flat";
   const SvgIcon = category.iconKey ? categoryIconMap[category.iconKey] : undefined;
   const LucideFallback = FALLBACK_ICONS[category.id] ?? Package;
 
@@ -55,8 +58,8 @@ export function CategoryTile({ category, onClick }: CategoryTileProps) {
     >
       <div
         className={cn(
-          "w-full aspect-square rounded-2xl bg-[#F5F3F0] flex items-center justify-center",
-          "shadow-soft border border-border/40 overflow-hidden",
+          "w-full aspect-square flex items-center justify-center overflow-hidden",
+          flat ? "rounded-[20px] bg-[#EFEAE4]" : "rounded-2xl bg-[#F5F3F0] shadow-soft border border-border/40",
         )}
       >
         {category.imageUrl ? (
@@ -67,7 +70,12 @@ export function CategoryTile({ category, onClick }: CategoryTileProps) {
           <LucideFallback className="w-9 h-9 text-primary" strokeWidth={1.5} />
         )}
       </div>
-      <p className="mt-2 text-[11px] leading-tight font-medium text-foreground line-clamp-2">
+      <p
+        className={cn(
+          "line-clamp-2 text-foreground",
+          flat ? "mt-[7px] text-[11.5px] leading-[14px] font-semibold" : "mt-2 text-[11px] leading-tight font-medium",
+        )}
+      >
         {category.name}
       </p>
     </button>

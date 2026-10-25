@@ -1,283 +1,142 @@
 /// <reference types="@types/google.maps" />
 import { useState, useEffect, useRef, useCallback } from "react";
-import { MapPin, Search, Loader2, Truck } from "lucide-react";
+import { MapPin, Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DeliverySummaryCard } from "./DeliverySummaryCard";
-import { formatPrice } from "@/lib/api";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyBBrJpwnxEx42A0Ye1-7hP26HIfm-7myf0";
 
-// Nesta Hub dispatch location — Soluyi, Gbagada, Lagos
-export const NESTA_HUB = { lat: 6.553, lng: 3.384 };
-
-// Lagos State bounding box — addresses outside this are blocked
-const LAGOS_BOUNDS = { minLat: 6.38, maxLat: 6.70, minLng: 2.68, maxLng: 3.70 };
-
-// Delivery fees in kobo (matching codebase convention)
-export const ZONE_FEES = {
-  zone1: 50000,  // ₦500 — ≤1.5 km
-  zone2: 50000,  // ₦500 — 1.5–2.5 km
-  zone3: 200000, // ₦2,000 — 2.5–10 km
-  zone4: 250000, // ₦2,500 — 10–25 km
-  zone5: 300000, // ₦3,000 — 25–70 km
-} as const;
-
-/** Haversine straight-line distance in km between two lat/lng points */
-export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.asin(Math.sqrt(a));
-}
-
-/** Returns the delivery fee in kobo for a given lat/lng, or 'unsupported' */
-export function getDeliveryFee(lat: number, lng: number): number | "unsupported" {
-  // Block addresses outside Lagos State bounding box
-  if (
-    lat < LAGOS_BOUNDS.minLat ||
-    lat > LAGOS_BOUNDS.maxLat ||
-    lng < LAGOS_BOUNDS.minLng ||
-    lng > LAGOS_BOUNDS.maxLng
-  ) {
-    return "unsupported";
-  }
-
-  const distKm = haversineKm(NESTA_HUB.lat, NESTA_HUB.lng, lat, lng);
-
-  if (distKm <= 1.5) return ZONE_FEES.zone1;
-  if (distKm <= 2.5) return ZONE_FEES.zone2;
-  if (distKm <= 10)  return ZONE_FEES.zone3;
-  if (distKm <= 25)  return ZONE_FEES.zone4;
-  if (distKm <= 70)  return ZONE_FEES.zone5;
-  return "unsupported";
-}
-
-/** Returns true if the address is in Zone 1 (≤1.5 km from Nesta Hub) */
-export function isZone1Address(lat: number, lng: number): boolean {
-  const distKm = haversineKm(NESTA_HUB.lat, NESTA_HUB.lng, lat, lng);
-  return distKm <= 1.5;
-}
-
-/** Returns true if the address is in Zone 1 or Zone 2 (≤2.5 km from Nesta Hub) - for weekend delivery eligibility */
-export function isZone1Or2Address(lat: number, lng: number): boolean {
-  const distKm = haversineKm(NESTA_HUB.lat, NESTA_HUB.lng, lat, lng);
-  return distKm <= 2.5;
-}
-
 interface CheckoutAddressSectionProps {
   selectedAddress: string | null;
-  deliveryFee: number | null;
-  onSelectAddress: (address: string, fee: number, lat: number, lng: number) => void;
+  /** The chosen address and its exact coordinates. What delivery costs there is the server's answer, not ours. */
+  onSelectAddress: (address: string, lat: number, lng: number) => void;
   onChangeAddress: () => void;
 }
 
-/** Returns "Wed, 23 Apr 2026" for tomorrow */
-function formatNextDay(): string {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
+/**
+ * Pick a delivery address with Google's address search. It returns the address and its
+ * coordinates and nothing else: no price and no "do we deliver here". Both are the server's
+ * decision, made from these coordinates once the address is chosen (see
+ * DeliveryOptionsSection), so there is no fee table or area rule in the browser to drift.
+ * Details are looked up once, for the suggestion actually picked.
+ */
 export function CheckoutAddressSection({
   selectedAddress,
-  deliveryFee,
   onSelectAddress,
   onChangeAddress,
 }: CheckoutAddressSectionProps) {
   const [query, setQuery] = useState("");
   const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Already loaded (another screen opened Maps first) means ready from the first render.
+  const [ready, setReady] = useState<boolean>(() => !!window.google?.maps?.places);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pickError, setPickError] = useState<string | null>(null);
+  const isLoading = !ready && !error;
 
-  // Per-prediction fee resolution: place_id → fee in kobo | 'unsupported' | 'loading'
-  const [predictionFees, setPredictionFees] = useState<
-    Map<string, number | "unsupported" | "loading">
-  >(new Map());
-
-  // Per-prediction coordinates: place_id → { lat, lng }
-  const [predictionCoords, setPredictionCoords] = useState<
-    Map<string, { lat: number; lng: number }>
-  >(new Map());
-
-  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
-  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
+  const servicesRef = useRef<{
+    autocomplete: google.maps.places.AutocompleteService;
+    places: google.maps.places.PlacesService;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const initServices = useCallback(() => {
-    if (!window.google?.maps?.places) return;
-
-    try {
-      autocompleteServiceRef.current = new window.google.maps.places.AutocompleteService();
-      const dummyDiv = document.createElement("div");
-      placesServiceRef.current = new window.google.maps.places.PlacesService(dummyDiv);
-      setIsLoading(false);
-      setError(null);
-    } catch (err) {
-      console.error("Error initializing services:", err);
-      setError("Failed to initialize address search");
-      setIsLoading(false);
+  /** Google's two services, made once, the first time they are needed. */
+  const getServices = useCallback(() => {
+    if (!servicesRef.current && window.google?.maps?.places) {
+      servicesRef.current = {
+        autocomplete: new window.google.maps.places.AutocompleteService(),
+        places: new window.google.maps.places.PlacesService(document.createElement("div")),
+      };
     }
+    return servicesRef.current;
   }, []);
 
-  // Load Google Maps script
+  // Load the Google Maps script (state is only set from its callbacks, never in this body)
   useEffect(() => {
-    if (window.google?.maps?.places) {
-      initServices();
-      return;
-    }
+    if (ready) return;
 
     const existingScript = document.querySelector(`script[src*="maps.googleapis.com"]`);
     if (existingScript) {
       const checkGoogle = setInterval(() => {
         if (window.google?.maps?.places) {
           clearInterval(checkGoogle);
-          initServices();
+          setReady(true);
         }
       }, 100);
-
-      setTimeout(() => {
+      const giveUp = setTimeout(() => {
         clearInterval(checkGoogle);
-        if (!window.google?.maps?.places) {
-          setError("Failed to load Google Maps");
-          setIsLoading(false);
-        }
+        if (!window.google?.maps?.places) setError("Failed to load Google Maps");
       }, 10000);
-
-      return () => clearInterval(checkGoogle);
+      return () => {
+        clearInterval(checkGoogle);
+        clearTimeout(giveUp);
+      };
     }
 
     const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
     script.async = true;
     script.defer = true;
-
-    script.onload = () => initServices();
-    script.onerror = () => {
-      setError("Failed to load Google Maps");
-      setIsLoading(false);
-    };
-
+    script.onload = () => setReady(true);
+    script.onerror = () => setError("Failed to load Google Maps");
     document.head.appendChild(script);
-  }, [initServices]);
+  }, [ready]);
 
   // Debounced search for predictions
   useEffect(() => {
-    if (!query || query.length < 3 || !autocompleteServiceRef.current) {
-      setPredictions([]);
-      setPredictionFees(new Map());
-      setPredictionCoords(new Map());
-      return;
-    }
-
-    setIsSearching(true);
+    if (!ready || query.length < 3) return;
+    const services = getServices();
+    if (!services) return;
 
     const timer = setTimeout(() => {
-      autocompleteServiceRef.current?.getPlacePredictions(
+      services.autocomplete.getPlacePredictions(
         {
           input: query,
           componentRestrictions: { country: "ng" },
         },
         (results, status) => {
           setIsSearching(false);
-          if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
-            setPredictions(results);
-            // Mark all as loading
-            const initialFees = new Map<string, number | "unsupported" | "loading">();
-            results.forEach((p) => initialFees.set(p.place_id, "loading"));
-            setPredictionFees(initialFees);
-            setPredictionCoords(new Map());
-          } else {
-            setPredictions([]);
-            setPredictionFees(new Map());
-            setPredictionCoords(new Map());
-          }
+          setPredictions(status === window.google.maps.places.PlacesServiceStatus.OK && results ? results : []);
         },
       );
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, ready, getServices]);
 
-  // Resolve fees for each prediction by fetching geometry
-  useEffect(() => {
-    if (!placesServiceRef.current || predictions.length === 0) return;
-
-    predictions.forEach((prediction) => {
-      placesServiceRef.current!.getDetails(
-        { placeId: prediction.place_id, fields: ["geometry"] },
-        (place, status) => {
-          if (
-            status === window.google.maps.places.PlacesServiceStatus.OK &&
-            place?.geometry?.location
-          ) {
-            const lat = place.geometry.location.lat();
-            const lng = place.geometry.location.lng();
-            const fee = getDeliveryFee(lat, lng);
-
-            setPredictionFees((prev) => {
-              const next = new Map(prev);
-              next.set(prediction.place_id, fee);
-              return next;
-            });
-            if (fee !== "unsupported") {
-              setPredictionCoords((prev) => {
-                const next = new Map(prev);
-                next.set(prediction.place_id, { lat, lng });
-                return next;
-              });
-            }
-          } else {
-            setPredictionFees((prev) => {
-              const next = new Map(prev);
-              next.set(prediction.place_id, "unsupported");
-              return next;
-            });
-          }
-        },
-      );
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [predictions]);
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    if (value.length >= 3) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+      setPredictions([]);
+    }
+  };
 
   const handleSelectPrediction = (prediction: google.maps.places.AutocompletePrediction) => {
-    const fee = predictionFees.get(prediction.place_id);
-    const coords = predictionCoords.get(prediction.place_id);
-    // Don't allow selecting unsupported or still-loading addresses
-    if (!fee || fee === "unsupported" || fee === "loading" || !coords) return;
-
-    if (!placesServiceRef.current) return;
-
+    const services = getServices();
+    if (!services) return;
     setIsSearching(true);
+    setPickError(null);
 
-    placesServiceRef.current.getDetails(
-      { placeId: prediction.place_id, fields: ["name", "formatted_address"] },
+    services.places.getDetails(
+      { placeId: prediction.place_id, fields: ["name", "formatted_address", "geometry"] },
       (place, status) => {
         setIsSearching(false);
-        const formatted =
-          status === window.google.maps.places.PlacesServiceStatus.OK && place?.formatted_address
-            ? place.formatted_address
-            : prediction.description;
+        const loc = place?.geometry?.location;
+        if (status !== window.google.maps.places.PlacesServiceStatus.OK || !loc) {
+          setPickError("We couldn't read that address. Please try another suggestion.");
+          return;
+        }
+        const formatted = place.formatted_address ?? prediction.description;
         const address =
-          place?.name && !formatted.includes(place.name)
-            ? `${place.name}, ${formatted}`
-            : formatted;
+          place.name && !formatted.includes(place.name) ? `${place.name}, ${formatted}` : formatted;
 
-        onSelectAddress(address, fee, coords.lat, coords.lng);
+        onSelectAddress(address, loc.lat(), loc.lng());
         setPredictions([]);
-        setPredictionFees(new Map());
-        setPredictionCoords(new Map());
         setQuery("");
       },
     );
@@ -317,7 +176,7 @@ export function CheckoutAddressSection({
             <Input
               ref={inputRef}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => handleQueryChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -344,48 +203,28 @@ export function CheckoutAddressSection({
           {/* Predictions list */}
           {predictions.length > 0 && (
             <div className="border border-border rounded-lg overflow-hidden bg-card">
-              {predictions.map((prediction) => {
-                const fee = predictionFees.get(prediction.place_id);
-                const isUnsupported = fee === "unsupported";
-                const isResolvingFee = fee === "loading" || fee === undefined;
-
-                return (
-                  <button
-                    key={prediction.place_id}
-                    type="button"
-                    className={[
-                      "w-full px-4 py-3 flex items-start gap-3 text-left border-b border-border last:border-b-0 transition-colors",
-                      isUnsupported
-                        ? "opacity-60 cursor-not-allowed"
-                        : "hover:bg-muted active:bg-muted/80 cursor-pointer",
-                    ].join(" ")}
-                    onClick={() => !isUnsupported && !isResolvingFee && handleSelectPrediction(prediction)}
-                    disabled={isUnsupported || isResolvingFee}
-                  >
-                    <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {prediction.structured_formatting.main_text}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {prediction.structured_formatting.secondary_text}
-                      </p>
-                    </div>
-                    <div className="shrink-0 ml-2 flex items-center">
-                      {isResolvingFee && (
-                        <Loader2 className="w-3 h-3 text-muted-foreground animate-spin" />
-                      )}
-                      {isUnsupported && (
-                        <span className="text-xs text-muted-foreground text-right leading-tight max-w-[90px]">
-                          We don't deliver here yet
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+              {predictions.map((prediction) => (
+                <button
+                  key={prediction.place_id}
+                  type="button"
+                  className="w-full px-4 py-3 flex items-start gap-3 text-left border-b border-border last:border-b-0 transition-colors hover:bg-muted active:bg-muted/80 cursor-pointer"
+                  onClick={() => handleSelectPrediction(prediction)}
+                >
+                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {prediction.structured_formatting.main_text}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {prediction.structured_formatting.secondary_text}
+                    </p>
+                  </div>
+                </button>
+              ))}
             </div>
           )}
+
+          {pickError && <p className="text-xs text-destructive text-center">{pickError}</p>}
 
           {query.length > 0 && query.length < 3 && (
             <p className="text-xs text-muted-foreground text-center">Type at least 3 characters to search</p>

@@ -1,30 +1,21 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/layout";
-import { HeaderCartIcon } from "@/components/cart";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  CategoryGroupSection,
   ReorderDrawer,
   CategoryProductsDrawer,
   CategoryView,
-  ShopTabs,
-  ItemsFeed,
-  CatalogueSearchBar,
   SearchOverlay,
   ShopProductDrawer,
-  DesktopCatalogueView,
-  type ShopTab,
   type DrawerCategory,
 } from "@/components/catalogue/v2";
-import { WalletBalancePill } from "@/components/wallet/WalletBalancePill";
+import { DesktopShop } from "@/components/catalogue/v3/DesktopShop";
+import { MobileShopHome } from "@/components/catalogue/v3/MobileShopHome";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategoryTree, useRecentVariants } from "@/hooks/useCatalogue";
-import { apiGroupToCatalogue, apiCategoryToCatalogue } from "@/lib/catalogueAdapter";
 import type { Category as ApiCategory, CategoryGroup as ApiGroup } from "@/lib/api";
 import { metaPixel } from "@/lib/metaPixel";
-
-const TAB_STORAGE_KEY = "catalogue:active-tab";
 
 /** Build the drawer category view-model from an API category node. */
 function toDrawerCategory(cat: ApiCategory): DrawerCategory {
@@ -38,8 +29,9 @@ function toDrawerCategory(cat: ApiCategory): DrawerCategory {
 
 const CatalogueV2 = () => {
   const isMobile = useIsMobile();
+  const { groupSlug } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: tree } = useCategoryTree();
+  const { data: tree, isLoading: treeLoading } = useCategoryTree();
   // Reorder/buy-again is only meaningful for signed-in users with past orders.
   const { session } = useAuth();
   const { data: recent } = useRecentVariants(session?.access_token);
@@ -52,17 +44,8 @@ const CatalogueV2 = () => {
   const [viewAllCategory, setViewAllCategory] = useState<DrawerCategory | null>(null);
   const [isReorderDrawerOpen, setIsReorderDrawerOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<ShopTab>(() => {
-    if (typeof window === "undefined") return "categories";
-    const saved = sessionStorage.getItem(TAB_STORAGE_KEY) as ShopTab | null;
-    return saved === "items" || saved === "categories" ? saved : "categories";
-  });
 
   const groups: ApiGroup[] = useMemo(() => tree?.groups ?? [], [tree]);
-
-  useEffect(() => {
-    sessionStorage.setItem(TAB_STORAGE_KEY, activeTab);
-  }, [activeTab]);
 
   // The `?product=<slug-or-id>` param is the single source of truth for the
   // product drawer: present → open, absent → closed. This keeps deep links,
@@ -106,55 +89,22 @@ const CatalogueV2 = () => {
   if (!isMobile) {
     return (
       <Layout>
-        <DesktopCatalogueView initialProductKey={searchParams.get("product")} />
+        <DesktopShop />
       </Layout>
     );
   }
 
   return (
     <Layout>
-      <div className="min-h-screen pb-24">
-        {/* Header */}
-        <div className="relative px-4 pt-6 pb-3 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground">Shop</h1>
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pt-[6px]">
-            <WalletBalancePill size="sm" />
-          </div>
-          <HeaderCartIcon />
-        </div>
-
-        {/* Search bar with attached Buy Again row */}
-        <CatalogueSearchBar
-          onSearchClick={() => setIsSearchOpen(true)}
-          onReorderClick={() => setIsReorderDrawerOpen(true)}
-          showReorder={hasReorder}
-        />
-
-        {/* Sticky tabs */}
-        <ShopTabs active={activeTab} onChange={setActiveTab} />
-
-        {/* Tab content */}
-        {activeTab === "categories" ? (
-          <div key="categories" className="space-y-7 pt-4 animate-fade-in">
-            {groups.map((group) => (
-              <CategoryGroupSection
-                key={group.id}
-                group={apiGroupToCatalogue(group)}
-                categories={group.categories.map((c) => apiCategoryToCatalogue(c, group.id))}
-                onTileClick={(cat) => {
-                  // cat.id is the category slug; find the API node to get subcategories.
-                  const apiCat = group.categories.find((c) => c.slug === cat.id);
-                  if (apiCat) handleTileClick(apiCat);
-                }}
-              />
-            ))}
-          </div>
-        ) : (
-          <div key="items" className="animate-fade-in">
-            <ItemsFeed groups={groups} onProductClick={(key) => openProduct(key)} />
-          </div>
-        )}
-      </div>
+      <MobileShopHome
+        groups={groups}
+        loading={treeLoading}
+        initialGroupSlug={groupSlug ?? null}
+        hasReorder={hasReorder}
+        onSearch={() => setIsSearchOpen(true)}
+        onReorder={() => setIsReorderDrawerOpen(true)}
+        onCategory={handleTileClick}
+      />
 
       {/* Search overlay */}
       <SearchOverlay

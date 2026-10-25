@@ -11,5 +11,5 @@ export { OrderTypeInfoPill } from "./OrderTypeInfoPill";
 export { AutoRenewExplainerDrawer } from "./AutoRenewExplainerDrawer";
 export { AutoRenewConfigDrawer } from "./AutoRenewConfigDrawer";
 export { OrderTypeSummaryCard } from "./OrderTypeSummaryCard";
-export { DeliveryConfirmationDrawer } from "./DeliveryConfirmationDrawer";
+export { DeliveryOptionsSection } from "./DeliveryOptionsSection";
 export type { PaymentOption } from "./CheckoutPaymentOptionSection";

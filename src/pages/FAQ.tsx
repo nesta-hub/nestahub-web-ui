@@ -20,7 +20,7 @@ const faqSections = [
     id: "delivery",
     question: "What are your delivery options?",
     answer:
-      "We offer home delivery across Lagos and pickup from select stations. Delivery typically takes 1–3 business days within Lagos. For locations outside Lagos, please contact us for availability.",
+      "We offer home delivery across Lagos and pickup from select stations. Once you enter your address at checkout you'll see your options: Instant delivery (the same day if you order before the daily cutoff, otherwise the next delivery day) and, in some areas, Community Delivery on set days at a flat fee. The price and day are shown before you pay. For locations outside Lagos, please contact us for availability.",
   },
   {
     id: "bundles",

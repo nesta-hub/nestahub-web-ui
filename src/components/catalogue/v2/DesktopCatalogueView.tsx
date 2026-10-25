@@ -377,7 +377,7 @@ function CategoryPanel({
 
 // ── Reorder side panel ────────────────────────────────────────────────────────
 
-function ReorderSidePanel({
+export function ReorderSidePanel({
   open,
   onOpenChange,
   onProductClick,
@@ -526,7 +526,7 @@ function ReorderSidePanel({
 
 // ── Search results panel ──────────────────────────────────────────────────────
 
-function DesktopSearchResults({
+export function DesktopSearchResults({
   query,
   onProductClick,
 }: {

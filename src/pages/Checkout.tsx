@@ -15,15 +15,15 @@ import {
   ContactForm,
   CheckoutPaymentView,
   CheckoutSuccessView,
-  DeliveryConfirmationDrawer,
+  DeliveryOptionsSection,
   type PaymentOption,
 } from "@/components/checkout";
 import { SignInForm } from "@/components/auth/SignInForm";
-import { api, formatPrice, getOrderStatus } from "@/lib/api";
+import { api, formatPrice, getOrderStatus, DeliveryQuoteStaleError } from "@/lib/api";
+import { useDeliveryOptions } from "@/hooks/useDeliveryOptions";
+import { describeOrderDelivery } from "@/lib/delivery-choice";
 import { metaPixel } from "@/lib/metaPixel";
 import { useGiftBundle, usePackagingOptions } from "@/hooks/useGifting";
-import { isZone1Address, isZone1Or2Address } from "@/components/checkout/CheckoutAddressSection";
-import { calculateDeliveryTiming, type DeliveryTiming } from "@/lib/delivery-timing";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DesktopCheckoutView } from "@/components/checkout/DesktopCheckoutView";
 import {
@@ -38,7 +38,6 @@ import type { PackagingOption } from "@/lib/giftAdapter";
 import type { CartItem } from "@/contexts/CartContext";
 
 type DeliveryMethod = 'pickup' | 'address';
-type DeliverySpeed = 'standard' | 'weekend' | 'sameday' | 'nextday';
 
 const Checkout = () => {
   const navigate = useNavigate();
@@ -63,16 +62,15 @@ const Checkout = () => {
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
   const [pickupStation, setPickupStation] = useState<PickupStation | null>(null);
   const [address, setAddress] = useState<string | null>(null);
-  const [addressDeliveryFee, setAddressDeliveryFee] = useState<number | null>(null);
   const [addressLat, setAddressLat] = useState<number | null>(null);
   const [addressLng, setAddressLng] = useState<number | null>(null);
-  const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed | null>(null);
   const [paymentOption, setPaymentOption] = useState<PaymentOption | null>(null);
-  const [isZone1Or2, setIsZone1Or2] = useState<boolean>(false);
 
-  // Delivery confirmation drawer state (mobile)
-  const [showDeliveryConfirmation, setShowDeliveryConfirmation] = useState(false);
-  const [calculatedDeliveryTiming, setCalculatedDeliveryTiming] = useState<DeliveryTiming | null>(null);
+  // What delivery costs at the chosen address, and when, as the server works it out
+  const delivery = useDeliveryOptions(
+    session?.access_token,
+    addressLat != null && addressLng != null ? { lat: addressLat, lng: addressLng } : null,
+  );
 
   // Contact state
   const [fullName, setFullName] = useState('');
@@ -93,6 +91,8 @@ const Checkout = () => {
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [serverTotalAmount, setServerTotalAmount] = useState<number | null>(null);
+  // How and when the order is being delivered, as the server stored it
+  const [deliverySummary, setDeliverySummary] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -117,6 +117,7 @@ const Checkout = () => {
         .then((status) => {
           setOrderNumber(status.orderNumber);
           setServerTotalAmount(status.totalAmount);
+          setDeliverySummary(describeOrderDelivery(status));
           const pastPayment =
             !!status.paymentMadeAt ||
             status.status === 'payment_made' ||
@@ -145,19 +146,12 @@ const Checkout = () => {
     session?.access_token,
   );
 
-  const deliveryFee = (() => {
-    if (deliveryMethod === 'pickup') return 0;
-    if (deliveryMethod === 'address' && deliverySpeed) {
-      if (deliverySpeed === 'weekend') return 50000;
-      return addressDeliveryFee ?? 0;
-    }
-    return 0;
-  })();
+  const deliveryFee = deliveryMethod === 'address' ? (delivery.selected?.feeKobo ?? 0) : 0;
   const productsTotal = isGiftBundle ? giftBundleProductsTotal : totalAmount;
   const grandTotal = productsTotal + deliveryFee;
 
   const isContactValid = fullName.trim().length >= 2 && phoneNumber.trim().length >= 10;
-  const hasDeliveryDetails = deliveryMethod === 'pickup' ? !!pickupStation : (!!address && !!deliverySpeed);
+  const hasDeliveryDetails = deliveryMethod === 'pickup' ? !!pickupStation : (!!address && !!delivery.selected);
   const isPickup = deliveryMethod === 'pickup';
   const hasPaymentOption = isPickup || !!paymentOption;
   const showContactForm = hasDeliveryDetails && hasPaymentOption;
@@ -175,28 +169,25 @@ const Checkout = () => {
     setDeliveryMethod(null);
     setPickupStation(null);
     setAddress(null);
-    setAddressDeliveryFee(null);
     setAddressLat(null);
     setAddressLng(null);
-    setDeliverySpeed(null);
     setPaymentOption(null);
   };
 
   const handleAddressChange = () => {
     setAddress(null);
-    setAddressDeliveryFee(null);
     setAddressLat(null);
     setAddressLng(null);
-    setDeliverySpeed(null);
-    setCalculatedDeliveryTiming(null);
-    setShowDeliveryConfirmation(false);
   };
 
-  const handleDeliveryConfirm = () => {
-    if (calculatedDeliveryTiming) {
-      setDeliverySpeed(calculatedDeliveryTiming.speed as DeliverySpeed);
-      setShowDeliveryConfirmation(false);
+  /** An order refused because the shown price or day is no longer true: show what is, and let them choose again. */
+  const handleOrderError = (err: unknown) => {
+    if (err instanceof DeliveryQuoteStaleError) {
+      delivery.applyStale(err);
+      setSubmitError(err.message);
+      return;
     }
+    setSubmitError(err instanceof Error ? err.message : 'Failed to place order. Please try again.');
   };
 
   const handleProceedToPayment = async () => {
@@ -217,18 +208,17 @@ const Checkout = () => {
             fullName: fullName.trim(),
             phoneNumber: phoneNumber.trim() || undefined,
             deliveryMethod: deliveryMethod!,
-            deliverySpeed: deliveryMethod === 'address' ? (deliverySpeed ?? undefined) : undefined,
             paymentOption: deliveryMethod === 'address' ? (paymentOption ?? undefined) : undefined,
             pickupStationId: deliveryMethod === 'pickup' ? (pickupStation?.id ?? null) : null,
             deliveryAddress: deliveryMethod === 'address' ? address : null,
-            deliveryLat: deliveryMethod === 'address' && addressLat != null ? addressLat : undefined,
-            deliveryLng: deliveryMethod === 'address' && addressLng != null ? addressLng : undefined,
+            ...(deliveryMethod === 'address' ? delivery.orderFields : null),
             packagingOptionId: giftPackagingId ?? undefined,
           },
           session.access_token,
         );
         setOrderNumber(result.orderNumber);
         setServerTotalAmount(result.totalAmount);
+        setDeliverySummary(describeOrderDelivery(result));
         if (paymentOption === 'pay-on-delivery') {
           metaPixel.purchase({ value: result.totalAmount / 100, currency: 'NGN', order_id: result.orderNumber });
           navigate(`?order=${result.orderNumber}&step=success`, { replace: true });
@@ -238,7 +228,7 @@ const Checkout = () => {
           setShowPayment(true);
         }
       } catch (err) {
-        setSubmitError(err instanceof Error ? err.message : 'Failed to place order. Please try again.');
+        handleOrderError(err);
       } finally {
         setIsSubmitting(false);
       }
@@ -262,12 +252,10 @@ const Checkout = () => {
           fullName: fullName.trim(),
           phoneNumber: phoneNumber.trim(),
           deliveryMethod: deliveryMethod!,
-          deliverySpeed: deliveryMethod === 'address' ? (deliverySpeed ?? undefined) : undefined,
           paymentOption: deliveryMethod === 'address' ? (paymentOption ?? undefined) : undefined,
           pickupStationId: deliveryMethod === 'pickup' ? pickupStation?.id ?? null : null,
           deliveryAddress: deliveryMethod === 'address' ? address : null,
-          deliveryLat: deliveryMethod === 'address' && addressLat != null ? addressLat : undefined,
-          deliveryLng: deliveryMethod === 'address' && addressLng != null ? addressLng : undefined,
+          ...(deliveryMethod === 'address' ? delivery.orderFields : null),
           bundleId: orderType === 'bundle' ? (bundleId ?? null) : null,
           giftSizeId: orderType === 'custom_gift' ? (giftSizeId ?? null) : null,
           items: orderItems,
@@ -277,6 +265,7 @@ const Checkout = () => {
 
       setOrderNumber(result.orderNumber);
       setServerTotalAmount(result.totalAmount);
+      setDeliverySummary(describeOrderDelivery(result));
       clearCart();
       clearCustomGiftDraft();
 
@@ -289,7 +278,7 @@ const Checkout = () => {
         setShowPayment(true);
       }
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to place order. Please try again.');
+      handleOrderError(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -383,7 +372,7 @@ const Checkout = () => {
 
   // Already settled — pay-on-delivery, or fully covered by a gift card.
   if (showSuccess && orderNumber) {
-    return <CheckoutSuccessView orderId={orderNumber} paidWithGiftCard={paidWithGiftCard} paymentOption={paymentOption ?? undefined} />;
+    return <CheckoutSuccessView orderId={orderNumber} paidWithGiftCard={paidWithGiftCard} paymentOption={paymentOption ?? undefined} deliverySummary={deliverySummary} />;
   }
 
   // Desktop gift bundle — loading guard while bundle data fetches
@@ -411,12 +400,10 @@ const Checkout = () => {
               fullName: params.fullName,
               phoneNumber: params.phoneNumber || undefined,
               deliveryMethod: params.deliveryMethod,
-              deliverySpeed: params.deliveryMethod === 'address' ? (params.deliverySpeed ?? undefined) : undefined,
               paymentOption: params.deliveryMethod === 'address' ? (params.paymentOption ?? undefined) : undefined,
               pickupStationId: params.pickupStationId,
               deliveryAddress: params.deliveryAddress,
-              deliveryLat: params.deliveryLat ?? undefined,
-              deliveryLng: params.deliveryLng ?? undefined,
+              ...params.deliveryFields,
             },
             session!.access_token,
           )
@@ -448,12 +435,10 @@ const Checkout = () => {
                 fullName: params.fullName,
                 phoneNumber: params.phoneNumber,
                 deliveryMethod: params.deliveryMethod,
-                deliverySpeed: params.deliveryMethod === 'address' ? (params.deliverySpeed ?? undefined) : undefined,
                 paymentOption: params.deliveryMethod === 'address' ? (params.paymentOption ?? undefined) : undefined,
                 pickupStationId: params.deliveryMethod === 'pickup' ? params.pickupStationId : null,
                 deliveryAddress: params.deliveryMethod === 'address' ? params.deliveryAddress : null,
-                deliveryLat: params.deliveryMethod === 'address' && params.deliveryLat != null ? params.deliveryLat : undefined,
-                deliveryLng: params.deliveryMethod === 'address' && params.deliveryLng != null ? params.deliveryLng : undefined,
+                ...params.deliveryFields,
                 bundleId: orderType === 'bundle' ? (bundleId ?? null) : null,
                 giftSizeId: orderType === 'custom_gift' ? (giftSizeId ?? null) : null,
                 items: orderItems,
@@ -496,7 +481,6 @@ const Checkout = () => {
                   selectedMethod={deliveryMethod}
                   onSelectMethod={setDeliveryMethod}
                   onChangeMethod={handleMethodChange}
-                  addressDeliveryFee={addressDeliveryFee}
                 />
 
                 {deliveryMethod === 'pickup' && (
@@ -513,35 +497,27 @@ const Checkout = () => {
                   <div className="mt-6 animate-fade-in">
                     <CheckoutAddressSection
                       selectedAddress={address}
-                      deliveryFee={addressDeliveryFee}
-                      onSelectAddress={(addr, fee, lat, lng) => {
+                      onSelectAddress={(addr, lat, lng) => {
                         setAddress(addr);
-                        setAddressDeliveryFee(fee);
                         setAddressLat(lat);
                         setAddressLng(lng);
-                        setIsZone1Or2(isZone1Or2Address(lat, lng));
-                        const timing = calculateDeliveryTiming();
-                        setCalculatedDeliveryTiming(timing);
-                        setShowDeliveryConfirmation(true);
                       }}
                       onChangeAddress={handleAddressChange}
                     />
                   </div>
                 )}
 
-                {deliveryMethod === 'address' && address && calculatedDeliveryTiming && (
-                  <DeliveryConfirmationDrawer
-                    open={showDeliveryConfirmation}
-                    address={address}
-                    deliverySpeed={calculatedDeliveryTiming.speed}
-                    deliveryDate={calculatedDeliveryTiming.deliveryDate}
-                    deliveryFee={addressDeliveryFee ?? 0}
-                    onProceed={handleDeliveryConfirm}
-                    onCancel={() => {
-                      setShowDeliveryConfirmation(false);
-                      if (!deliverySpeed) handleAddressChange();
-                    }}
-                  />
+                {deliveryMethod === 'address' && address && (
+                  <div className="mt-6 animate-fade-in">
+                    <DeliveryOptionsSection
+                      options={delivery.options}
+                      isLoading={delivery.isLoading}
+                      error={delivery.error}
+                      onRetry={() => delivery.refetch()}
+                      choice={delivery.choice}
+                      onChoose={delivery.setChoice}
+                    />
+                  </div>
                 )}
 
                 {hasDeliveryDetails && deliveryMethod === 'address' && (
