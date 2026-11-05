@@ -43,6 +43,8 @@ export interface CatalogueCategory {
   iconKey?: string;
   tint?: string;
   imageUrl?: string;
+  /** The same picture with no background, for the desktop tiles only. Phones use imageUrl. */
+  cutoutImageUrl?: string;
 }
 
 export interface CategoryGroup {
