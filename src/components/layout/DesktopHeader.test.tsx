@@ -81,16 +81,30 @@ describe("the header on the shop", () => {
     expect(address()).toBe("/shop?product=zebra-bib&q=bib");
   });
 
-  it("shows the outlined wallet pill with the balance", () => {
-    show("/shop");
+  it.each(["/shop", "/shop/baby-care", "/shop/baby-care/body-wash", "/catalogue"])("has no wallet pill at %s", (path) => {
+    show(path);
 
-    expect(screen.getByTestId("wallet")).toHaveAttribute("data-variant", "outlined");
+    expect(screen.queryByTestId("wallet")).toBeNull();
   });
 
-  it("makes room for it: a wider header", () => {
+  it("uses the wider header", () => {
     const { container } = show("/shop");
 
     expect(container.querySelector("header > div")).toHaveClass("max-w-[1680px]");
+  });
+
+  it.each(["/shop", "/gifting"])("gives the logo and the right-hand side equal room at %s, so the links sit in the middle", (path) => {
+    show(path);
+
+    const nav = screen.getByRole("navigation");
+    const logoSide = screen.getByRole("link", { name: "Nesta Hub" }).parentElement!;
+    const rightSide = screen.getByRole("button", { name: "Open cart" }).parentElement!;
+
+    expect(nav.previousElementSibling).toBe(logoSide);
+    expect(nav.nextElementSibling).toBe(rightSide);
+    for (const side of [logoSide, rightSide]) {
+      expect(side).toHaveClass("flex-1", "basis-0");
+    }
   });
 
   it("has no Home link: there is no home page, so Shop comes first", () => {
