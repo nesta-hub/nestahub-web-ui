@@ -67,6 +67,8 @@ export interface Category {
   slug: string;
   description?: string;
   imageUrl?: string;
+  /** The same picture with no background, for the desktop tiles only. Phones use imageUrl. */
+  cutoutImageUrl?: string;
   iconKey?: string;
   tint?: string;
   groupId?: string;

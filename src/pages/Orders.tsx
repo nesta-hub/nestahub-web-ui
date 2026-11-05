@@ -11,7 +11,9 @@ const Orders = () => {
   const location = useLocation();
   const { user, loading } = useAuth();
   const isMobile = useIsMobile();
-  const initialOrderNumber: string | undefined = (location.state as { orderNumber?: string } | null)?.orderNumber;
+  const linked = location.state as { orderNumber?: string; pay?: boolean } | null;
+  const initialOrderNumber: string | undefined = linked?.orderNumber;
+  const initialPay = linked?.pay === true;
 
   if (loading) {
     return (
@@ -45,7 +47,7 @@ const Orders = () => {
 
   return (
     <Layout showNav={false}>
-      <OrdersView onBack={() => navigate("/account")} initialOrderNumber={initialOrderNumber} />
+      <OrdersView onBack={() => navigate("/account")} initialOrderNumber={initialOrderNumber} initialPay={initialPay} />
     </Layout>
   );
 };

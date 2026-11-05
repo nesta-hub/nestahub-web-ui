@@ -44,6 +44,8 @@ const CatalogueV2 = () => {
   const [viewAllCategory, setViewAllCategory] = useState<DrawerCategory | null>(null);
   const [isReorderDrawerOpen, setIsReorderDrawerOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  /** What the search opens with already typed in: a brand's name from an offer card, otherwise nothing. */
+  const [searchPreset, setSearchPreset] = useState("");
 
   const groups: ApiGroup[] = useMemo(() => tree?.groups ?? [], [tree]);
 
@@ -101,7 +103,10 @@ const CatalogueV2 = () => {
         loading={treeLoading}
         initialGroupSlug={groupSlug ?? null}
         hasReorder={hasReorder}
-        onSearch={() => setIsSearchOpen(true)}
+        onSearch={(query) => {
+          setSearchPreset(query ?? "");
+          setIsSearchOpen(true);
+        }}
         onReorder={() => setIsReorderDrawerOpen(true)}
         onCategory={handleTileClick}
       />
@@ -109,6 +114,7 @@ const CatalogueV2 = () => {
       {/* Search overlay */}
       <SearchOverlay
         open={isSearchOpen}
+        initialQuery={searchPreset}
         onClose={() => setIsSearchOpen(false)}
         onProductClick={(key) => openProduct(key)}
       />

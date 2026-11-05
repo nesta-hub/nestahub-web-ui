@@ -71,6 +71,8 @@ export function DesktopCheckoutView({
   const [addressLat, setAddressLat] = useState<number | null>(null);
   const [addressLng, setAddressLng] = useState<number | null>(null);
   const [paymentOption, setPaymentOption] = useState<PaymentOption | null>(null);
+  // Set when the wallet and/or a gift card covered the whole order (nothing left to verify).
+  const [paidInFull, setPaidInFull] = useState(false);
 
   // What delivery costs at the chosen address, and when, as the server works it out
   const delivery = useDeliveryOptions(
@@ -198,7 +200,10 @@ export function DesktopCheckoutView({
     setShowSuccess(true);
   };
 
+  // DesktopCheckoutPaymentView has already told the server (markPaymentMade) by the time this
+  // runs, so the order is settled: there is no transfer left to verify.
   const handleGiftCardFullCoverage = () => {
+    setPaidInFull(true);
     setShowPayment(false);
     setShowSuccess(true);
   };
@@ -260,10 +265,14 @@ export function DesktopCheckoutView({
 
   if (showSuccess && orderNumber) {
     const isPayOnDelivery = paymentOption === "pay-on-delivery";
-    const resolvedMessage = isPayOnDelivery
-      ? "Your order has been placed! We'll prepare it and get it to you. Pay when it arrives."
-      : successMessage;
-    const resolvedSteps = isPayOnDelivery
+    // Pay on delivery and "covered in full" are both settled already: nothing to verify.
+    const isSettled = isPayOnDelivery || paidInFull;
+    const resolvedMessage = paidInFull
+      ? "Your order is confirmed! We'll send an email shortly with the details."
+      : isPayOnDelivery
+        ? "Your order has been placed! We'll prepare it and get it to you. Pay when it arrives."
+        : successMessage;
+    const resolvedSteps = isSettled
       ? [
           { icon: Package, label: isPickup ? "Order being prepared" : "Order being packed", active: true },
           { icon: Truck, label: isPickup ? "Ready for pickup" : "Out for delivery", active: false },

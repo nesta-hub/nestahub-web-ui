@@ -34,6 +34,7 @@ import {
 } from "@/components/gifting/PaymentOutcomeView";
 import { useOrderConfirmationPoll } from "@/hooks/useOrderConfirmationPoll";
 import { resolveOutcomeCopy, type CtaAction } from "@/lib/giftOutcomeCopy";
+import { giftDeliveryCopy } from "@/lib/giftDeliveryCopy";
 import { CheckoutSignIn } from "@/components/checkout/CheckoutSignIn";
 
 type DeliveryMethod = "link" | "email" | "whatsapp";
@@ -230,7 +231,7 @@ export function DesktopGiftCardStudio() {
   }> = [
       { id: "link",     label: "Send it myself", icon: Link2 },
       { id: "email",    label: "Email",           icon: Mail },
-      { id: "whatsapp", label: "WhatsApp",        icon: MessageCircle, disabled: true },
+      { id: "whatsapp", label: "WhatsApp",        icon: MessageCircle },
     ];
 
   const buildCurrentCard = (): ConfiguredGiftCard => ({
@@ -428,18 +429,7 @@ export function DesktopGiftCardStudio() {
   }
 
   if (step === "success") {
-    const allEmail = summaryCards.every((c) => c.deliveryMethod === "email");
-    const allLink = summaryCards.every((c) => c.deliveryMethod === "link");
-    const isMulti = summaryCards.length > 1;
-    const successCopy = !isMulti
-      ? allEmail
-        ? `Once your payment is confirmed, we'll email the gift card directly to ${summaryCards[0]?.recipientName}.`
-        : "Once your payment is confirmed, we'll email the shareable gift card link to you."
-      : allEmail
-        ? "Once your payment is confirmed, we'll email each gift card directly to its recipient."
-        : allLink
-          ? "Once your payment is confirmed, we'll email the shareable gift card links to you."
-          : "After payment, we'll email gift cards to recipients you chose, and send shareable links to you for the rest.";
+    const successCopy = giftDeliveryCopy(summaryCards, "before");
 
     return (
       <DesktopCheckoutSuccessView
@@ -452,18 +442,7 @@ export function DesktopGiftCardStudio() {
   }
 
   if (step === "review") {
-    const allEmail = summaryCards.every((c) => c.deliveryMethod === "email");
-    const allLink = summaryCards.every((c) => c.deliveryMethod === "link");
-    const isMulti = summaryCards.length > 1;
-    const drawerCopy = !isMulti
-      ? allEmail
-        ? `After payment, we'll email the gift card directly to ${summaryCards[0]?.recipientName}.`
-        : "After payment, we'll email the shareable gift card link to you."
-      : allEmail
-        ? "After payment, we'll email each gift card directly to its recipient."
-        : allLink
-          ? "After payment, we'll email the shareable gift card links to you."
-          : "After payment, we'll email gift cards to recipients you chose, and send shareable links to you for the rest.";
+    const drawerCopy = giftDeliveryCopy(summaryCards, "after");
 
     return (
       <div className="min-h-screen bg-[#FAF8F5]">
@@ -516,6 +495,8 @@ export function DesktopGiftCardStudio() {
                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(28,25%,97%)] ring-1 ring-foreground/[0.06] px-2.5 py-1 text-[11px] text-foreground/80">
                                   {c.deliveryMethod === "email" ? (
                                     <Mail className="w-3 h-3 text-[hsl(28,32%,45%)]" />
+                                  ) : c.deliveryMethod === "whatsapp" ? (
+                                    <MessageCircle className="w-3 h-3 text-[hsl(28,32%,45%)]" />
                                   ) : (
                                     <Link2 className="w-3 h-3 text-[hsl(28,32%,45%)]" />
                                   )}
@@ -533,6 +514,12 @@ export function DesktopGiftCardStudio() {
                                   <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(28,25%,97%)] ring-1 ring-foreground/[0.06] px-2.5 py-1 text-[11px] text-foreground/80 max-w-full">
                                     <AtSign className="w-3 h-3 text-[hsl(28,32%,45%)] shrink-0" />
                                     <span className="truncate">{c.recipientEmail}</span>
+                                  </span>
+                                )}
+                                {c.recipientPhone && (
+                                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(28,25%,97%)] ring-1 ring-foreground/[0.06] px-2.5 py-1 text-[11px] text-foreground/80 max-w-full">
+                                    <MessageCircle className="w-3 h-3 text-[hsl(28,32%,45%)] shrink-0" />
+                                    <span className="truncate">{c.recipientPhone}</span>
                                   </span>
                                 )}
                                 {c.senderName && (

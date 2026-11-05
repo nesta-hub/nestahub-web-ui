@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Check,
@@ -74,8 +75,10 @@ export function DesktopCheckoutPaymentView({
   const [copied, setCopied] = useState<string | null>(null);
   const [appliedGiftCard, setAppliedGiftCard] = useState<AppliedGiftCard | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
-  const { session } = useAuth();
+  const queryClient = useQueryClient();
+  const { session, refreshWalletBalance } = useAuth();
   const [walletBalance, setWalletBalance] = useState<number>(0);
   useEffect(() => {
     if (!session?.access_token) return;
@@ -113,9 +116,33 @@ const walletAvailable = walletBalance >= 50;
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const refreshWalletData = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["wallet-summary"] }),
+      queryClient.invalidateQueries({ queryKey: ["wallet-transactions"] }),
+      refreshWalletBalance(),
+    ]);
+
   const handleConfirm = async (full: boolean) => {
     if (full) {
-      onGiftCardFullCoverage?.();
+      // The wallet and/or a gift card cover the whole order: there is no transfer to wait for,
+      // so tell the server now. markPaymentMade is what redeems the gift card, debits the wallet
+      // and confirms the order; without it the order stays "Order submitted". What happens next
+      // is the caller's call (`onGiftCardFullCoverage`, else the normal `onPaymentConfirmed`),
+      // and only after the server has said yes.
+      setIsConfirming(true);
+      setConfirmError(null);
+      try {
+        await api.markPaymentMade(orderId, session?.access_token ?? "");
+      } catch (err) {
+        setConfirmError(err instanceof Error ? err.message : "Failed to place your order. Please try again.");
+        setIsConfirming(false);
+        return;
+      }
+      // The wallet was debited by that call; the order is already placed either way.
+      await refreshWalletData().catch(() => {});
+      setIsConfirming(false);
+      (onGiftCardFullCoverage ?? onPaymentConfirmed)();
       return;
     }
     setIsConfirming(true);
@@ -598,13 +625,23 @@ const walletAvailable = walletBalance >= 50;
               {/* CTA */}
               <div className="space-y-2">
                 {isFullCoverage ? (
-                  <Button
-                    variant="shop"
-                    className="w-full h-12 text-base font-semibold"
-                    onClick={() => handleConfirm(true)}
-                  >
-                    Place order
-                  </Button>
+                  <>
+                    <Button
+                      variant="shop"
+                      className="w-full h-12 text-base font-semibold"
+                      onClick={() => handleConfirm(true)}
+                      disabled={isConfirming}
+                    >
+                      {isConfirming ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Placing order…</>
+                      ) : (
+                        "Place order"
+                      )}
+                    </Button>
+                    {confirmError && (
+                      <p role="alert" className="text-sm text-destructive text-center">{confirmError}</p>
+                    )}
+                  </>
                 ) : (
                   <>
                     <Button

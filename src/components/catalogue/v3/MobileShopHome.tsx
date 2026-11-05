@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { LayoutGrid, RotateCcw, Search } from "lucide-react";
 import { HeaderCartIcon } from "@/components/cart";
 import { MobileMenu } from "@/components/layout/MobileMenu";
-import { WalletBalancePill } from "@/components/wallet/WalletBalancePill";
+import { useAuth } from "@/contexts/AuthContext";
 import { CategoryTile } from "@/components/catalogue/v2/CategoryTile";
 import { apiCategoryToCatalogue } from "@/lib/catalogueAdapter";
 import type { Category as ApiCategory, CategoryGroup as ApiGroup } from "@/lib/api";
@@ -15,6 +15,9 @@ import { lookFor } from "./groupLook";
 import { scrollBehavior } from "./motion";
 import type { OfferAction } from "./offers";
 import { useGroupScrollSpy } from "./useGroupScrollSpy";
+import { SignedInWelcome } from "./WelcomeCard";
+import { WelcomePreview } from "./WelcomePreview"; // TEMPORARY: see welcomePreviewFlag.ts
+import { welcomePreviewRequested } from "./welcomePreviewFlag";
 
 const ALL = "all";
 /** How long the old group fades out before the new one fades in. */
@@ -26,7 +29,8 @@ interface Props {
   /** A group's slug from the address (/shop/:groupSlug): that group's pill starts selected. */
   initialGroupSlug?: string | null;
   hasReorder: boolean;
-  onSearch: () => void;
+  /** Open the search; with a word, open it with that already typed in (the Moobi card). */
+  onSearch: (query?: string) => void;
   onReorder: () => void;
   onCategory: (category: ApiCategory) => void;
 }
@@ -34,8 +38,15 @@ interface Props {
 /**
  * The shop on a phone: a title row, an elevated search bar, swipeable offers, a sticky row
  * of group pills, and the categories of one group at a time (or every group under "All").
+ *
+ * Signed in, the first offer becomes a welcome card with the wallet balance. The top row is the
+ * same for everyone: menu, logo in the middle, cart.
  */
 export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasReorder, onSearch, onReorder, onCategory }: Props) {
+  const { session } = useAuth();
+  const signedIn = !!session?.access_token;
+  // TEMPORARY, dev server only: ?welcome=1 shows the signed-in first card without signing in.
+  const previewWelcome = welcomePreviewRequested(useLocation().search);
   const visible = useMemo(() => groups.filter((g) => g.categories.length > 0), [groups]);
   const routeId = initialGroupSlug && visible.some((g) => g.slug === initialGroupSlug) ? initialGroupSlug : ALL;
 
@@ -86,6 +97,10 @@ export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasR
   /** An offer that shows part of this page: every group, or one group (all of them if it no longer exists). */
   const onOffer = (action: OfferAction) => {
     if (action.kind === "link") return;
+    if (action.kind === "search") {
+      onSearch(action.query);
+      return;
+    }
     pick(action.kind === "group" && visible.some((g) => g.slug === action.slug) ? action.slug : ALL);
     scrollToCategories();
   };
@@ -105,28 +120,24 @@ export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasR
 
   return (
     <div className="min-h-screen pb-24 text-shop-ink">
-      {/* Top row: the menu and the logo on the left, the wallet in the middle, the cart on the right */}
-      <div className="relative flex items-center justify-between px-2.5 pb-1 pt-3">
+      {/* Top row: the menu on the left, the logo in the middle, the cart on the right. The wallet isn't here:
+          a signed-in customer's balance is in the welcome card. */}
+      <div className="grid h-[60px] grid-cols-[46px_1fr_46px] items-center px-2 pt-3">
         <h1 className="sr-only">Shop</h1>
-        <div className="flex items-center">
-          <MobileMenu />
-          <Link to="/shop" aria-label="Nesta Hub" className="-ml-1 flex items-center">
-            <img src={nestaLogo} alt="" className="h-10 w-auto" />
-          </Link>
+        <MobileMenu className="justify-self-center" />
+        <Link to="/shop" aria-label="Nesta Hub" className="flex items-center justify-center">
+          <img src={nestaLogo} alt="" className="h-10 w-auto" />
+        </Link>
+        <div className="flex justify-end">
+          <HeaderCartIcon />
         </div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-1 top-3 flex items-center justify-center">
-          <span className="pointer-events-auto">
-            <WalletBalancePill variant="outlined" size="sm" />
-          </span>
-        </div>
-        <HeaderCartIcon />
       </div>
 
       {/* Search */}
       <div className="flex gap-2.5 px-5 pb-[18px] pt-1.5">
         <button
           type="button"
-          onClick={onSearch}
+          onClick={() => onSearch()}
           aria-label="Search baby products and brands"
           className="flex h-[52px] min-w-0 flex-1 items-center gap-[11px] rounded-full bg-white px-[18px] text-left shadow-[0_12px_28px_-12px_rgba(51,38,28,0.32),0_2px_8px_rgba(51,38,28,0.06)]"
         >
@@ -145,7 +156,13 @@ export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasR
         )}
       </div>
 
-      <OffersCarousel onAction={onOffer} />
+      <OffersCarousel onAction={onOffer} welcome={
+          signedIn ? (
+            <SignedInWelcome onShop={() => onOffer({ kind: "browse" })} />
+          ) : previewWelcome ? (
+            <WelcomePreview onShop={() => onOffer({ kind: "browse" })} />
+          ) : undefined
+        } />
 
       {/* Group pills, sticky; the cart joins them once they stick to the top */}
       <div ref={anchorRef} aria-hidden="true" className="h-0" />

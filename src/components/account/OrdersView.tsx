@@ -47,14 +47,18 @@ function formatOrderDate(dateStr: string): string {
 interface OrdersViewProps {
   onBack: () => void;
   initialOrderNumber?: string;
+  /** With `initialOrderNumber`: open that order's payment screen as soon as the orders load (the shop's "Pay" chip). */
+  initialPay?: boolean;
 }
 
-export function OrdersView({ onBack, initialOrderNumber }: OrdersViewProps) {
+export function OrdersView({ onBack, initialOrderNumber, initialPay }: OrdersViewProps) {
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const [expandedId, setExpandedId] = useState<string | null>(initialOrderNumber ?? null);
   const [cancelTarget, setCancelTarget] = useState<MyOrder | null>(null);
   const [payingOrder, setPayingOrder] = useState<MyOrder | null>(null);
+  /** Set once the customer leaves, or finishes, the payment that `initialPay` opened, so it doesn't open again. */
+  const [payLinkDone, setPayLinkDone] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -65,6 +69,13 @@ export function OrdersView({ onBack, initialOrderNumber }: OrdersViewProps) {
   });
 
   const orders = data?.orders ?? [];
+
+  // Arriving from the shop's "Pay" chip: that order's payment, as soon as the orders are in.
+  const linkedPayment =
+    initialPay && initialOrderNumber && !payLinkDone
+      ? (orders.find((o) => o.orderNumber === initialOrderNumber && o.canConfirmPayment) ?? null)
+      : null;
+  const paying = payingOrder ?? linkedPayment;
 
   const toggleExpand = (orderNumber: string) => {
     setExpandedId((prev) => (prev === orderNumber ? null : orderNumber));
@@ -91,6 +102,7 @@ export function OrdersView({ onBack, initialOrderNumber }: OrdersViewProps) {
     queryClient.invalidateQueries({ queryKey: ["my-orders"] });
     toast.success('Payment confirmed successfully');
     setPayingOrder(null);
+    setPayLinkDone(true);
   };
 
   const copyLink = async (link: string, id: string) => {
@@ -105,15 +117,18 @@ export function OrdersView({ onBack, initialOrderNumber }: OrdersViewProps) {
   };
 
   // Show payment view if user clicked "Confirm Payment"
-  if (payingOrder && session?.access_token) {
+  if (paying && session?.access_token) {
     return (
       <CheckoutPaymentView
-        orderId={payingOrder.orderNumber}
-        totalAmount={payingOrder.totalAmount}
+        orderId={paying.orderNumber}
+        totalAmount={paying.totalAmount}
         token={session.access_token}
         onPaymentConfirmed={handlePaymentConfirmed}
-        onBack={() => setPayingOrder(null)}
-        hideGiftCardRedeem={payingOrder.orderType === 'gift_card'}
+        onBack={() => {
+          setPayingOrder(null);
+          setPayLinkDone(true);
+        }}
+        hideGiftCardRedeem={paying.orderType === 'gift_card'}
       />
     );
   }

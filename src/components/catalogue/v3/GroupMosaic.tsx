@@ -46,6 +46,7 @@ function Tile({ group, category, look, placement }: { group: ApiGroup; category:
           // Start again if the picture changes
           key={category.imageUrl}
           src={category.imageUrl}
+          cutoutSrc={category.cutoutImageUrl}
           className={wide ? "right-[5%] top-3 h-[calc(100%-24px)] w-[46%]" : "left-[10%] top-[58px] h-[calc(100%-70px)] w-4/5"}
         />
       ) : (

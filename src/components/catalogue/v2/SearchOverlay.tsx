@@ -10,14 +10,20 @@ interface SearchOverlayProps {
   open: boolean;
   onClose: () => void;
   onProductClick: (productKey: string, raw: ApiProductCard) => void;
+  /** What the box holds each time the search opens (empty unless a card sent the shopper here with a word). */
+  initialQuery?: string;
 }
 
-export function SearchOverlay({ open, onClose, onProductClick }: SearchOverlayProps) {
-  const [query, setQuery] = useState("");
+export function SearchOverlay({ open, onClose, onProductClick, initialQuery = "" }: SearchOverlayProps) {
+  const [query, setQuery] = useState(open ? initialQuery : "");
 
-  useEffect(() => {
-    if (!open) setQuery("");
-  }, [open]);
+  // Each time it opens it starts with `initialQuery`; closing clears it. Done while rendering,
+  // not in an effect, so a preset word is there on the very first frame (no empty box flashing first).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    setQuery(open ? initialQuery : "");
+  }
 
   useEffect(() => {
     if (!open) return;

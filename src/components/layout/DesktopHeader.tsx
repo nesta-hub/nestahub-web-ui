@@ -90,8 +90,9 @@ export function DesktopHeader() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-b border-border">
       <div className={cn("container flex items-center h-20", onShop && "max-w-[1680px] px-8")}>
-        {/* Logo — fixed width left zone */}
-        <div className="w-[200px] flex items-center">
+        {/* Logo — the left zone and the right zone take equal room, so the links sit in the middle
+            of the header whatever is on the right (the shop has a search box there) */}
+        <div className="flex flex-1 basis-0 items-center">
           <Link to="/shop" className="flex items-center">
             <img
               src={nestaLogo}
@@ -101,8 +102,8 @@ export function DesktopHeader() {
           </Link>
         </div>
 
-        {/* Center Navigation — truly centered via flex-1 */}
-        <nav className={cn("hidden md:flex flex-1 items-center justify-center", onShop ? "gap-6 xl:gap-10" : "gap-10")}>
+        {/* Center Navigation */}
+        <nav className={cn("hidden md:flex items-center justify-center", onShop ? "gap-6 xl:gap-10" : "gap-10")}>
           {navLinks.map((link) => {
             // The shop's product pages live under /catalogue, so those count as the shop too.
             const isActive =
@@ -128,13 +129,10 @@ export function DesktopHeader() {
           })}
         </nav>
 
-        {/* Right Actions — same fixed width as logo zone, contents pushed right */}
-        <div className={cn("flex items-center justify-end gap-2", onShop ? "shrink-0 gap-2.5" : "w-[200px]")}>
+        {/* Right Actions — same room as the logo zone, contents pushed right */}
+        <div className={cn("flex flex-1 basis-0 items-center justify-end gap-2", onShop && "gap-2.5")}>
           {onShop ? (
-            <>
-              <ShopSearch />
-              <WalletBalancePill variant="outlined" className="hidden xl:inline-flex" />
-            </>
+            <ShopSearch />
           ) : (
             location.pathname.startsWith("/catalogue") && <WalletBalancePill size="sm" iconOnly />
           )}

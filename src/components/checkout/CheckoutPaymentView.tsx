@@ -82,6 +82,29 @@ export function CheckoutPaymentView({
     }
   };
 
+  /**
+   * The wallet and/or a gift card cover the whole order: there is no transfer to wait for, so
+   * tell the server now. It is markPaymentMade that redeems the gift card, debits the wallet and
+   * confirms the order; without this call the order is left unpaid on the server. Whoever
+   * mounted this view decides what happens next (`onGiftCardFullCoverage`, else the normal
+   * `onPaymentConfirmed`), and only after the server has said yes.
+   */
+  const handleFullCoverage = async () => {
+    setIsConfirming(true);
+    setConfirmError(null);
+    try {
+      await api.markPaymentMade(orderId, token);
+    } catch (err) {
+      setConfirmError(err instanceof Error ? err.message : 'Failed to place your order. Please try again.');
+      setIsConfirming(false);
+      return;
+    }
+    // The wallet was debited by that call; the order is already placed either way.
+    await refreshWalletData().catch(() => {});
+    setIsConfirming(false);
+    (onGiftCardFullCoverage ?? onPaymentConfirmed)();
+  };
+
   const handleRemoveGiftCard = async () => {
     try { await removeGiftCardFromOrder(orderId, token); } catch { /* ignore */ }
     setAppliedGiftCard(null);
@@ -233,7 +256,7 @@ export function CheckoutPaymentView({
       <div className="p-4 border-t bg-background shrink-0 space-y-2">
         {confirmError && <p className="text-sm text-destructive text-center">{confirmError}</p>}
         {isFullCoverage ? (
-          <Button variant="shop" className="w-full h-12 text-base font-semibold" onClick={() => onGiftCardFullCoverage?.()} disabled={isConfirming}>
+          <Button variant="shop" className="w-full h-12 text-base font-semibold" onClick={handleFullCoverage} disabled={isConfirming}>
             {isConfirming ? 'Placing Order...' : 'Place Order'}
           </Button>
         ) : (
