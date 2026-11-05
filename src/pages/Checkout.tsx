@@ -291,16 +291,11 @@ const Checkout = () => {
     setShowSuccess(true);
   };
 
-  const handleGiftCardFullCoverage = async () => {
-    if (!session?.access_token || !orderNumber) return;
-    try {
-      await api.markPaymentMade(orderNumber, session.access_token);
-      setPaidWithGiftCard(true);
-      setShowPayment(false);
-      setShowSuccess(true);
-    } catch (err) {
-      console.error('Failed to confirm gift card payment:', err);
-    }
+  // CheckoutPaymentView has already told the server (markPaymentMade) by the time this runs.
+  const handleGiftCardFullCoverage = () => {
+    setPaidWithGiftCard(true);
+    setShowPayment(false);
+    setShowSuccess(true);
   };
 
   const spinner = (title: string, subtitle?: string) => (
