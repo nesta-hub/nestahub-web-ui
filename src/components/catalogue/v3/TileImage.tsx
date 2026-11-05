@@ -1,25 +1,30 @@
 import { useState } from "react";
-import { CloudinaryPresets, cutoutCloudinaryUrl } from "@/lib/cloudinary";
+import { CloudinaryPresets, optimizeCloudinaryUrl } from "@/lib/cloudinary";
 import { cn } from "@/lib/utils";
 
 interface Props {
   /** The category's photo, as stored. */
   src: string;
+  /**
+   * The same picture with no background (the category's "Image (No background)" in the admin), if
+   * there is one. It is an ordinary stored image: nothing is cut out when a shopper loads the page.
+   */
+  cutoutSrc?: string;
   /** Where it sits in the tile (position and size). */
   className: string;
 }
 
 /**
- * A category's picture on a tile, as a cutout when there can be one.
+ * A category's picture on a tile, as a cutout when the category has one.
  *
- * The photo shows at once, as it always has. Alongside it the cutout (the same picture with
- * its background removed) is fetched, and when it arrives the two cross-fade, so the box
- * around the product melts away. The first time Cloudinary sees an image it takes a moment
- * to remove the background; later it is instant. If the cutout can't be had (the add-on is
- * off, the allowance is used up, the picture isn't on Cloudinary) the photo simply stays.
+ * The photo shows at once, as it always has. When there is a cutout it is fetched alongside, and
+ * when it arrives the two cross-fade, so the box around the product melts away. If the cutout
+ * can't be had, or there isn't one, the photo simply stays.
  */
-export function TileImage({ src, className }: Props) {
-  const cutout = cutoutCloudinaryUrl(src);
+export function TileImage({ src, cutoutSrc, className }: Props) {
+  // A modest size, through Cloudinary's ordinary resize (not a background removal), so an
+  // uploaded 2MB PNG doesn't go to every shopper as it is.
+  const cutout = cutoutSrc ? optimizeCloudinaryUrl(cutoutSrc, { width: 480, crop: "fit" }) : null;
   const [state, setState] = useState<"waiting" | "ready" | "failed">(cutout ? "waiting" : "failed");
   const ready = state === "ready";
 

@@ -48,13 +48,25 @@ describe("a group's mosaic", () => {
     expect(tile("Category 1").querySelector("img")).toHaveAttribute("src", expect.stringContaining("feeding-c1.jpg"));
   });
 
-  it("gives a category whose picture is on Cloudinary a cutout to fade to", () => {
+  it("shows just the photo for a category with no image with no background, even if the photo is on Cloudinary", () => {
     const g = group("feeding", "Feeding", [category("cups", "Cups", { imageUrl: "https://res.cloudinary.com/nestahub/image/upload/v1/nesta-hub/categories/cups.png" })]);
+    show(g);
+
+    expect(tile("Cups").querySelectorAll("img")).toHaveLength(1);
+  });
+
+  it("gives a category that has an image with no background that image to fade to", () => {
+    const g = group("feeding", "Feeding", [
+      category("cups", "Cups", {
+        imageUrl: "https://res.cloudinary.com/nestahub/image/upload/v1/nesta-hub/categories/cups.png",
+        cutoutImageUrl: "https://res.cloudinary.com/nestahub/image/upload/v1/nesta-hub/categories-cutouts/cups.webp",
+      }),
+    ]);
     show(g);
 
     const images = tile("Cups").querySelectorAll("img");
     expect(images).toHaveLength(2);
-    expect(images[1].getAttribute("src")).toContain("e_background_removal");
+    expect(images[1].getAttribute("src")).toContain("/categories-cutouts/cups.webp");
   });
 
   it("copes with a category that has no photo", () => {

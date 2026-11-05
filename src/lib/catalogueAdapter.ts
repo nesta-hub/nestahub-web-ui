@@ -215,6 +215,7 @@ export function apiCategoryToCatalogue(
     iconKey: category.iconKey,
     tint: category.tint,
     imageUrl: category.imageUrl,
+    cutoutImageUrl: category.cutoutImageUrl,
   };
 }
 
