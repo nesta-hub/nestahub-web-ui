@@ -1,8 +1,11 @@
 /**
- * The marketing slides on the shop: four on the phone and four on desktop. Copy lives here so
+ * The marketing slides on the shop: six on the phone and four on desktop. Copy lives here so
  * it can be edited in one place. Prices in the copy are static; change them here if they move.
  *
- * (Delivery is deliberately not priced in the copy: its fees are a staff setting.)
+ * Delivery fees are a staff setting, so the desktop slides and the trust strip don't quote them.
+ * The one exception is the phone's Community Delivery card, which the shop owner asked to state
+ * "₦500, Wednesday and Saturday, Gbagada, Anthony and Bariga" (2026-10-31). Those are static: if the
+ * area's fee or days change in the admin's Community Days page, change that card to match.
  */
 
 /**
@@ -20,19 +23,28 @@ export type OfferAction =
   | { kind: "browse" }
   /** Show one group and scroll down to its categories. */
   | { kind: "group"; slug: string }
+  /** Open the search with this already typed in (for a brand, say). */
+  | { kind: "search"; query: string }
   | { kind: "link"; to: string };
 
 export interface MobileOffer {
-  id: "shop" | "toys" | "gift-cards" | "referrals";
+  id: "shop" | "community-delivery" | "moobi" | "toys" | "gift-cards" | "referrals";
   action: OfferAction;
   bg: string;
   badge: string;
   badgeColor: string;
   title: string;
+  /** One or two short lines. `**like this**` is shown in bold, and `==like this==` in the highlight colour. */
   sub: string;
   subColor: string;
-  cta: string;
+  /** The colour of the `==highlighted==` words in `sub`. */
+  highlightColor?: string;
+  /** The button on the card. A card without one is just a message. */
+  cta?: string;
 }
+
+/** The Community Delivery card's accent: its badge and its highlighted days are one colour. */
+const DELIVERY_ACCENT = "#7A4F33";
 
 export const MOBILE_OFFERS: MobileOffer[] = [
   {
@@ -42,9 +54,30 @@ export const MOBILE_OFFERS: MobileOffer[] = [
     badge: "NESTA HUB",
     badgeColor: "#324461",
     title: "Everything for baby and mum",
-    sub: "Low prices, at your door.",
+    sub: "Best prices, delivered to your door.",
     subColor: "#4A5568",
-    cta: "Shop now",
+  },
+  {
+    id: "moobi",
+    action: { kind: "search", query: "Moobi" },
+    bg: "#EEF2DB", // pale lime: the logo is lime, and sits on a white card
+    badge: "NOW ON NESTA HUB",
+    badgeColor: "#5F7A1F",
+    title: "Moobi is here",
+    sub: "Check out the Moobi range of baby products",
+    subColor: "#5A4E44",
+    cta: "Shop Moobi",
+  },
+  {
+    id: "community-delivery",
+    action: { kind: "browse" },
+    bg: "#F2E8CC", // butter
+    badge: "COMMUNITY DELIVERY",
+    badgeColor: DELIVERY_ACCENT,
+    title: "Good news!",
+    sub: "Just ₦500 delivery to **Gbagada**, **Anthony** and **Bariga**, every ==Wednesday and Saturday==.",
+    subColor: "#5A4E44",
+    highlightColor: DELIVERY_ACCENT, // the days match the badge
   },
   {
     id: "toys",
@@ -74,7 +107,7 @@ export const MOBILE_OFFERS: MobileOffer[] = [
     bg: "#E8E0D4",
     badge: "SHARE NESTAHUB",
     badgeColor: "#795A3E",
-    title: "Know a mum? Earn rewards",
+    title: "Earn rewards",
     sub: `A tote bag after ${REFERRAL_REWARDS.tote} referrals.`,
     subColor: "#5A4A40",
     cta: "Start sharing",

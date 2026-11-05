@@ -2,15 +2,29 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MobileShopHome } from "./MobileShopHome";
+import { MOBILE_OFFERS } from "./offers";
 import { TREE } from "./testFixtures";
 
-// The cart and wallet talk to the cart context and the API; they are not what is under test.
+// The cart talks to the cart context and the API; it is not what is under test.
 vi.mock("@/components/cart", () => ({ HeaderCartIcon: () => <button type="button" aria-label="Open cart" /> }));
-vi.mock("@/components/wallet/WalletBalancePill", () => ({
-  WalletBalancePill: ({ variant }: { variant?: string }) => <button type="button">{`wallet:${variant}`}</button>,
+// Signed in or not is the one thing these tests change; the welcome card has tests of its own.
+const auth = vi.hoisted(() => ({ session: null as { access_token: string } | null }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ session: auth.session }) }));
+vi.mock("./WelcomeCard", () => ({
+  // The tap on "Shop now" is passed in, so a stub button stands in for it.
+  SignedInWelcome: ({ onShop }: { onShop: () => void }) => (
+    <button type="button" data-testid="welcome" onClick={onShop}>
+      welcome card
+    </button>
+  ),
+  // What the dev-only preview renders: say whose card it is.
+  WelcomeCard: ({ name, balanceKobo, onShop }: { name: string | null; balanceKobo: number | null; onShop: () => void }) => (
+    <button type="button" data-testid="welcome-preview" onClick={onShop}>{`${name} | ${balanceKobo}`}</button>
+  ),
 }));
 
 beforeEach(() => {
+  auth.session = null;
   vi.useFakeTimers();
   window.scrollTo = vi.fn() as never;
   vi.stubGlobal("requestAnimationFrame", () => 0);
@@ -21,7 +35,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function show(over: Partial<React.ComponentProps<typeof MobileShopHome>> = {}) {
+function show(over: Partial<React.ComponentProps<typeof MobileShopHome>> = {}, address = "/") {
   const props = {
     groups: TREE,
     hasReorder: false,
@@ -31,7 +45,7 @@ function show(over: Partial<React.ComponentProps<typeof MobileShopHome>> = {}) {
     ...over,
   };
   const view = render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[address]}>
       <MobileShopHome {...props} />
     </MemoryRouter>,
   );
@@ -171,6 +185,18 @@ describe("tapping an offer that shows part of this page", () => {
     expect(window.scrollTo).toHaveBeenCalledWith({ top: 500, behavior: "smooth" });
   });
 
+  it("shows every group and scrolls down to the categories from the Community Delivery card", () => {
+    show({ initialGroupSlug: "health-wellness" });
+    pillsAt500();
+
+    fireEvent.click(offer(/Good news!/));
+    settle();
+
+    expect(pill("All")).toHaveAttribute("aria-current", "true");
+    expect(headings()).toHaveLength(3);
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 500, behavior: "smooth" });
+  });
+
   it("brings the toys pill into view in the pill row, not only the group's categories", () => {
     const scrollTo = vi.fn();
     Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: scrollTo });
@@ -216,15 +242,27 @@ describe("the top row", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Shop" })).toHaveClass("sr-only"); // kept for screen readers
   });
 
-  it("shows the Nesta Hub logo right beside the menu button, linking to the shop", () => {
+  it.each([
+    ["signed out", null],
+    ["signed in", { access_token: "tok" }],
+  ])("puts the menu on the left, the Nesta Hub logo in the middle and the cart on the right, %s", (_who, session) => {
+    auth.session = session;
     show();
+    const at = (el: Element) => Array.from(document.querySelectorAll("*")).indexOf(el);
     const menu = screen.getByRole("button", { name: "Open menu" });
     const logo = screen.getByRole("link", { name: "Nesta Hub" });
+    const cart = screen.getAllByRole("button", { name: "Open cart" })[0];
 
     expect(logo).toHaveAttribute("href", "/shop");
     expect(logo.querySelector("img")).toBeInTheDocument();
-    expect(menu.parentElement).toBe(logo.parentElement); // together on the left
-    expect(menu.nextElementSibling).toBe(logo); // the logo comes straight after the menu
+    expect(at(menu)).toBeLessThan(at(logo));
+    expect(at(logo)).toBeLessThan(at(cart));
+    // The row is a menu cell, a wide middle cell holding the logo, and a cart cell
+    // (the first child is the visually hidden "Shop" title).
+    const row = logo.parentElement as HTMLElement;
+    expect(row).toHaveClass("grid");
+    expect(Array.from(row.children).slice(1)).toEqual([menu, logo, cart.parentElement]);
+    expect(logo).toHaveClass("justify-center");
   });
 
   it("opens the site's menu", () => {
@@ -235,18 +273,11 @@ describe("the top row", () => {
     expect(screen.getByRole("navigation", { name: "Menu" })).toBeInTheDocument();
   });
 
-  it("puts the wallet in the middle, between the menu (with the logo) and the cart", () => {
+  it("has no wallet in it: a signed-in customer's balance is in the welcome card", () => {
+    auth.session = { access_token: "tok" };
     show();
-    const row = screen.getByRole("heading", { level: 1, name: "Shop" }).parentElement as HTMLElement; // the whole top row
-    const wallet = screen.getByText("wallet:outlined").closest("div.absolute") as HTMLElement;
 
-    // Centred on the row itself, not pushed along by whatever sits either side of it.
-    expect(wallet).toHaveClass("inset-x-0", "justify-center");
-    // And in order: menu, wallet, cart.
-    const order = Array.from(row.children);
-    const at = (el: Element | null) => order.findIndex((c) => c === el || c.contains(el));
-    expect(at(screen.getByRole("button", { name: "Open menu" }))).toBeLessThan(at(wallet));
-    expect(at(wallet)).toBeLessThan(at(screen.getAllByRole("button", { name: "Open cart" })[0]));
+    expect(screen.getByRole("heading", { level: 1, name: "Shop" }).parentElement).not.toHaveTextContent(/wallet/i);
   });
 });
 
@@ -302,7 +333,9 @@ describe("search, buy again and the rest", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Search baby products and brands" }));
 
-    expect(props.onSearch).toHaveBeenCalled();
+    // No argument: the click event must not leak in as a search word.
+    expect(props.onSearch).toHaveBeenCalledTimes(1);
+    expect(props.onSearch).toHaveBeenCalledWith();
   });
 
   it("offers Buy again only to someone who has something to buy again", () => {
@@ -318,25 +351,21 @@ describe("search, buy again and the rest", () => {
     expect(props.onReorder).toHaveBeenCalled();
   });
 
-  it("shows the outlined wallet pill", () => {
-    show();
-
-    expect(screen.getByText("wallet:outlined")).toBeInTheDocument();
-  });
-
-  it("shows four offers: the shop, toys, gift cards and referrals", () => {
+  it("shows six offers: the shop, Moobi, Community Delivery, toys, gift cards and referrals", () => {
     show();
     const offers = within(screen.getByRole("region", { name: "Offers" }));
 
     expect(offers.getByText("Everything for baby and mum")).toBeInTheDocument();
+    expect(offers.getByText("Good news!")).toBeInTheDocument();
+    expect(offers.getByText("Moobi is here")).toBeInTheDocument();
     expect(offers.getByText("Play that teaches")).toBeInTheDocument();
     expect(offers.getByText("Send a gift card")).toBeInTheDocument();
-    expect(offers.getByText("Know a mum? Earn rewards")).toBeInTheDocument();
+    expect(offers.getByText("Earn rewards")).toBeInTheDocument();
   });
 
   it("sends the referral offer to the share page, and says a tote bag after 4 referrals", () => {
     show();
-    const referral = within(screen.getByRole("region", { name: "Offers" })).getByRole("link", { name: /Know a mum/ });
+    const referral = within(screen.getByRole("region", { name: "Offers" })).getByRole("link", { name: /Earn rewards/ });
 
     expect(referral).toHaveAttribute("href", "/share");
     expect(referral).toHaveTextContent("A tote bag after 4 referrals.");
@@ -364,5 +393,158 @@ describe("search, buy again and the rest", () => {
     show({ groups: [...TREE, { ...TREE[0], id: "empty", slug: "empty", name: "Empty", categories: [] }] });
 
     expect(screen.queryByText("Empty")).toBeNull();
+  });
+});
+
+describe("the shop, Community Delivery and Moobi cards", () => {
+  const card = (name: RegExp) => within(screen.getByRole("region", { name: "Offers" })).getByRole("button", { name });
+
+  it("has no 'Shop now' button on the everything-for-baby-and-mum card", () => {
+    show();
+
+    expect(card(/Everything for baby and mum/)).not.toHaveTextContent(/shop now/i);
+    expect(screen.queryByText(/shop now/i)).toBeNull();
+  });
+
+  it("tells Gbagada, Anthony and Bariga that Community Delivery is ₦500 on Wednesdays and Saturdays", () => {
+    show();
+
+    expect(card(/Good news!/)).toHaveTextContent("COMMUNITY DELIVERY");
+    expect(card(/Good news!/)).toHaveTextContent(
+      "Just ₦500 delivery to Gbagada, Anthony and Bariga, every Wednesday and Saturday.",
+    );
+    // The seal on the right states the price.
+    expect(card(/Good news!/)).toHaveTextContent("ONLY");
+    // A message, not a sales pitch: no button on it.
+    expect(card(/Good news!/)).not.toHaveTextContent(/shop|order|start/i);
+  });
+
+  it("shows the days in a colour of their own, so they stand out", () => {
+    show();
+    const days = Array.from(card(/Good news!/).querySelectorAll("[data-highlight]"));
+
+    expect(days.map((el) => el.textContent)).toEqual(["Wednesday and Saturday"]);
+    // The same colour as the "COMMUNITY DELIVERY" badge above them.
+    const badge = Array.from(card(/Good news!/).querySelectorAll("span")).find((el) => el.textContent === "COMMUNITY DELIVERY");
+    expect(badge).toBeDefined();
+    expect(days[0]).toHaveStyle({ color: "#7A4F33" });
+    expect(badge).toHaveStyle({ color: "#7A4F33" });
+    expect(card(/Good news!/)).not.toHaveTextContent("==");
+  });
+
+  it("shows the three areas that get Community Delivery in bold, and nothing else", () => {
+    show();
+    const bold = Array.from(card(/Good news!/).querySelectorAll("strong")).map((el) => el.textContent);
+
+    expect(bold).toEqual(["Gbagada", "Anthony", "Bariga"]);
+    // The markers themselves never reach the screen.
+    expect(card(/Good news!/)).not.toHaveTextContent("**");
+  });
+
+  it("says Moobi is now on Nesta Hub, with its logo and a button to its products", () => {
+    show();
+    const moobi = card(/Moobi is here/);
+
+    expect(moobi).toHaveTextContent("NOW ON NESTA HUB");
+    expect(moobi).toHaveTextContent("Check out the Moobi range of baby products");
+    expect(moobi).toHaveTextContent("Shop Moobi");
+    // It is a known brand: the card says it has arrived, it does not introduce it.
+    expect(moobi).not.toHaveTextContent(/meet/i);
+    expect(moobi.querySelector("img")).not.toBeNull();
+  });
+
+  it("opens the search with Moobi already typed in when the Moobi card is tapped", () => {
+    const { props } = show();
+
+    fireEvent.click(card(/Moobi is here/));
+
+    expect(props.onSearch).toHaveBeenCalledTimes(1);
+    expect(props.onSearch).toHaveBeenCalledWith("Moobi");
+  });
+});
+
+describe("signed in", () => {
+  beforeEach(() => {
+    auth.session = { access_token: "tok" };
+  });
+
+  it("shows every group and scrolls down to the categories when 'Shop now' is tapped", () => {
+    show({ initialGroupSlug: "health-wellness" });
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+    (document.querySelector('[aria-hidden="true"].h-0') as HTMLElement).getBoundingClientRect = () => ({ top: 500 }) as DOMRect;
+
+    fireEvent.click(screen.getByTestId("welcome"));
+    settle();
+
+    expect(pill("All")).toHaveAttribute("aria-current", "true");
+    expect(headings()).toHaveLength(3);
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 500, behavior: "smooth" });
+  });
+
+  it("gives the welcome card the Nesta Hub advert's soft blue, the card it stands in for", () => {
+    show();
+
+    expect(MOBILE_OFFERS[0].id).toBe("shop");
+    expect(document.querySelector("[data-welcome]")).toHaveStyle({ background: MOBILE_OFFERS[0].bg });
+  });
+
+  const offers = () => within(screen.getByRole("region", { name: "Offers" }));
+
+  it("opens with the welcome card where the 'Everything for baby and mum' advert was", () => {
+    show();
+
+    expect(offers().getByTestId("welcome")).toBeInTheDocument();
+    expect(offers().queryByText("Everything for baby and mum")).toBeNull();
+    // The other offers are still there, and so is every slide.
+    expect(offers().getByText("Good news!")).toBeInTheDocument();
+    expect(offers().getByText("Moobi is here")).toBeInTheDocument();
+    expect(offers().getByText("Play that teaches")).toBeInTheDocument();
+    expect(offers().getByText("Send a gift card")).toBeInTheDocument();
+    expect(offers().getByText("Earn rewards")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Offers" }).querySelectorAll("[data-offer]")).toHaveLength(6);
+  });
+});
+
+describe("the dev-only welcome card preview (?welcome=1), for looking at it without signing in", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("shows the signed-in first card, for a made-up customer, to someone who isn't signed in", () => {
+    show({}, "/shop?welcome=1");
+
+    expect(screen.getByTestId("welcome-preview")).toHaveTextContent("Sade | 1006000");
+    expect(screen.queryByText("Everything for baby and mum")).toBeNull();
+    expect(screen.queryByTestId("welcome")).toBeNull();
+  });
+
+  it("is not there without ?welcome", () => {
+    show({}, "/shop");
+
+    expect(screen.queryByTestId("welcome-preview")).toBeNull();
+    expect(screen.getByText("Everything for baby and mum")).toBeInTheDocument();
+  });
+
+  it("leaves a really signed-in customer with their own card", () => {
+    auth.session = { access_token: "tok" };
+    show({}, "/shop?welcome=1");
+
+    expect(screen.getByTestId("welcome")).toBeInTheDocument();
+    expect(screen.queryByTestId("welcome-preview")).toBeNull();
+  });
+
+  it("is switched off outside the dev server", () => {
+    vi.stubEnv("DEV", false);
+    show({}, "/shop?welcome=1");
+
+    expect(screen.queryByTestId("welcome-preview")).toBeNull();
+    expect(screen.getByText("Everything for baby and mum")).toBeInTheDocument();
+  });
+});
+
+describe("signed out", () => {
+  it("keeps the 'Everything for baby and mum' advert first, with no welcome card", () => {
+    show();
+
+    expect(screen.queryByTestId("welcome")).toBeNull();
+    expect(within(screen.getByRole("region", { name: "Offers" })).getByText("Everything for baby and mum")).toBeInTheDocument();
   });
 });
