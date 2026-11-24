@@ -6,7 +6,7 @@ import { formatPrice } from "@/lib/api";
 import { QuantityControl } from "@/components/cart/QuantityControl";
 import { useCart } from "@/contexts/CartContext";
 import { useProductDetail } from "@/hooks/useCatalogue";
-import { apiProductToCatalogue, resolveVariant, attrValue, defaultSelectedAttrs } from "@/lib/catalogueAdapter";
+import { apiProductToCatalogue, resolveVariant, attrValue, defaultSelectedAttrs, realText } from "@/lib/catalogueAdapter";
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import { ArrowLeft, ChevronRight, RefreshCw, Check, Share2, ZoomIn, X } from "lucide-react";
 import { toast } from "sonner";
@@ -192,10 +192,7 @@ export function ProductDetailContent({
 
   const selectedSummary = attributeSummary ? `${attributeSummary} · Qty: ${quantity}` : `Qty: ${quantity}`;
 
-  const descriptionText = useMemo(() => {
-    if (variant?.description) return variant.description;
-    return detail?.description || null;
-  }, [variant, detail]);
+  const descriptionText = realText(variant?.description) ?? realText(detail?.description);
 
   const isPurchaseStep = step === "purchase-type";
 
@@ -280,24 +277,29 @@ export function ProductDetailContent({
           {(step === "configure" || step === "details") && attributeSummary && (
             <div className="flex items-center justify-center gap-1 mt-1 text-sm">
               <span className="text-muted-foreground">{attributeSummary}</span>
-              <span className="text-muted-foreground">·</span>
-              <button
-                onClick={() => {
-                  if (step === "configure" && contentRef.current) {
-                    setCapturedHeight(contentRef.current.offsetHeight);
-                  }
-                  setStep(step === "details" ? "configure" : "details");
-                }}
-                className="text-primary font-medium inline-flex items-center gap-0.5"
-              >
-                {step === "details" ? (
-                  "Close details"
-                ) : (
-                  <>
-                    View details <ChevronRight className="w-3.5 h-3.5" />
-                  </>
-                )}
-              </button>
+              {/* Nothing to view without a description */}
+              {(descriptionText || step === "details") && (
+                <>
+                  <span className="text-muted-foreground">·</span>
+                  <button
+                    onClick={() => {
+                      if (step === "configure" && contentRef.current) {
+                        setCapturedHeight(contentRef.current.offsetHeight);
+                      }
+                      setStep(step === "details" ? "configure" : "details");
+                    }}
+                    className="text-primary font-medium inline-flex items-center gap-0.5"
+                  >
+                    {step === "details" ? (
+                      "Close details"
+                    ) : (
+                      <>
+                        View details <ChevronRight className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           )}
           {step === "configure" && (
@@ -363,14 +365,7 @@ export function ProductDetailContent({
         {step === "details" && (
           <div className="px-6 pt-4 animate-fade-in">
             <div className="mt-2 text-sm text-foreground leading-relaxed text-left">
-              <p>
-                {descriptionText ||
-                  "Premium quality product carefully selected for your baby's comfort and well-being. Made with gentle, hypoallergenic ingredients suitable for sensitive skin."}
-              </p>
-              <p className="mt-2 text-muted-foreground">
-                Dermatologically tested. Free from harsh chemicals, parabens, and artificial fragrances. Trusted by
-                parents across Nigeria.
-              </p>
+              <p>{descriptionText}</p>
             </div>
           </div>
         )}

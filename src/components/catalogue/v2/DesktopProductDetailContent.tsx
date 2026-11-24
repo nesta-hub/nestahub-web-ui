@@ -6,7 +6,7 @@ import { formatPrice } from "@/lib/api";
 import { QuantityControl } from "@/components/cart/QuantityControl";
 import { useCart } from "@/contexts/CartContext";
 import { useProductDetail } from "@/hooks/useCatalogue";
-import { apiProductToCatalogue, resolveVariant, attrValue, defaultSelectedAttrs } from "@/lib/catalogueAdapter";
+import { apiProductToCatalogue, resolveVariant, attrValue, defaultSelectedAttrs, realText } from "@/lib/catalogueAdapter";
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import { ArrowLeft, RefreshCw, Check, Share2, ZoomIn, X, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
@@ -167,10 +167,7 @@ export function DesktopProductDetailContent({
     });
   };
 
-  const descriptionText = useMemo(() => {
-    if (variant?.description) return variant.description;
-    return detail?.description || null;
-  }, [variant, detail]);
+  const descriptionText = realText(variant?.description) ?? realText(detail?.description);
 
   if (isLoading || !detail || !product) {
     return (
