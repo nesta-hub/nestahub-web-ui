@@ -24,6 +24,11 @@ import type {
   CategoryGroup,
 } from '@/data/catalogueData';
 
+/** A description, or null when there is nothing to read in it: empty, or a placeholder such as "." or "-". */
+export function realText(text: string | null | undefined): string | null {
+  return text && /[\p{L}\p{N}]/u.test(text) ? text : null;
+}
+
 export const TYPE_ATTR = 'Type';
 export const SIZE_ATTR = 'Size';
 
