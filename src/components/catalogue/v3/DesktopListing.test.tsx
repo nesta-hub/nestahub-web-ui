@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProductCard } from "@/lib/api";
 import { DesktopListing } from "./DesktopListing";
 import { priceLabel, sortProducts } from "./listingHelpers";
-import { TREE, product } from "./testFixtures";
+import { TREE, category, product } from "./testFixtures";
 
 const useCategoryProducts = vi.fn();
 vi.mock("@/hooks/useCatalogue", () => ({ useCategoryProducts: (...args: unknown[]) => useCategoryProducts(...args) }));
@@ -190,5 +190,31 @@ describe("sorting and pricing, on their own", () => {
   it("puts a 'from' on a price that varies and not on one that does not", () => {
     expect(priceLabel({ minPrice: 110_000, maxPrice: 110_000 })).toBe("₦1,100");
     expect(priceLabel({ minPrice: 110_000, maxPrice: 150_000 })).toBe("from ₦1,100");
+  });
+});
+
+describe("a category's page, from a link", () => {
+  it("still opens when the category has moved to another group, among that group's categories", () => {
+    show({ groupSlug: "health-wellness", categorySlug: "body-wash" });
+
+    expect(screen.getByRole("heading", { level: 1, name: "Body Wash" })).toBeInTheDocument();
+    const chips = within(screen.getByRole("navigation", { name: "Categories" }));
+    expect(chips.getByRole("link", { name: "Body Wash" })).toHaveAttribute("aria-current", "page");
+    expect(chips.getByRole("link", { name: "All" })).toHaveAttribute("href", "/shop/baby-care");
+  });
+
+  it("opens for a category with no group, without claiming one", () => {
+    show({ groupSlug: "all", categorySlug: "raincoat", ungrouped: [category("raincoat", "Raincoats")] });
+
+    expect(screen.getByRole("heading", { level: 1, name: "Raincoats" })).toBeInTheDocument();
+    expect(screen.getAllByRole("article")).toHaveLength(3);
+    expect(screen.queryByText(/Part of/)).toBeNull();
+    expect(useCategoryProducts).toHaveBeenCalledWith({ category: "raincoat", group: undefined, enabled: true });
+  });
+
+  it("says so for a category that is gone", () => {
+    show({ categorySlug: "gone" });
+
+    expect(screen.getByRole("heading", { name: "We couldn't find that" })).toBeInTheDocument();
   });
 });

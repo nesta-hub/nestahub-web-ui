@@ -318,6 +318,43 @@ describe("arriving by address (/shop/:groupSlug)", () => {
     expect(headings()).toEqual(["Learning Resource"]);
   });
 
+  it("goes to that group, smoothly", () => {
+    show({ initialGroupSlug: "back-to-school" });
+
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
+  });
+
+  it("goes there at once when told to", () => {
+    show({ initialGroupSlug: "back-to-school", smoothArrival: false });
+
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "auto" });
+  });
+
+  it("stays at the top for the whole shop, or for a group that does not exist", () => {
+    show();
+    show({ initialGroupSlug: "no-such-group" });
+
+    expect(window.scrollTo).not.toHaveBeenCalled();
+  });
+
+  it("waits for the groups to load before going there", () => {
+    const { again } = show({ groups: [], loading: true, initialGroupSlug: "back-to-school" });
+    expect(window.scrollTo).not.toHaveBeenCalled();
+
+    again({ groups: TREE, loading: false });
+
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not drag the shopper back when the groups are fetched again", () => {
+    const { again } = show({ initialGroupSlug: "back-to-school" });
+
+    again({ groups: TREE.map((g) => ({ ...g })) });
+
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
   it("starts on that group once the groups have loaded", () => {
     const { again } = show({ groups: [], loading: true, initialGroupSlug: "back-to-school" });
 

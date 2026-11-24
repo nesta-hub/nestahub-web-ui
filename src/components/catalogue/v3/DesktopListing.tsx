@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
-import type { CategoryGroup as ApiGroup } from "@/lib/api";
+import type { Category as ApiCategory, CategoryGroup as ApiGroup } from "@/lib/api";
 import { useCategoryProducts } from "@/hooks/useCatalogue";
+import { findShopTarget } from "@/lib/shopLink";
 import { cn } from "@/lib/utils";
 import { ListingCard } from "./ListingCard";
 import { lookFor } from "./groupLook";
@@ -10,6 +11,8 @@ import { SORTS, sortProducts, type Sort } from "./listingHelpers";
 
 interface Props {
   groups: ApiGroup[];
+  /** Categories in no group. Nothing in the shop leads to them, but a link can. */
+  ungrouped?: ApiCategory[];
   loading: boolean;
   groupSlug: string;
   categorySlug?: string;
@@ -21,15 +24,14 @@ interface Props {
  * between its categories, a sort, and the products. Give it a `key` of its address so the sort
  * starts again for each page.
  */
-export function DesktopListing({ groups, loading, groupSlug, categorySlug, onProduct }: Props) {
-  const group = groups.find((g) => g.slug === groupSlug);
-  const category = categorySlug ? group?.categories.find((c) => c.slug === categorySlug) : undefined;
-  const missing = !loading && (!group || (!!categorySlug && !category));
+export function DesktopListing({ groups, ungrouped, loading, groupSlug, categorySlug, onProduct }: Props) {
+  const { group, category } = findShopTarget({ groups, ungrouped }, groupSlug, categorySlug);
+  const missing = !loading && !(categorySlug ? category : group);
 
   const { data, isLoading: productsLoading } = useCategoryProducts({
     category: category?.slug,
     group: category ? undefined : group?.slug,
-    enabled: !!group && !missing,
+    enabled: !!(group || category) && !missing,
   });
   const [sort, setSort] = useState<Sort>("featured");
   const products = useMemo(() => sortProducts(data?.products ?? [], sort), [data, sort]);
@@ -46,9 +48,10 @@ export function DesktopListing({ groups, loading, groupSlug, categorySlug, onPro
     );
   }
 
-  const look = group ? lookFor(group) : null;
+  // A category with no group gets the neutral look.
+  const look = group ? lookFor(group) : category ? lookFor({ slug: "", name: "" }) : null;
   const title = category?.displayName ?? look?.title ?? "";
-  const blurb = category?.description?.trim() || (category ? `Part of ${look?.title}.` : `Everything we stock in ${look?.title ?? "this group"}.`);
+  const blurb = category?.description?.trim() || (category ? (group ? `Part of ${look?.title}.` : "") : `Everything we stock in ${look?.title ?? "this group"}.`);
   const count = data?.products.length ?? 0;
   const Icon = look?.icon;
 
@@ -61,7 +64,7 @@ export function DesktopListing({ groups, loading, groupSlug, categorySlug, onPro
       >
         <div className="min-w-0">
           <h1 className="m-0 text-[clamp(34px,3.6vw,54px)] font-extrabold leading-[1.06] tracking-[-0.03em]">{title || " "}</h1>
-          <p className="mt-3 max-w-[560px] text-base leading-[25px] text-[#4F443B]">{blurb}</p>
+          {blurb && <p className="mt-3 max-w-[560px] text-base leading-[25px] text-[#4F443B]">{blurb}</p>}
           {!productsLoading && (
             <span className="mt-[18px] inline-block rounded-full bg-white/70 px-3.5 py-[7px] text-[13px] font-bold leading-[18px]">
               {count === 1 ? "1 product" : `${count} products`}
