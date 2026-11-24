@@ -14,7 +14,7 @@ function Chip({ label, pressed, onClick }: { label: string; pressed: boolean; on
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "h-10 rounded-[20px] border px-4 text-[14px] font-medium",
+        "h-10 shrink-0 whitespace-nowrap rounded-[20px] border px-4 text-[14px] font-medium",
         pressed ? "border-[#A08B76] bg-[#A08B76]/10 text-[#A08B76]" : "border-[#E5E0DC] bg-transparent text-shop-ink",
       )}
     >
@@ -23,11 +23,15 @@ function Chip({ label, pressed, onClick }: { label: string; pressed: boolean; on
   );
 }
 
-/** "All" and one pill for each category, wrapping onto a second line when they do not fit. */
+/** "All" and one pill for each category, in one row she swipes sideways (it runs to the screen edges). */
 export function CategoryChips({ categories, value, onChange }: Props) {
   if (categories.length === 0) return null;
   return (
-    <div role="group" aria-label="Categories" className="flex flex-wrap gap-2">
+    <div
+      role="group"
+      aria-label="Categories"
+      className="flex gap-2 overflow-x-auto px-5 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
       <Chip label="All" pressed={value === null} onClick={() => onChange(null)} />
       {categories.map((category) => (
         <Chip key={category.id} label={category.name} pressed={value === category.id} onClick={() => onChange(category.id)} />

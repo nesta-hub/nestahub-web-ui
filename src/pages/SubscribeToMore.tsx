@@ -135,7 +135,7 @@ function AddScreen() {
         />
       </label>
 
-      <div className="mx-5 mt-3.5">
+      <div className="mt-3.5">
         <CategoryChips categories={categories.current} value={categoryId} onChange={setCategoryId} />
       </div>
 
