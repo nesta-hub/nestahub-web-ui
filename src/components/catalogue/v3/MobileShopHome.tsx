@@ -26,8 +26,10 @@ const FADE_MS = 170;
 interface Props {
   groups: ApiGroup[];
   loading?: boolean;
-  /** A group's slug from the address (/shop/:groupSlug): that group's pill starts selected. */
+  /** A group's slug from the address (/shop/:groupSlug): the page goes to that group, its pill selected. */
   initialGroupSlug?: string | null;
+  /** Whether it glides there. Not when a drawer is about to open over it, which holds the page still. */
+  smoothArrival?: boolean;
   hasReorder: boolean;
   /** Open the search; with a word, open it with that already typed in (the Moobi card). */
   onSearch: (query?: string) => void;
@@ -42,7 +44,7 @@ interface Props {
  * Signed in, the first offer becomes a welcome card with the wallet balance. The top row is the
  * same for everyone: menu, logo in the middle, cart.
  */
-export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasReorder, onSearch, onReorder, onCategory }: Props) {
+export function MobileShopHome({ groups, loading = false, initialGroupSlug, smoothArrival = true, hasReorder, onSearch, onReorder, onCategory }: Props) {
   const { session } = useAuth();
   const signedIn = !!session?.access_token;
   // TEMPORARY, dev server only: ?welcome=1 shows the signed-in first card without signing in.
@@ -89,10 +91,17 @@ export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasR
   };
 
   /** Bring the pills to the top of the screen, so the categories under them are in view. */
-  const scrollToCategories = () => {
+  const scrollToCategories = (behavior: ScrollBehavior = scrollBehavior()) => {
     const anchor = anchorRef.current;
-    if (anchor) window.scrollTo({ top: anchor.getBoundingClientRect().top + window.scrollY, behavior: scrollBehavior() });
+    if (anchor) window.scrollTo({ top: anchor.getBoundingClientRect().top + window.scrollY, behavior });
   };
+
+  // Arriving by a group's link: go to it, once the groups have loaded.
+  useEffect(() => {
+    if (routeId !== ALL) scrollToCategories(smoothArrival ? scrollBehavior() : "auto");
+    // Only when the address's group changes, not when anything else about the page does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeId]);
 
   /** An offer that shows part of this page: every group, or one group (all of them if it no longer exists). */
   const onOffer = (action: OfferAction) => {

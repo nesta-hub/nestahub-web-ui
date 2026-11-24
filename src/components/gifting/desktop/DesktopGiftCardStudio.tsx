@@ -468,7 +468,7 @@ export function DesktopGiftCardStudio() {
               {/* Cards list */}
               <div className="col-span-12 lg:col-span-7 space-y-8">
                 <section>
-                  <SectionHeader eyebrow="Your selection" label={isMulti ? "Gift cards" : "Gift card"} />
+                  <SectionHeader eyebrow="Your selection" label={summaryCards.length > 1 ? "Gift cards" : "Gift card"} />
                   <div className="space-y-4">
                     {summaryCards.map((c, idx) => {
                       const isCommitted = idx < addedCards.length;
