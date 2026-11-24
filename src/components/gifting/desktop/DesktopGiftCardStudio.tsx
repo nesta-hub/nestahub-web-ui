@@ -297,7 +297,7 @@ export function DesktopGiftCardStudio() {
       setStep("signin");
       return;
     }
-    placeOrders(summaryCards, session.access_token);
+    placeOrders(summaryCards, session?.access_token);
   };
 
   if (step === "signin") {
