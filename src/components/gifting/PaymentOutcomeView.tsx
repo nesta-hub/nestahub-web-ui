@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CheckCircle, Clock, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GiftLinkShare } from "@/components/gifting/GiftLinkShare";
@@ -151,6 +152,8 @@ interface PaymentOutcomeViewProps {
   onAction: (action: CtaAction) => void;
   variant?: OutcomeVariant;
   whatsAppPreviewProps?: WhatsAppPreviewProps;
+  /** Something to show under the message (the offer to subscribe, after a shop order). */
+  afterContent?: ReactNode;
 }
 
 /**
@@ -165,6 +168,7 @@ export function PaymentOutcomeView({
   onAction,
   variant = "mobile",
   whatsAppPreviewProps,
+  afterContent,
 }: PaymentOutcomeViewProps) {
   const settled = copy.view !== "pending";
   const isDesktop = variant === "desktop";
@@ -265,6 +269,8 @@ export function PaymentOutcomeView({
             ))}
           </div>
         )}
+
+        {afterContent && <div className="mx-auto mt-6 w-full max-w-md">{afterContent}</div>}
       </div>
     </Shell>
   );

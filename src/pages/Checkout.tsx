@@ -4,6 +4,9 @@ import { ArrowLeft, Package, RefreshCw, Loader2 } from "lucide-react";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
+import { useSubscribeEnabled } from "@/hooks/useSubscribeEnabled";
+import { toOrderItem } from "@/lib/orderItemPayload";
+import { SubscribeOffer } from "@/components/subscribe-offer/SubscribeOffer";
 import { useAuth } from "@/contexts/AuthContext";
 import { clearCustomGiftDraft } from "@/lib/giftDraft";
 import type { PickupStation } from "@/lib/api";
@@ -43,6 +46,8 @@ const Checkout = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { items, totalAmount, clearCart } = useCart();
+  // The new Subscribe experience: when on, subscription lines say how often they renew in the new way.
+  const subscribeOn = useSubscribeEnabled();
   const isMobile = useIsMobile();
   const { user, session, walletBalance, loading } = useAuth();
 
@@ -238,13 +243,7 @@ const Checkout = () => {
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      const orderItems = items.map((item) => ({
-        variantId: item.variantId,
-        quantity: item.quantity,
-        isAutoRenew: item.isAutoRenew ?? false,
-        frequencyWeeks: item.isAutoRenew ? (item.frequencyWeeks ?? null) : null,
-        subscriptionId: item.subscriptionId ?? undefined,
-      }));
+      const orderItems = items.map((item) => toOrderItem(item, subscribeOn));
 
       const result = await api.createOrder(
         {
@@ -361,13 +360,22 @@ const Checkout = () => {
         copy={copy}
         giftCards={[]}
         onAction={handleAction}
+        afterContent={orderType === 'shop' && orderNumber ? <SubscribeOffer orderNumber={orderNumber} /> : null}
       />
     );
   }
 
   // Already settled — pay-on-delivery, or fully covered by a gift card.
   if (showSuccess && orderNumber) {
-    return <CheckoutSuccessView orderId={orderNumber} paidWithGiftCard={paidWithGiftCard} paymentOption={paymentOption ?? undefined} deliverySummary={deliverySummary} />;
+    return (
+      <CheckoutSuccessView
+        orderId={orderNumber}
+        paidWithGiftCard={paidWithGiftCard}
+        paymentOption={paymentOption ?? undefined}
+        deliverySummary={deliverySummary}
+        afterContent={orderType === 'shop' ? <SubscribeOffer orderNumber={orderNumber} /> : null}
+      />
+    );
   }
 
   // Desktop gift bundle — loading guard while bundle data fetches
@@ -417,13 +425,7 @@ const Checkout = () => {
           productsTotal={totalAmount}
           orderSummary={<ShopOrderSummary items={items} />}
           onProceed={async (params) => {
-            const orderItems = items.map((item) => ({
-              variantId: item.variantId,
-              quantity: item.quantity,
-              isAutoRenew: item.isAutoRenew ?? false,
-              frequencyWeeks: item.isAutoRenew ? (item.frequencyWeeks ?? null) : null,
-              subscriptionId: item.subscriptionId ?? undefined,
-            }));
+            const orderItems = items.map((item) => toOrderItem(item, subscribeOn));
             return api.createOrder(
               {
                 orderType,
@@ -444,6 +446,7 @@ const Checkout = () => {
           onOrderCreated={() => { setTimeout(() => { clearCart(); clearCustomGiftDraft(); }, 0); }}
           successMessage="We're verifying your payment. You'll receive a confirmation via WhatsApp once it's confirmed, and we'll get your order on the way."
           returnToPath="/catalogue"
+          offerSubscription={orderType === 'shop'}
           enableResumeFlow
           enableEmptyCartRedirect
         />

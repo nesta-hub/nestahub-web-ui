@@ -29,6 +29,8 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer';
+import { WhatsAppNumberField, type WhatsAppChoice } from '@/components/whatsapp/WhatsAppNumberField';
+import { useConfirmWhatsApp, useWhatsAppChoice } from '@/components/whatsapp/useWhatsAppChoice';
 
 interface MenuItem {
   icon: typeof Wallet;
@@ -53,12 +55,13 @@ function PhoneStep({
   showBack,
   onBack,
 }: {
-  onSave: (p: string) => Promise<void>;
+  onSave: (p: string, whatsapp: WhatsAppChoice | null) => Promise<void>;
   onSkip: () => void;
   showBack: boolean;
   onBack: () => void;
 }) {
   const [phoneNumber, setPhoneNumber] = useState('');
+  const whatsapp = useWhatsAppChoice();
   return (
     <Layout showNav={false}>
       <div className="min-h-screen bg-background flex flex-col px-6 pt-16">
@@ -94,11 +97,19 @@ function PhoneStep({
                 autoComplete="tel"
               />
             </div>
+            {whatsapp.active && (
+              <WhatsAppNumberField
+                phone={phoneNumber}
+                value={whatsapp.choice}
+                onChange={whatsapp.setChoice}
+                error={whatsapp.error}
+              />
+            )}
             <Button
               variant="shop"
               className="w-full h-12"
-              onClick={() => onSave(phoneNumber.trim())}
-              disabled={phoneNumber.replace(/\D/g, '').length < 10}
+              onClick={() => onSave(phoneNumber.trim(), whatsapp.toSave)}
+              disabled={phoneNumber.replace(/\D/g, '').length < 10 || whatsapp.blocked}
             >
               Continue
             </Button>
@@ -124,7 +135,7 @@ interface ProfileEditDrawerProps {
   name: string;
   email: string;
   phone: string;
-  onSavePhone: (phone: string) => Promise<void>;
+  onSavePhone: (phone: string, whatsapp: WhatsAppChoice | null) => Promise<void>;
 }
 
 function ProfileEditDrawer({
@@ -136,9 +147,10 @@ function ProfileEditDrawer({
   onSavePhone,
 }: ProfileEditDrawerProps) {
   const [phoneInput, setPhoneInput] = useState(phone);
+  const whatsapp = useWhatsAppChoice();
 
   const handleSave = async () => {
-    await onSavePhone(phoneInput.trim());
+    await onSavePhone(phoneInput.trim(), whatsapp.toSave);
     onOpenChange(false);
   };
 
@@ -178,7 +190,20 @@ function ProfileEditDrawer({
               />
             </div>
           </div>
-          <Button variant="shop" className="w-full h-12 text-base font-semibold mt-2" onClick={handleSave}>
+          {whatsapp.active && (
+            <WhatsAppNumberField
+              phone={phoneInput}
+              value={whatsapp.choice}
+              onChange={whatsapp.setChoice}
+              error={whatsapp.error}
+            />
+          )}
+          <Button
+            variant="shop"
+            className="w-full h-12 text-base font-semibold mt-2"
+            onClick={handleSave}
+            disabled={whatsapp.blocked}
+          >
             <Check className="w-4 h-4 mr-2" /> Save changes
           </Button>
         </div>
@@ -232,6 +257,7 @@ const Account = () => {
   const { user, loading, signOut, updatePhone, walletBalance, session } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const confirmWhatsApp = useConfirmWhatsApp();
   const [showPhoneStep, setShowPhoneStep] = useState(false);
   const [fromBanner, setFromBanner] = useState(false);
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
@@ -291,9 +317,10 @@ const Account = () => {
           setFromBanner(false);
         }}
         onSkip={() => setShowPhoneStep(false)}
-        onSave={async (phone) => {
+        onSave={async (phone, whatsapp) => {
           try {
             await updatePhone(phone);
+            await confirmWhatsApp(whatsapp, phone);
             setShowPhoneStep(false);
             setFromBanner(false);
           } catch {
@@ -430,9 +457,10 @@ const Account = () => {
           name={user.name || ''}
           email={user.email || ''}
           phone={user.phone || ''}
-          onSavePhone={async (phone) => {
+          onSavePhone={async (phone, whatsapp) => {
             try {
               await updatePhone(phone);
+              await confirmWhatsApp(whatsapp, phone);
             } catch {
               alert('Failed to update phone number');
             }
@@ -506,9 +534,10 @@ const Account = () => {
         name={user.name || ''}
         email={user.email || ''}
         phone={user.phone || ''}
-        onSavePhone={async (phone) => {
+        onSavePhone={async (phone, whatsapp) => {
           try {
             await updatePhone(phone);
+            await confirmWhatsApp(whatsapp, phone);
           } catch {
             alert('Failed to update phone number');
           }

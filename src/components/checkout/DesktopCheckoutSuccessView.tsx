@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CheckCircle, Clock, Mail, MessageCircle, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,8 @@ interface DesktopCheckoutSuccessViewProps {
   steps?: SuccessStep[];
   /** How and when this order is being delivered. */
   deliverySummary?: string | null;
+  /** Something to show under the message (the offer to subscribe, after a shop order). */
+  afterContent?: ReactNode;
 }
 
 const CARD_CLASS =
@@ -36,6 +39,7 @@ export function DesktopCheckoutSuccessView({
   onReturnToShop,
   steps = defaultSteps,
   deliverySummary,
+  afterContent,
 }: DesktopCheckoutSuccessViewProps) {
   return (
     <div className="min-h-screen bg-[#FAF8F5]">
@@ -139,6 +143,8 @@ export function DesktopCheckoutSuccessView({
                 <p className="text-sm text-foreground/80 leading-relaxed">{message}</p>
               </div>
             </div>
+
+            {afterContent && <div className="mt-6 text-left">{afterContent}</div>}
 
             <div className="flex gap-3 justify-center mt-8">
               <Button variant="outline" className="h-11 px-6" onClick={onViewOrder}>

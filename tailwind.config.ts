@@ -81,6 +81,9 @@ export default {
           cream: "#FBF9F6",
           surface: "#EFE9E5",
           page: "#F5F3F0",
+          // The main button colour used across the app (Button variant "shop"), for the Subscribe screens too.
+          cta: "hsl(25 20% 42%)",
+          "cta-hover": "hsl(25 20% 38%)",
         },
       },
       borderRadius: {

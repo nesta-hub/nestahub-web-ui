@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,9 +10,11 @@ interface CheckoutSuccessViewProps {
   paymentOption?: string;
   /** How and when this order is being delivered. */
   deliverySummary?: string | null;
+  /** Something to show under the message (the offer to subscribe, after a shop order). */
+  afterContent?: ReactNode;
 }
 
-export function CheckoutSuccessView({ orderId, paidWithGiftCard, paymentOption, deliverySummary }: CheckoutSuccessViewProps) {
+export function CheckoutSuccessView({ orderId, paidWithGiftCard, paymentOption, deliverySummary, afterContent }: CheckoutSuccessViewProps) {
   const navigate = useNavigate();
 
   const handleReturnShopping = () => {
@@ -21,7 +24,7 @@ export function CheckoutSuccessView({ orderId, paidWithGiftCard, paymentOption, 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
       {/* Content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center animate-fade-in">
+      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 py-6 text-center animate-fade-in">
         {/* Success icon */}
         <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mb-6">
           <CheckCircle className="w-10 h-10 text-emerald-600" />
@@ -52,6 +55,8 @@ export function CheckoutSuccessView({ orderId, paidWithGiftCard, paymentOption, 
               : "We'll verify your payment and send a confirmation via Email. Please keep your phone handy!"}
           </p>
         </Card>
+
+        {afterContent && <div className="mt-6 w-full max-w-sm">{afterContent}</div>}
       </div>
 
       {/* Footer */}

@@ -12,6 +12,8 @@ import {
 } from "@/components/catalogue/v2";
 import { DesktopShop } from "@/components/catalogue/v3/DesktopShop";
 import { MobileShopHome } from "@/components/catalogue/v3/MobileShopHome";
+import { ExtrasProductPage } from "@/components/pending-extras/ExtrasProductPage";
+import { useShoppingForExtras } from "@/hooks/useShoppingForExtras";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategoryTree, useRecentVariants } from "@/hooks/useCatalogue";
 import type { Category as ApiCategory, CategoryGroup as ApiGroup } from "@/lib/api";
@@ -37,6 +39,8 @@ const CatalogueV2 = () => {
   const { data: recent } = useRecentVariants(session?.access_token);
   const hasReorder = (recent?.variants.length ?? 0) > 0;
 
+  // Adding extra items to an order: a product opens as a full page that adds to that order, not the drawer.
+  const addingExtras = useShoppingForExtras() !== null;
   const [selectedProductKey, setSelectedProductKey] = useState<string | null>(null);
   const [isProductDrawerOpen, setIsProductDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<DrawerCategory | null>(null);
@@ -141,11 +145,19 @@ const CatalogueV2 = () => {
       />
 
       {/* Product Detail Drawer (deep-link, search, items feed entry points) */}
-      <ShopProductDrawer
-        open={isProductDrawerOpen}
-        onOpenChange={handleProductDrawerOpen}
-        productKey={selectedProductKey}
-      />
+      {addingExtras && isProductDrawerOpen && selectedProductKey ? (
+        <ExtrasProductPage
+          productKey={selectedProductKey}
+          onBack={() => handleProductDrawerOpen(false)}
+          onAdded={() => handleProductDrawerOpen(false)}
+        />
+      ) : (
+        <ShopProductDrawer
+          open={isProductDrawerOpen}
+          onOpenChange={handleProductDrawerOpen}
+          productKey={selectedProductKey}
+        />
+      )}
 
       {/* Full-page CategoryView overlay (triggered by "View all" in the peek drawer) */}
       {viewAllCategory && (

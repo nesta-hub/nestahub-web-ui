@@ -4,12 +4,23 @@ import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useSubscribeEnabled } from "@/hooks/useSubscribeEnabled";
 import nestaLogo from "@/assets/nesta-logo.png";
 
-const MOBILE_MENU_LINKS = [
+/** The menu as it has always been. What every visitor sees while the new Subscribe experience is off. */
+const LEGACY_MENU_LINKS = [
   { href: "/shop", label: "Shop" },
   { href: "/gifting", label: "Gifting" },
   { href: "/mum-tools", label: "Mum Tools" },
+  { href: "/share", label: "Share" },
+  { href: "/contact", label: "Contact" },
+];
+
+/** With Subscribe on, it comes right after Shop (the same order as the bottom nav) and Mum Tools is gone. */
+const SUBSCRIBE_MENU_LINKS = [
+  { href: "/shop", label: "Shop" },
+  { href: "/subscriptions", label: "Subscribe" },
+  { href: "/gifting", label: "Gifting" },
   { href: "/share", label: "Share" },
   { href: "/contact", label: "Contact" },
 ];
@@ -18,6 +29,7 @@ const MOBILE_MENU_LINKS = [
 export function MobileMenu({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
+  const links = useSubscribeEnabled() ? SUBSCRIBE_MENU_LINKS : LEGACY_MENU_LINKS;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -32,7 +44,7 @@ export function MobileMenu({ className }: { className?: string }) {
           <img src={nestaLogo} alt="Nesta Hub" className="h-10" />
         </div>
         <nav aria-label="Menu" className="flex flex-col px-2 py-4">
-          {MOBILE_MENU_LINKS.map((link) => {
+          {links.map((link) => {
             // The shop's product pages live under /catalogue, so those count as the shop too.
             const isActive = pathname === link.href || pathname.startsWith(link.href) || (link.href === "/shop" && pathname.startsWith("/catalogue"));
             return (

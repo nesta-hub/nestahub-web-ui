@@ -1,17 +1,30 @@
 import { Link, useLocation } from "react-router-dom";
-import { ShoppingBag, Gift, CalendarHeart, MessageCircle, User } from "lucide-react";
+import { ShoppingBag, Gift, CalendarHeart, MessageCircle, RefreshCw, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useSubscribeEnabled } from "@/hooks/useSubscribeEnabled";
+import { useShoppingForExtras } from "@/hooks/useShoppingForExtras";
 
-const navItems = [
-  // The shop lives at /shop, and its product pages at /catalogue/:slug.
-  { href: "/shop", also: ["/catalogue"], icon: ShoppingBag, label: "Shop" },
-  { href: "/gifting", icon: Gift, label: "Gifting" },
-  { href: "/mum-tools", icon: CalendarHeart, label: "Mum Tools" },
-  { href: "/contact", icon: MessageCircle, label: "Contact" },
-  { href: "/account", icon: User, label: "Account" },
-];
+interface NavItem {
+  href: string;
+  /** Other paths that count as being on this item. */
+  also?: string[];
+  icon: typeof ShoppingBag;
+  label: string;
+}
+
+// The shop lives at /shop, and its product pages at /catalogue/:slug.
+const SHOP: NavItem = { href: "/shop", also: ["/catalogue"], icon: ShoppingBag, label: "Shop" };
+const GIFTING: NavItem = { href: "/gifting", icon: Gift, label: "Gifting" };
+const CONTACT: NavItem = { href: "/contact", icon: MessageCircle, label: "Contact" };
+const ACCOUNT: NavItem = { href: "/account", icon: User, label: "Account" };
+
+/** The nav as it has always been. What every visitor sees while the new Subscribe experience is off. */
+const legacyNavItems: NavItem[] = [SHOP, GIFTING, { href: "/mum-tools", icon: CalendarHeart, label: "Mum Tools" }, CONTACT, ACCOUNT];
+
+/** With Subscribe on, it comes right after Shop and Mum Tools is gone. */
+const subscribeNavItems: NavItem[] = [SHOP, { href: "/subscriptions", icon: RefreshCw, label: "Subscribe" }, GIFTING, CONTACT, ACCOUNT];
 
 // Helper to generate initials from user name
 const getInitials = (name: string | null | undefined) => {
@@ -27,9 +40,14 @@ const getInitials = (name: string | null | undefined) => {
 export function MobileNav() {
   const location = useLocation();
   const { user } = useAuth();
+  const subscribeOn = useSubscribeEnabled();
+  const navItems = subscribeOn ? subscribeNavItems : legacyNavItems;
+  // While she is adding extra items to an order, the shop is a focused screen with its own bars: no bottom navigation.
+  const shoppingForExtras = useShoppingForExtras() !== null;
+  if (shoppingForExtras) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border">
+    <nav className={cn("fixed bottom-0 left-0 right-0 z-50 backdrop-blur-md border-t", subscribeOn ? "border-shop-line bg-shop-cream/95" : "bg-card/95 border-border")}>
       <div className="flex items-center justify-around h-16">
         {navItems.map((item) => {
           const isActive = [item.href, ...(item.also ?? [])].some(
@@ -46,9 +64,14 @@ export function MobileNav() {
               to={item.href}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg whitespace-nowrap transition-colors",
-                isActive
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
+                // The Subscribe design's own colours: a warm grey, and the brown for where she is.
+                subscribeOn
+                  ? isActive
+                    ? "text-shop-brown"
+                    : "text-shop-muted hover:text-shop-ink"
+                  : isActive
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground",
               )}
             >
               {showAvatar ? (
@@ -71,8 +94,8 @@ export function MobileNav() {
               )}
               <span
                 className={cn(
-                  "text-2xs font-medium",
-                  isActive && "font-semibold"
+                  subscribeOn ? "text-[10px] leading-[14px] font-semibold" : "text-2xs font-medium",
+                  isActive && (subscribeOn ? "font-extrabold" : "font-semibold"),
                 )}
               >
                 {item.label}

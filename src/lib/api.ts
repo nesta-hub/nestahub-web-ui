@@ -530,6 +530,9 @@ export const api = {
         quantity: number;
         isAutoRenew: boolean;
         frequencyWeeks?: number | null;
+        /** The new Subscribe experience only: how often, and for weekly the first renewal day. Ignored by the API while it is off. */
+        renewalFrequency?: { kind: 'weeks'; every: number } | { kind: 'month_date'; day: number } | { kind: 'month_weekday'; nth: number; weekday: number };
+        firstRenewalDate?: string;
       }>;
       giftCardDetails?: {
         themeId: string;
@@ -824,6 +827,8 @@ export interface PickupStation {
   address: string;
   city?: string;
   dayOfWeek: string;
+  /** The ISO weekdays (1 = Monday ... 7 = Sunday) subscription boxes are ready here, read from `dayOfWeek`. Empty: they cannot be sent here. */
+  subscriptionDays?: number[];
   hours: string;
   phoneNumber: string;
   isActive: boolean;

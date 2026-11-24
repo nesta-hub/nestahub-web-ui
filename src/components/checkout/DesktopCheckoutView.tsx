@@ -20,6 +20,7 @@ import {
 import { SignInForm } from "@/components/auth/SignInForm";
 import { DesktopCheckoutPaymentView } from "./DesktopCheckoutPaymentView";
 import { DesktopCheckoutSuccessView } from "./DesktopCheckoutSuccessView";
+import { SubscribeOffer } from "@/components/subscribe-offer/SubscribeOffer";
 import {
   PaymentCheckingView,
   PaymentOutcomeView,
@@ -49,6 +50,8 @@ interface DesktopCheckoutViewProps {
   returnToPath: string;
   enableResumeFlow?: boolean;
   enableEmptyCartRedirect?: boolean;
+  /** Offer to subscribe to what was just bought (shop orders only). */
+  offerSubscription?: boolean;
 }
 
 export function DesktopCheckoutView({
@@ -60,6 +63,7 @@ export function DesktopCheckoutView({
   returnToPath,
   enableResumeFlow,
   enableEmptyCartRedirect,
+  offerSubscription,
 }: DesktopCheckoutViewProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -259,6 +263,7 @@ export function DesktopCheckoutView({
         giftCards={[]}
         onAction={handleOutcomeAction}
         variant="desktop"
+        afterContent={offerSubscription ? <SubscribeOffer orderNumber={orderNumber} /> : null}
       />
     );
   }
@@ -290,6 +295,7 @@ export function DesktopCheckoutView({
         onReturnToShop={() => navigate(returnToPath)}
         steps={resolvedSteps}
         deliverySummary={deliverySummary}
+        afterContent={offerSubscription ? <SubscribeOffer orderNumber={orderNumber} /> : null}
       />
     );
   }

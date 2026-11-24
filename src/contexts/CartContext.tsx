@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useCallback, useMemo, useEffect } from "react";
 import { addDays } from "date-fns";
+import type { RenewalFrequency } from "@/lib/subscriptionBoxes";
+import { legacyWeeks } from "@/lib/renewalFrequency";
 
 export interface CartItem {
   variantId: string; // Variant ID from API
@@ -23,6 +25,13 @@ export interface CartItem {
   subscriptionPrice?: number; // Custom subscription price from variant (in kobo)
   recommendedFrequencyWeeks?: number; // Recommended frequency from variant
   subscriptionId?: string; // ID of subscription being reordered (for preventing duplicates)
+  // The new Subscribe experience. Only the new product-page card sets these; everything else leaves them out,
+  // and while the experience is off they are never sent. `isAutoRenew` and `frequencyWeeks` above are always
+  // kept in step with them (monthly counts as 4 weeks), so the old reminders still make sense.
+  /** How often it renews. `null` is a one-time choice made on the new card (it replaces an earlier subscription choice). */
+  renewalFrequency?: RenewalFrequency | null;
+  /** Weekly only: the day she wants the first renewal, "YYYY-MM-DD". */
+  firstRenewalDate?: string;
 }
 
 interface CartContextType {
@@ -116,9 +125,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       if (existingIndex >= 0) {
         const updated = [...prev];
+        const current = updated[existingIndex];
         updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity: updated[existingIndex].quantity + quantity,
+          ...current,
+          quantity: current.quantity + quantity,
+          // The last choice she made on the new card wins. An add that never touched the card (undefined) leaves
+          // the line as it was, exactly as before.
+          ...(item.renewalFrequency !== undefined
+            ? {
+                isAutoRenew: item.renewalFrequency !== null,
+                frequencyWeeks: item.renewalFrequency ? legacyWeeks(item.renewalFrequency) : undefined,
+                renewalFrequency: item.renewalFrequency,
+                firstRenewalDate: item.renewalFrequency ? item.firstRenewalDate : undefined,
+                subscriptionPrice: item.subscriptionPrice,
+                recommendedFrequencyWeeks: item.recommendedFrequencyWeeks,
+              }
+            : {}),
         };
         return updated;
       }
@@ -165,7 +187,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems(prev =>
       prev.map(item =>
         getItemKey(item.variantId) === getItemKey(variantId)
-          ? { ...item, isAutoRenew, frequencyWeeks: isAutoRenew ? (frequencyWeeks ?? 4) : undefined }
+          ? {
+              ...item,
+              isAutoRenew,
+              frequencyWeeks: isAutoRenew ? (frequencyWeeks ?? 4) : undefined,
+              renewalFrequency: undefined,
+              firstRenewalDate: undefined,
+            }
           : item
       )
     );
@@ -177,6 +205,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         ...item,
         isAutoRenew,
         frequencyWeeks: isAutoRenew ? (frequencyWeeks ?? 4) : undefined,
+        renewalFrequency: undefined,
+        firstRenewalDate: undefined,
       }))
     );
   }, []);

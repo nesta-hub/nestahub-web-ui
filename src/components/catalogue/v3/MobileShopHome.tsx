@@ -169,7 +169,8 @@ export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasR
       <div
         ref={barRef}
         className={cn(
-          "sticky top-0 z-20 mt-1.5 flex bg-shop-page/95 backdrop-blur-[14px] transition-shadow duration-200",
+          // Normally the top of the screen; below the bar over the shop while she is adding extra items to an order.
+          "sticky top-[var(--pending-bar-h,0px)] z-20 mt-1.5 flex bg-shop-page/95 backdrop-blur-[14px] transition-shadow duration-200",
           stuck ? "shadow-[0_10px_16px_-14px_rgba(51,38,28,0.4)]" : "shadow-none",
         )}
       >

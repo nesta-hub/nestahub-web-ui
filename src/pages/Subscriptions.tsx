@@ -4,14 +4,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { SubscriptionsView } from "@/components/account/SubscriptionsView";
 import { DesktopSubscriptionsView } from "@/components/account/DesktopSubscriptionsView";
+import { SubscriptionTab } from "@/components/subscription-tab/SubscriptionTab";
+import { useSubscribeStatus } from "@/hooks/useSubscribeEnabled";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Subscriptions = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const isMobile = useIsMobile();
+  // Which experience she gets. While it is still being worked out, neither is shown.
+  const status = useSubscribeStatus();
 
-  if (loading) {
+  if (loading || status === "loading") {
     return (
       <Layout showNav={false}>
         <div className="flex-1 flex items-center justify-center">
@@ -21,6 +25,27 @@ const Subscriptions = () => {
     );
   }
 
+  // The new Subscription tab, with the nav around it.
+  if (status === "on") {
+    if (!user) {
+      return (
+        <Layout>
+          <SignInForm
+            title="Sign in to see your subscription"
+            description="Your items, your next order and your reminders"
+            containerClassName="flex-1 flex flex-col items-center justify-center px-6 py-16"
+          />
+        </Layout>
+      );
+    }
+    return (
+      <Layout>
+        <SubscriptionTab />
+      </Layout>
+    );
+  }
+
+  // The page as it has always been.
   if (!user) {
     return (
       <Layout showNav={false}>

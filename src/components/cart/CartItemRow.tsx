@@ -1,4 +1,6 @@
 import { Trash2, RefreshCw } from "lucide-react";
+import { describeFrequency } from "@/lib/renewalFrequency";
+import { formatDay } from "@/lib/subscriptionBoxes";
 import { CartItem, useCart } from "@/contexts/CartContext";
 import { QuantityControl } from "./QuantityControl";
 import { formatPrice } from "@/lib/api";
@@ -63,7 +65,9 @@ export function CartItemRow({ item }: CartItemRowProps) {
         {item.isAutoRenew ? (
           <span className="text-xs font-medium mt-1 inline-flex items-center gap-1 text-primary">
             <RefreshCw className="w-3 h-3" />
-            Every {item.frequencyWeeks} weeks
+            {/* The new Subscribe card stores her actual choice (monthly on the 25th, ...); an old-style line has only weeks. */}
+            {item.renewalFrequency ? describeFrequency(item.renewalFrequency) : `Every ${item.frequencyWeeks} weeks`}
+            {item.renewalFrequency && item.firstRenewalDate ? `, from ${formatDay(item.firstRenewalDate)}` : ""}
           </span>
         ) : (
           <span className="text-xs font-medium mt-1 inline-flex items-center gap-1 text-primary">

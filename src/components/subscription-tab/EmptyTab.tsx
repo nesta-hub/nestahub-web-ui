@@ -1,0 +1,49 @@
+import { Bell, RefreshCw, Wallet } from "lucide-react";
+import { AddItemButton } from "./AddItemButton";
+import { UsualBuys } from "./UsualBuys";
+
+const STEPS = [
+  { icon: Bell, label: "You get reminders" },
+  { icon: Wallet, label: "You simply pay, no reordering" },
+  { icon: RefreshCw, label: "You remain in control" },
+];
+
+/** Shown when nothing is subscribed yet: the idea in one card, a way to pick an item, and what she already buys. */
+export function EmptyTab() {
+  return (
+    <>
+      <section aria-label="What Subscribe does" className="relative overflow-hidden rounded-[28px] bg-[#DDE3DA] px-5 pb-5 pt-[22px] shadow-[0_10px_24px_-14px_rgba(51,38,28,0.4)]">
+        <span aria-hidden="true" className="absolute -right-12 -top-16 h-[220px] w-[220px] rounded-full bg-[#E6EBE3]" />
+        <span aria-hidden="true" className="absolute -bottom-[90px] right-16 h-[150px] w-[150px] rounded-full bg-[#D2DBD0]" />
+        <div className="relative">
+          <span className="inline-block rounded-full bg-white/70 px-[9px] py-[3px] text-[9.5px] font-extrabold leading-3 tracking-[0.14em] text-[#46564A]">AUTO-RENEW</span>
+          <h2 className="mt-2.5 max-w-[280px] text-[26px] font-extrabold leading-[31px] tracking-[-0.02em] text-shop-ink">Never forget to order again</h2>
+          <p className="mt-2 max-w-[310px] text-[14px] leading-[21px] text-[#34443A]">Pick what you buy again and again. We remind you days before, and you simply pay.</p>
+          <ul className="mt-3.5 flex items-start justify-between gap-2 rounded-[20px] bg-white/[0.72] px-3.5 py-3">
+            {STEPS.map(({ icon: Icon, label }) => (
+              <li key={label} className="flex flex-1 list-none flex-col items-center gap-1.5">
+                <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-shop-brown shadow-[0_4px_10px_-6px_rgba(51,38,28,0.4)]">
+                  <Icon className="h-[17px] w-[17px]" strokeWidth={2} />
+                </span>
+                <span className="text-center text-[12px] font-extrabold leading-[15px] text-shop-ink">{label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+      <AddItemButton label="Subscribe to an item" className="mt-3.5" />
+      <UsualBuys />
+    </>
+  );
+}
+
+/** Items are subscribed, but nothing is due yet. */
+export function NothingDueCard({ nextDue }: { nextDue: string | null }) {
+  return (
+    <section className="rounded-[28px] bg-[#DDE3DA] p-5 shadow-[0_10px_24px_-14px_rgba(51,38,28,0.4)]">
+      <span className="inline-block rounded-full bg-white/70 px-[9px] py-[3px] text-[9.5px] font-extrabold leading-3 tracking-[0.14em] text-[#46564A]">ALL SET</span>
+      <h2 className="mt-2 text-[22px] font-extrabold leading-7 tracking-[-0.02em] text-shop-ink">Nothing to pay right now</h2>
+      <p className="mt-1 text-[14px] leading-5 text-[#34443A]">{nextDue ? "We will remind you before your next order is due." : "Your items are paused."}</p>
+    </section>
+  );
+}
