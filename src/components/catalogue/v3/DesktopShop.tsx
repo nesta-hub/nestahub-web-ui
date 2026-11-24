@@ -49,6 +49,7 @@ export function DesktopShop() {
         <DesktopListing
           key={`${groupSlug}/${categorySlug ?? ""}`}
           groups={groups}
+          ungrouped={tree?.ungrouped}
           loading={isLoading}
           groupSlug={groupSlug}
           categorySlug={categorySlug}

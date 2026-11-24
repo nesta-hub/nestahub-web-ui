@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Package, ChevronDown } from "lucide-react";
+import { ArrowLeft, Loader2, Package, ChevronDown } from "lucide-react";
 import { addDays } from "date-fns";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";

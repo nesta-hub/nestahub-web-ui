@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CatalogueProduct, formatPrice as formatPriceOld } from "@/data/catalogueData";
 import { api, ProductDetail, ProductVariant, formatPrice as formatPriceAPI } from "@/lib/api";
+import { realText } from "@/lib/catalogueAdapter";
 import { CloudinaryPresets } from "@/lib/cloudinary";
 import { QuantityControl } from "@/components/cart/QuantityControl";
 import { useCart } from "@/contexts/CartContext";
@@ -185,7 +186,7 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
   // Get description text from product
   const descriptionText = useMemo(() => {
     // For API products, use variant description
-    if (apiProduct && matchedVariant?.description) {
+    if (apiProduct && realText(matchedVariant?.description)) {
       return matchedVariant.description;
     }
     // For old products, use type/size description
@@ -230,6 +231,10 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
 
   // Check if we're in purchase-type step
   const isPurchaseStep = step === "purchase-type";
+  const variantDescription = realText(matchedVariant?.description);
+  const productDescription = realText(apiProduct?.description);
+  /** Nothing to view without a description, from the variant or the product. */
+  const showDetailsLink = step === "details" || !!(descriptionText || productDescription);
 
   // Handle attribute change with cascading auto-selection
   const handleAttributeChange = useCallback((attrName: string, attrValue: string) => {
@@ -650,26 +655,28 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
                     {attributeSummary && (
                       <>
                         <span className="text-muted-foreground">{attributeSummary}</span>
-                        <span className="text-muted-foreground">·</span>
+                        {showDetailsLink && <span className="text-muted-foreground">·</span>}
                       </>
                     )}
-                    <button
-                      onClick={() => {
-                        if (step === "configure" && contentRef.current) {
-                          setCapturedHeight(contentRef.current.offsetHeight);
-                        }
-                        setStep(step === "details" ? "configure" : "details");
-                      }}
-                      className="text-primary font-medium inline-flex items-center gap-0.5"
-                    >
-                      {step === "details" ? (
-                        "Close details"
-                      ) : (
-                        <>
-                          View details <ChevronRight className="w-3.5 h-3.5" />
-                        </>
-                      )}
-                    </button>
+                    {showDetailsLink && (
+                      <button
+                        onClick={() => {
+                          if (step === "configure" && contentRef.current) {
+                            setCapturedHeight(contentRef.current.offsetHeight);
+                          }
+                          setStep(step === "details" ? "configure" : "details");
+                        }}
+                        className="text-primary font-medium inline-flex items-center gap-0.5"
+                      >
+                        {step === "details" ? (
+                          "Close details"
+                        ) : (
+                          <>
+                            View details <ChevronRight className="w-3.5 h-3.5" />
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 )}
                 {/* Price below attributes */}
@@ -789,31 +796,20 @@ export function ProductDetailDrawer({ open, onOpenChange, product, productSlug, 
                 <div className="px-6 pt-4 animate-fade-in">
                   <div className="mt-2 text-sm leading-relaxed text-left">
                     {/* Variant description (black text) */}
-                    {matchedVariant?.description && (
-                      <p className="text-foreground">{matchedVariant.description}</p>
+                    {variantDescription && (
+                      <p className="text-foreground">{variantDescription}</p>
                     )}
 
                     {/* Product description (brown/muted text - always muted) */}
-                    {apiProduct?.description && (
-                      <p className={matchedVariant?.description ? "mt-2 text-muted-foreground" : "text-muted-foreground"}>
-                        {apiProduct.description}
+                    {productDescription && (
+                      <p className={variantDescription ? "mt-2 text-muted-foreground" : "text-muted-foreground"}>
+                        {productDescription}
                       </p>
                     )}
 
                     {/* Fallback text if neither exists */}
-                    {!matchedVariant?.description && !apiProduct?.description && descriptionText && (
+                    {!variantDescription && !productDescription && descriptionText && (
                       <p className="text-foreground">{descriptionText}</p>
-                    )}
-                    {!matchedVariant?.description && !apiProduct?.description && !descriptionText && (
-                      <>
-                        <p className="text-foreground">
-                          Premium quality product carefully selected for your baby's comfort and well-being. Made with gentle, hypoallergenic ingredients suitable for sensitive skin.
-                        </p>
-                        <p className="mt-2 text-muted-foreground">
-                          Dermatologically tested. Free from harsh chemicals, parabens, and artificial fragrances. Trusted by
-                          parents across Nigeria.
-                        </p>
-                      </>
                     )}
                   </div>
                 </div>

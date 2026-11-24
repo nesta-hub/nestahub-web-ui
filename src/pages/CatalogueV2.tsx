@@ -12,10 +12,12 @@ import {
 } from "@/components/catalogue/v2";
 import { DesktopShop } from "@/components/catalogue/v3/DesktopShop";
 import { MobileShopHome } from "@/components/catalogue/v3/MobileShopHome";
+import { useLinkedCategory } from "@/components/catalogue/v3/useLinkedCategory";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategoryTree, useRecentVariants } from "@/hooks/useCatalogue";
 import type { Category as ApiCategory, CategoryGroup as ApiGroup } from "@/lib/api";
 import { metaPixel } from "@/lib/metaPixel";
+import { findShopTarget } from "@/lib/shopLink";
 
 /** Build the drawer category view-model from an API category node. */
 function toDrawerCategory(cat: ApiCategory): DrawerCategory {
@@ -29,7 +31,7 @@ function toDrawerCategory(cat: ApiCategory): DrawerCategory {
 
 const CatalogueV2 = () => {
   const isMobile = useIsMobile();
-  const { groupSlug } = useParams();
+  const { groupSlug, categorySlug } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: tree, isLoading: treeLoading } = useCategoryTree();
   // Reorder/buy-again is only meaningful for signed-in users with past orders.
@@ -48,6 +50,7 @@ const CatalogueV2 = () => {
   const [searchPreset, setSearchPreset] = useState("");
 
   const groups: ApiGroup[] = useMemo(() => tree?.groups ?? [], [tree]);
+  const linked = useMemo(() => findShopTarget(tree, groupSlug, categorySlug), [tree, groupSlug, categorySlug]);
 
   // The `?product=<slug-or-id>` param is the single source of truth for the
   // product drawer: present → open, absent → closed. This keeps deep links,
@@ -82,11 +85,22 @@ const CatalogueV2 = () => {
     setSearchParams(next);
   };
 
-  const handleTileClick = (cat: ApiCategory) => {
-    metaPixel.customEvent('CategoryClick', { category_name: cat.displayName, category_id: cat.slug });
+  const openCategory = (cat: ApiCategory) => {
     setSelectedCategory(toDrawerCategory(cat));
     setIsCategoryDrawerOpen(true);
   };
+
+  const handleTileClick = (cat: ApiCategory) => {
+    metaPixel.customEvent('CategoryClick', { category_name: cat.displayName, category_id: cat.slug });
+    openCategory(cat);
+  };
+
+  // A link to a category (/shop/:group/:category) opens its drawer. On desktop the same link is a page.
+  useLinkedCategory(linked.category, isMobile, (cat) => {
+    metaPixel.customEvent('CategoryClick', { category_name: cat.displayName, category_id: cat.slug, source: 'link' });
+    // The address can name a product too, which opens in a drawer of its own: one at a time.
+    if (!searchParams.get("product")) openCategory(cat);
+  });
 
   if (!isMobile) {
     return (
@@ -101,7 +115,8 @@ const CatalogueV2 = () => {
       <MobileShopHome
         groups={groups}
         loading={treeLoading}
-        initialGroupSlug={groupSlug ?? null}
+        initialGroupSlug={linked.group?.slug ?? null}
+        smoothArrival={!categorySlug}
         hasReorder={hasReorder}
         onSearch={(query) => {
           setSearchPreset(query ?? "");

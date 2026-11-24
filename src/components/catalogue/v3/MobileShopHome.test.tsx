@@ -174,7 +174,9 @@ describe("tapping an offer that shows part of this page", () => {
   });
 
   it("shows every group and scrolls down to the categories from the shop offer", () => {
-    show({ initialGroupSlug: "health-wellness" });
+    show();
+    fireEvent.click(pill("Health"));
+    settle();
     pillsAt500();
 
     fireEvent.click(offer(/Everything for baby and mum/));
@@ -186,7 +188,9 @@ describe("tapping an offer that shows part of this page", () => {
   });
 
   it("shows every group and scrolls down to the categories from the Community Delivery card", () => {
-    show({ initialGroupSlug: "health-wellness" });
+    show();
+    fireEvent.click(pill("Health"));
+    settle();
     pillsAt500();
 
     fireEvent.click(offer(/Good news!/));
@@ -293,11 +297,21 @@ describe("the cart that joins the pills once they stick", () => {
 });
 
 describe("arriving by address (/shop/:groupSlug)", () => {
-  it("starts on that group", () => {
+  /** Lay the page out: the group's section 1200px down the page, and the pills 60px tall. */
+  const layOut = () => {
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(60);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      return { top: this.id === "g-back-to-school" ? 1200 : 0 } as DOMRect;
+    });
+  };
+  afterEach(() => vi.restoreAllMocks());
+
+  it("stays on All, with every group showing", () => {
     show({ initialGroupSlug: "back-to-school" });
 
-    expect(pill("Learning")).toHaveAttribute("aria-current", "true");
-    expect(headings()).toEqual(["Learning Resource"]);
+    expect(pill("All")).toHaveAttribute("aria-current", "true");
+    expect(headings()).toHaveLength(3);
   });
 
   it("starts on All for a group that does not exist", () => {
@@ -314,17 +328,70 @@ describe("arriving by address (/shop/:groupSlug)", () => {
 
     again({ initialGroupSlug: "back-to-school" });
 
-    expect(pill("Learning")).toHaveAttribute("aria-current", "true");
-    expect(headings()).toEqual(["Learning Resource"]);
+    expect(pill("All")).toHaveAttribute("aria-current", "true");
+    expect(headings()).toHaveLength(3);
+    expect(window.scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ behavior: "smooth" }));
   });
 
-  it("starts on that group once the groups have loaded", () => {
+  it("is not undone by a pill tapped just before", () => {
+    const { again } = show();
+    fireEvent.click(pill("Health"));
+
+    again({ initialGroupSlug: "back-to-school" });
+    settle();
+
+    expect(pill("All")).toHaveAttribute("aria-current", "true");
+    expect(headings()).toHaveLength(3);
+  });
+
+  it("lets the shopper pick a group afterwards", () => {
+    show({ initialGroupSlug: "back-to-school" });
+
+    fireEvent.click(pill("Health"));
+    settle();
+
+    expect(headings()).toEqual(["Health & Oral Care"]);
+  });
+
+  it("scrolls to that group, just under the pills, smoothly", () => {
+    layOut();
+    show({ initialGroupSlug: "back-to-school" });
+
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 1140, behavior: "smooth" });
+  });
+
+  it("goes there at once when told to", () => {
+    layOut();
+    show({ initialGroupSlug: "back-to-school", smoothArrival: false });
+
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 1140, behavior: "auto" });
+  });
+
+  it("stays at the top for the whole shop, or for a group that does not exist", () => {
+    show();
+    show({ initialGroupSlug: "no-such-group" });
+
+    expect(window.scrollTo).not.toHaveBeenCalled();
+  });
+
+  it("waits for the groups to load before going there", () => {
     const { again } = show({ groups: [], loading: true, initialGroupSlug: "back-to-school" });
+    expect(window.scrollTo).not.toHaveBeenCalled();
 
     again({ groups: TREE, loading: false });
 
-    expect(headings()).toEqual(["Learning Resource"]);
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
   });
+
+  it("does not drag the shopper back when the groups are fetched again", () => {
+    const { again } = show({ initialGroupSlug: "back-to-school" });
+
+    again({ groups: TREE.map((g) => ({ ...g })) });
+
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
+  });
+
 });
 
 describe("search, buy again and the rest", () => {
@@ -469,7 +536,9 @@ describe("signed in", () => {
   });
 
   it("shows every group and scrolls down to the categories when 'Shop now' is tapped", () => {
-    show({ initialGroupSlug: "health-wellness" });
+    show();
+    fireEvent.click(pill("Health"));
+    settle();
     Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
     (document.querySelector('[aria-hidden="true"].h-0') as HTMLElement).getBoundingClientRect = () => ({ top: 500 }) as DOMRect;
 

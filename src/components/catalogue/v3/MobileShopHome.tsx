@@ -20,14 +20,18 @@ import { WelcomePreview } from "./WelcomePreview"; // TEMPORARY: see welcomePrev
 import { welcomePreviewRequested } from "./welcomePreviewFlag";
 
 const ALL = "all";
+/** The id of a group's section on the page, so a link can scroll to it. */
+const sectionId = (slug: string) => `g-${slug}`;
 /** How long the old group fades out before the new one fades in. */
 const FADE_MS = 170;
 
 interface Props {
   groups: ApiGroup[];
   loading?: boolean;
-  /** A group's slug from the address (/shop/:groupSlug): that group's pill starts selected. */
+  /** A group's slug from the address (/shop/:groupSlug): the page scrolls down to that group, with every group showing. */
   initialGroupSlug?: string | null;
+  /** Whether it glides there. Not when a drawer is about to open over it, which holds the page still. */
+  smoothArrival?: boolean;
   hasReorder: boolean;
   /** Open the search; with a word, open it with that already typed in (the Moobi card). */
   onSearch: (query?: string) => void;
@@ -42,27 +46,25 @@ interface Props {
  * Signed in, the first offer becomes a welcome card with the wallet balance. The top row is the
  * same for everyone: menu, logo in the middle, cart.
  */
-export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasReorder, onSearch, onReorder, onCategory }: Props) {
+export function MobileShopHome({ groups, loading = false, initialGroupSlug, smoothArrival = true, hasReorder, onSearch, onReorder, onCategory }: Props) {
   const { session } = useAuth();
   const signedIn = !!session?.access_token;
   // TEMPORARY, dev server only: ?welcome=1 shows the signed-in first card without signing in.
   const previewWelcome = welcomePreviewRequested(useLocation().search);
   const visible = useMemo(() => groups.filter((g) => g.categories.length > 0), [groups]);
-  const routeId = initialGroupSlug && visible.some((g) => g.slug === initialGroupSlug) ? initialGroupSlug : ALL;
+  const linkedGroup = initialGroupSlug && visible.some((g) => g.slug === initialGroupSlug) ? initialGroupSlug : null;
 
-  // What the shopper picked, which overrides the address until the address itself changes.
-  const [picked, setPicked] = useState<string | null>(null);
-  const [shownPicked, setShownPicked] = useState<string | null>(null);
-  const [fading, setFading] = useState(false);
-  const [seenRoute, setSeenRoute] = useState(routeId);
-  if (seenRoute !== routeId) {
-    setSeenRoute(routeId);
-    setPicked(null);
-    setShownPicked(null);
-  }
-  const active = picked ?? routeId;
+  // The pill the shopper picked. A link to a group starts again on All, with that group in view.
+  const [active, setActive] = useState(ALL);
   /** What is on screen. It trails `active` by the fade, so the old group leaves before the new one arrives. */
-  const shown = shownPicked ?? routeId;
+  const [shown, setShown] = useState(ALL);
+  const [fading, setFading] = useState(false);
+  const [seenLink, setSeenLink] = useState(linkedGroup);
+  if (seenLink !== linkedGroup) {
+    setSeenLink(linkedGroup);
+    setActive(ALL);
+    setShown(ALL);
+  }
 
   const anchorRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
@@ -73,7 +75,7 @@ export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasR
 
   const pick = (id: string) => {
     if (id === active) return;
-    setPicked(id);
+    setActive(id);
     setFading(true);
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
@@ -83,7 +85,7 @@ export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasR
         const top = anchor.getBoundingClientRect().top + window.scrollY;
         if (window.scrollY > top) window.scrollTo({ top });
       }
-      setShownPicked(id);
+      setShown(id);
       setFading(false);
     }, FADE_MS);
   };
@@ -93,6 +95,19 @@ export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasR
     const anchor = anchorRef.current;
     if (anchor) window.scrollTo({ top: anchor.getBoundingClientRect().top + window.scrollY, behavior: scrollBehavior() });
   };
+
+  // Arriving by a group's link: once the groups have loaded, bring that group up to just under the pills.
+  useEffect(() => {
+    const section = linkedGroup && document.getElementById(sectionId(linkedGroup));
+    if (!section) return;
+    // A pill tapped just before would otherwise still change what is showing.
+    window.clearTimeout(timer.current);
+    setFading(false);
+    const top = section.getBoundingClientRect().top + window.scrollY - (barRef.current?.offsetHeight ?? 0);
+    window.scrollTo({ top, behavior: smoothArrival ? scrollBehavior() : "auto" });
+    // Only when the address's group changes, not when anything else about the page does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedGroup]);
 
   /** An offer that shows part of this page: every group, or one group (all of them if it no longer exists). */
   const onOffer = (action: OfferAction) => {
@@ -197,7 +212,7 @@ export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasR
       ) : (
         <div className={cn("transition-[opacity,transform] duration-200", fading && "translate-y-1.5 opacity-0")}>
           {sections.map((group, i) => (
-            <section key={group.id} aria-label={lookFor(group).title} className={cn("px-4", i === 0 ? "pt-4" : "pt-[26px]")}>
+            <section key={group.id} id={sectionId(group.slug)} aria-label={lookFor(group).title} className={cn("px-4", i === 0 ? "pt-4" : "pt-[26px]")}>
               {/* The same size whether every group is showing or just this one */}
               <h2 className="mb-3.5 text-[19px] font-extrabold leading-7 tracking-[-0.015em]">{lookFor(group).title}</h2>
               <div className="grid grid-cols-4 gap-x-3 gap-y-[18px]">
