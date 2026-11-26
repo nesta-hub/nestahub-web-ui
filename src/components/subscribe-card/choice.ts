@@ -6,7 +6,7 @@ import { weeksItLasts } from "@/lib/subscriptionFit";
 /** What she chose for an item: how often, and for weekly the day of the first renewal. Not having one means one-time. */
 export interface SubscribeChoice {
   frequency: RenewalFrequency;
-  /** Weekly only: the day she wants the first renewal, "YYYY-MM-DD". */
+  /** "YYYY-MM-DD": weekly, the day of the first renewal; subscribing without buying, the day of the first order (any frequency). */
   firstDate?: string;
 }
 

@@ -27,10 +27,10 @@ function Faces({ lines }: { lines: OfferLine[] }) {
   );
 }
 
-/** The green panel: pictures, a title, a line, and a light button. */
-function Panel({ label, lines, title, children, to, action }: { label: string; lines: OfferLine[]; title: string; children: ReactNode; to: string; action: string }) {
+/** The green panel: pictures, a title, a line, and a light button. `embedded`: it sits inside another card, with no border of its own. */
+function Panel({ label, lines, title, children, to, action, embedded }: { label: string; lines: OfferLine[]; title: string; children: ReactNode; to: string; action: string; embedded?: boolean }) {
   return (
-    <section aria-label={label} className="w-full overflow-hidden rounded-[22px] border border-shop-line text-shop-ink">
+    <section aria-label={label} className={embedded ? "w-full text-shop-ink" : "w-full overflow-hidden rounded-[22px] border border-shop-line text-shop-ink"}>
       <div className="bg-[#DDE3DA] px-4 pb-[18px] pt-4 text-center">
         <Faces lines={lines} />
         <h2 className="mt-2 text-[15px] font-extrabold leading-[19px] tracking-[-0.01em]">{title}</h2>
@@ -51,7 +51,7 @@ function Panel({ label, lines, title, children, to, action }: { label: string; l
  * the new experience is off for her, or if anything goes wrong: this sits on an order confirmation and must never
  * get in the way of it.
  */
-export function SubscribeOffer({ orderNumber }: { orderNumber: string }) {
+export function SubscribeOffer({ orderNumber, embedded }: { orderNumber: string; embedded?: boolean }) {
   const on = useSubscribeEnabled();
   const { session } = useAuth();
   const accessToken = session?.access_token ?? null;
@@ -69,8 +69,8 @@ export function SubscribeOffer({ orderNumber }: { orderNumber: string }) {
   if (data.state === "subscribed") {
     const one = data.subscribed.length === 1;
     return (
-      <Panel label="Your subscription" lines={data.subscribed} title="You are subscribed" to="/subscriptions" action="View my subscriptions">
-        <b className="font-extrabold text-shop-ink">You will not have to worry about forgetting.</b> We remind you on WhatsApp before{" "}
+      <Panel label="Your subscription" lines={data.subscribed} title="You are subscribed" to="/subscriptions" action="View my subscriptions" embedded={embedded}>
+        <b className="font-medium text-shop-ink">You will not have to worry about forgetting.</b> We remind you on WhatsApp before{" "}
         {one ? "it finishes" : "they finish"}, and you pay with a direct link once you are ready.
       </Panel>
     );
@@ -86,8 +86,9 @@ export function SubscribeOffer({ orderNumber }: { orderNumber: string }) {
       title={`Never run out of your ${namesOf(data.eligible)}`}
       to={`/subscriptions/setup/${encodeURIComponent(orderNumber)}`}
       action="Subscribe"
+      embedded={embedded}
     >
-      <b className="font-extrabold text-shop-ink">{one ? "Subscribe to this item." : "Subscribe to these items."}</b> We remind you via WhatsApp notifications
+      <b className="font-medium text-shop-ink">{one ? "Subscribe to this item." : "Subscribe to these items."}</b> We remind you via WhatsApp notifications
       before you run out and send payment links to pay directly without coming back to order again.
     </Panel>
   );

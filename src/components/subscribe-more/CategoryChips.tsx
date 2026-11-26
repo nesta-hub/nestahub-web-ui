@@ -30,7 +30,7 @@ export function CategoryChips({ categories, value, onChange }: Props) {
     <div
       role="group"
       aria-label="Categories"
-      className="flex gap-2 overflow-x-auto px-5 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="scrollbar-hide flex gap-2 overflow-x-auto px-5 pb-1"
     >
       <Chip label="All" pressed={value === null} onClick={() => onChange(null)} />
       {categories.map((category) => (

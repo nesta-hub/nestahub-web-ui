@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +15,8 @@ const Subscriptions = () => {
   const isMobile = useIsMobile();
   // Which experience she gets. While it is still being worked out, neither is shown.
   const status = useSubscribeStatus();
+  // The pay screen is a focused step on a phone: no bottom navigation under its Payment Made button.
+  const [payScreen, setPayScreen] = useState(false);
 
   if (loading || status === "loading") {
     return (
@@ -39,8 +42,8 @@ const Subscriptions = () => {
       );
     }
     return (
-      <Layout>
-        <SubscriptionTab />
+      <Layout showNav={!(isMobile && payScreen)}>
+        <SubscriptionTab onPayScreen={setPayScreen} />
       </Layout>
     );
   }

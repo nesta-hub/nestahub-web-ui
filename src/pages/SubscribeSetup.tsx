@@ -336,8 +336,8 @@ const SubscribeSetup = () => {
             <SubscribeChoiceFields
               value={choiceOf(sheetLine)}
               onChange={(next) => setChoices((prev) => ({ ...prev, [sheetLine.orderItemId as string]: next }))}
-              recommendedFrequencyWeeks={sheetLine.recommendedFrequencyWeeks}
-              quantity={sheetLine.quantity}
+              // She bought it: like the shop, it counts from delivery, so no first renewal day is asked.
+              showFirstRenewal={false}
             />
             <button
               type="button"

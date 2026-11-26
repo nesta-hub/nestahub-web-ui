@@ -18,6 +18,40 @@ const TITLES: Record<Panel, [string, string]> = {
   location: ["Change delivery method", "How should this order reach you?"],
 };
 
+/** How and where this order goes now, for the menu: "Community Delivery · 12 Ifako St", "Pick-up · Yaba station". */
+function deliveryNow(box: Box): string {
+  const { type, address, pickupStationName } = box.delivery;
+  if (!type) return "Not set yet";
+  const where = type === "pickup" ? pickupStationName : address;
+  return where ? `${METHOD_LABEL[type]} · ${where}` : METHOD_LABEL[type];
+}
+
+/**
+ * Under the delivery days: which days these are. Community Delivery only comes on its area's days, so for another day
+ * she changes the method to Instant Delivery first (a link takes her there).
+ */
+function DateHint({ box, onChangeMethod }: { box: Box; onChangeMethod: () => void }) {
+  const hint = "mt-3.5 text-[12.5px] leading-[18px] text-[#6B5F55]";
+  switch (box.delivery.type) {
+    case "community":
+      return (
+        <p className={hint}>
+          These are the next Community Delivery days for your area. For a different day, change the delivery method to Instant
+          Delivery first, then pick the day.{" "}
+          <button type="button" onClick={onChangeMethod} className="-my-2 inline py-2 font-bold text-shop-brown underline underline-offset-[3px]">
+            Change delivery method
+          </button>
+        </p>
+      );
+    case "instant":
+      return <p className={hint}>These are the next days we deliver by Instant Delivery. Pick one and save.</p>;
+    case "pickup":
+      return <p className={hint}>These are the next pick-up days at {box.delivery.pickupStationName ?? "your station"}. Pick one and save.</p>;
+    default:
+      return <p className={hint}>These are the next days we deliver to you. Pick one and save.</p>;
+  }
+}
+
 interface Props {
   box: Box | null;
   open: boolean;
@@ -32,6 +66,8 @@ interface Props {
   onChangeLocation: (location: LocationInput) => Promise<boolean>;
   /** Which ways of delivering to an address this order could use, and what each costs. */
   loadDeliveryOptions: (lat: number, lng: number) => Promise<DeliveryOptions>;
+  /** Her last delivery address: where an order going to a pick-up station could be delivered instead. */
+  lastAddress?: { address: string; lat: number; lng: number } | null;
 }
 
 // The design's pills and radios: the picked one in the light brown #A08B76, as in the Change size panel.
@@ -47,7 +83,7 @@ function Radio({ on }: { on: boolean }) {
 }
 
 /** Everything she can change about one order, in one drawer: take an item out, pick another day, send it somewhere else. */
-export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, onLeaveOut, onRemoveExtra, onMoveDay, onChangeLocation, loadDeliveryOptions }: Props) {
+export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, onLeaveOut, onRemoveExtra, onMoveDay, onChangeLocation, loadDeliveryOptions, lastAddress = null }: Props) {
   const [panel, setPanel] = useState<Panel>(startOn);
   const [day, setDay] = useState<string | null>(null);
   /** What she has tapped. Null until she does: then the first method on offer is the one shown. */
@@ -63,7 +99,8 @@ export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, 
     setPanel(startOn);
     setDay(box.deliveryDate);
     setChoice(box.delivery.type);
-    setAddress(box.delivery.address && box.delivery.lat !== null && box.delivery.lng !== null ? { address: box.delivery.address, lat: box.delivery.lat, lng: box.delivery.lng } : null);
+    // Going to a station, it has no address: start from her last one, so the methods that deliver there are offered.
+    setAddress(box.delivery.address && box.delivery.lat !== null && box.delivery.lng !== null ? { address: box.delivery.address, lat: box.delivery.lat, lng: box.delivery.lng } : lastAddress);
     setStationId(box.delivery.pickupStationId);
     setScope("box");
     setAddingAddress(false);
@@ -91,7 +128,12 @@ export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, 
   // below is only a guess), so an address method cannot be saved yet.
   const waitingForOptions = method !== "pickup" && !!address && optionsLoading;
   const canSaveLocation = method === "pickup" ? !!stationId : !!address && !waitingForOptions;
-  const fee = method === "community" ? options?.community?.feeKobo : method === "instant" ? options?.instant?.feeKobo : 0;
+  /** What each way costs, once the server has said (pick-up is free). Undefined while it is not known. */
+  const feeOf = (m: Method): number | null | undefined => (m === "community" ? options?.community?.feeKobo : m === "instant" ? options?.instant?.feeKobo : 0);
+  const pillText = (m: Method) => {
+    const fee = waitingForOptions && m !== "pickup" ? undefined : feeOf(m);
+    return fee === undefined || fee === null ? METHOD_LABEL[m] : `${METHOD_LABEL[m]} · ${fee === 0 ? "Free" : formatPrice(fee)}`;
+  };
   // An order lives on its subscription items: the last one cannot be taken out (extras ride along and go with it).
   const subscriptionLines = box.items.filter((line) => line.kind !== "one_time");
 
@@ -129,8 +171,13 @@ export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, 
       {panel === "menu" && (
         <div>
           <MenuRow icon={<Trash className="h-[17px] w-[17px]" strokeWidth={1.9} />} label="Remove an item" onClick={() => setPanel("remove")} />
-          <MenuRow icon={<MapPin className="h-[17px] w-[17px]" strokeWidth={1.9} />} label="Change delivery method" detail={box.delivery.type ? METHOD_LABEL[box.delivery.type] : "Not set"} onClick={() => setPanel("location")} />
-          <MenuRow icon={<Calendar className="h-[17px] w-[17px]" strokeWidth={1.9} />} label="Change delivery date" detail={formatDay(box.deliveryDate)} onClick={() => setPanel("date")} />
+          <MenuRow
+            icon={<MapPin className="h-[17px] w-[17px]" strokeWidth={1.9} />}
+            label="Change delivery method"
+            sub={deliveryNow(box)}
+            onClick={() => setPanel("location")}
+          />
+          <MenuRow icon={<Calendar className="h-[17px] w-[17px]" strokeWidth={1.9} />} label="Change delivery date" sub={formatDay(box.deliveryDate)} onClick={() => setPanel("date")} />
         </div>
       )}
 
@@ -181,7 +228,7 @@ export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, 
               </button>
             ))}
           </div>
-          <p className="mt-3.5 text-[12.5px] leading-[18px] text-[#6B5F55]">These are the next days we deliver to you. Pick one and save.</p>
+          <DateHint box={box} onChangeMethod={() => setPanel("location")} />
         </div>
       )}
 
@@ -190,30 +237,35 @@ export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, 
           <div className="flex flex-wrap gap-2">
             {available.map((m) => (
               <button key={m} type="button" aria-pressed={method === m} onClick={() => setChoice(m)} className={pill(method === m)}>
-                {METHOD_LABEL[m]}
+                {pillText(m)}
               </button>
             ))}
           </div>
           {waitingForOptions && <p className="mt-2.5 text-[13px] leading-[18px] text-[#6B5F55]">Checking how we can deliver there…</p>}
-          {method !== "pickup" && !waitingForOptions && fee !== undefined && fee !== null && (
-            <p className="mt-2.5 text-[13px] font-semibold leading-[18px] text-[#46564A]">
-              {METHOD_LABEL[method]} · {fee === 0 ? "Free" : formatPrice(fee)}
-            </p>
-          )}
           {noDelivery && <p className="mt-2.5 text-[13px] font-semibold leading-[18px] text-[#9A4A3A]">We do not deliver to that address yet. You can pick it up instead.</p>}
 
           {method !== "pickup" && (
-            <div className="mt-1.5">
+            <div className="mt-4">
               {address && !addingAddress && (
-                <button type="button" onClick={() => setAddingAddress(false)} className="flex min-h-[60px] w-full items-center gap-3 border-b border-[#EEE8E1] py-2 text-left">
-                  <Radio on />
+                // Her address, with the way to change it right under it.
+                <div className="flex w-full items-start gap-3 py-1">
+                  <span className="mt-0.5">
+                    <Radio on />
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] font-bold leading-5">{address.address}</span>
-                    <span className="block text-[12.5px] leading-[17px] text-[#6B5F55]">{address.address === box.delivery.address ? "Where this order is going now" : "New address"}</span>
+                    <span className="block text-[12.5px] leading-[17px] text-[#6B5F55]">{address.address === box.delivery.address ? "Where this order is going now" : address.address === lastAddress?.address ? "Your last delivery address" : "New address"}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAddingAddress(true)}
+                      className="-my-1.5 mt-0 inline-block py-1.5 text-[13px] font-bold leading-[18px] text-shop-brown underline underline-offset-[3px]"
+                    >
+                      Change address
+                    </button>
                   </span>
-                </button>
+                </div>
               )}
-              {addingAddress || !address ? (
+              {(addingAddress || !address) && (
                 <div className="mt-3">
                   <CheckoutAddressSection
                     selectedAddress={null}
@@ -222,18 +274,26 @@ export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, 
                       setAddingAddress(false);
                     }}
                     onChangeAddress={() => setAddingAddress(true)}
+                    headerAction={
+                      address ? (
+                        // Changed her mind: back to the address she had, nothing changed.
+                        <button
+                          type="button"
+                          onClick={() => setAddingAddress(false)}
+                          className="-my-1.5 py-1.5 text-[13px] font-bold leading-[18px] text-shop-brown underline underline-offset-[3px]"
+                        >
+                          Cancel
+                        </button>
+                      ) : undefined
+                    }
                   />
                 </div>
-              ) : (
-                <button type="button" onClick={() => setAddingAddress(true)} className="mt-3.5 flex h-12 w-full items-center justify-center gap-2 rounded-3xl border-[1.5px] border-dashed border-[#CFC6BC] text-[14px] font-extrabold text-shop-brown">
-                  Change address
-                </button>
               )}
             </div>
           )}
 
           {method === "pickup" && (
-            <div className="mt-1.5">
+            <div className="mt-4">
               {stations.filter((s) => s.isActive).map((s) => {
                 const usable = (s.subscriptionDays?.length ?? 0) > 0;
                 return (

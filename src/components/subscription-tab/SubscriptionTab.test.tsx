@@ -48,11 +48,11 @@ vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => auth.value }));
 vi.mock("@/components/layout/MobileMenu", () => ({ MobileMenu: () => <button type="button">menu</button> }));
 vi.mock("@/components/cart/HeaderCartIcon", () => ({ HeaderCartIcon: () => <button type="button">cart</button> }));
 vi.mock("@/components/auth/SignInForm", () => ({ SignInForm: ({ title }: { title: string }) => <div>{title}</div> }));
-vi.mock("./BoxPayView", () => ({
-  BoxPayView: (p: { box: { id: string }; orderNumber: string; totalKobo: number; token: string; walletBalance: number; allowGiftCard: boolean; onDone: () => void; onBack: () => void }) => (
+vi.mock("@/components/checkout/CheckoutPaymentView", () => ({
+  CheckoutPaymentView: (p: { orderId: string; totalAmount: number; token: string; walletBalance?: number; hideGiftCardRedeem?: boolean; onPaymentConfirmed: () => void; onBack: () => void }) => (
     <div>
-      <p>pay screen {p.orderNumber} {p.totalKobo} token:[{p.token}] hideGift:{String(!p.allowGiftCard)} wallet:{p.walletBalance} box:{p.box.id}</p>
-      <button type="button" onClick={p.onDone}>back to subscription</button>
+      <p>pay screen {p.orderId} {p.totalAmount} token:[{p.token}] hideGift:{String(!!p.hideGiftCardRedeem)} wallet:{p.walletBalance}</p>
+      <button type="button" onClick={p.onPaymentConfirmed}>I have paid</button>
       <button type="button" onClick={p.onBack}>back</button>
     </div>
   ),
@@ -64,6 +64,14 @@ vi.mock("@/components/checkout/CheckoutAddressSection", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 import { toast } from "sonner";
+
+// "Monthly, on a particular date" starts on today's date: pin today to Wed 25 Nov so these tests do not depend on
+// the day they run. A caller that passes its own moment still gets the real answer.
+vi.mock("@/lib/lagosDay", async (original) => {
+  const real = await original<typeof import("@/lib/lagosDay")>();
+  return { ...real, lagosToday: (now?: Date) => (now ? real.lagosToday(now) : "2026-11-25") };
+});
+
 
 // ---- fixtures -------------------------------------------------------------------------------
 const line = (over = {}) => ({
@@ -113,13 +121,17 @@ beforeEach(() => {
 });
 
 describe("the next order", () => {
-  it("shows the day, where it goes, what is in it, what it costs and when to pay by", async () => {
+  it("shows the day, how and where it goes, what is in it, and what it costs", async () => {
     show();
     expect(await screen.findByRole("heading", { name: "Tue 24 Nov" })).toBeInTheDocument();
     const card = within(screen.getByRole("region", { name: "Next order" }));
-    expect(card.getByText("12 Soluyi Road")).toBeInTheDocument();
+    // How it comes, then where, kept to two lines (a long address is cut short).
+    const place = card.getByText("12 Soluyi Road");
+    expect(place).toHaveTextContent("Community Delivery: 12 Soluyi Road");
+    expect(place).toHaveClass("line-clamp-2");
+    expect(card.getByText("Community Delivery:")).toHaveClass("font-bold");
     expect(card.getByText("Kisskids Diapers ×2")).toBeInTheDocument();
-    expect(card.getByText("Baby wipes ×1")).toBeInTheDocument();
+    expect(card.getByText("Kisskids Baby wipes ×1")).toBeInTheDocument();
     expect(card.getByText("₦11,900")).toBeInTheDocument();
     expect(card.getByText("Items ₦11,400")).toBeInTheDocument();
     expect(card.getByText("Delivery ₦500")).toBeInTheDocument();
@@ -142,13 +154,13 @@ describe("the next order", () => {
     expect(document.querySelector("header")).toBeNull();
   });
 
-  it("calls the list 'Your subscribed items', and gives each item a due date, not a 'next' one", async () => {
+  it("calls the list 'Your subscribed items', and gives each item its next date", async () => {
     show();
     expect(await screen.findByText("Your subscribed items", { selector: "h3" })).toBeInTheDocument();
     expect(screen.queryByText("Your items", { selector: "h3" })).toBeNull();
     const list = within(screen.getByRole("list", { name: "Your subscribed items" }));
-    expect(list.getAllByText(/^Due: /)).toHaveLength(2);
-    expect(list.queryByText(/^Next: /)).toBeNull();
+    expect(list.getAllByText(/^Next: /)).toHaveLength(2);
+    expect(list.queryByText(/^Due: /)).toBeNull();
   });
 
   it("lists her items, with how often and when each is next due", async () => {
@@ -156,14 +168,20 @@ describe("the next order", () => {
     const list = within(await screen.findByRole("list", { name: "Your subscribed items" }));
     expect(list.getByText("Every 4 weeks")).toBeInTheDocument();
     expect(list.getByText("Every 2 weeks")).toBeInTheDocument();
-    expect(list.getAllByText("Due: Wed 25 Nov")).toHaveLength(2);
+    expect(list.getAllByText("Next: Wed 25 Nov")).toHaveLength(2);
+  });
+
+  it("says Instant Delivery for an order going by Instant", async () => {
+    api.mine.mockResolvedValue(tab({ boxes: [box({ delivery: { type: "instant", zoneName: null, address: "3 Faramobi Ajike St, Anthony, Lagos", lat: 6.56, lng: 3.37, pickupStationId: null, pickupStationName: null } })] }));
+    show();
+    expect(await screen.findByText("3 Faramobi Ajike St, Anthony, Lagos")).toHaveTextContent("Instant Delivery: 3 Faramobi Ajike St, Anthony, Lagos");
   });
 
   it("says pick-up is free", async () => {
     api.mine.mockResolvedValue(tab({ boxes: [box({ delivery: { type: "pickup", zoneName: null, address: null, lat: null, lng: null, pickupStationId: "st-1", pickupStationName: "Yaba station" }, deliveryFeeKobo: 0, totalKobo: 1_140_000 })] }));
     show();
     expect(await screen.findByText("Delivery Free")).toBeInTheDocument();
-    expect(screen.getByText("Pick-up: Yaba station")).toBeInTheDocument();
+    expect(screen.getByText("Yaba station")).toHaveTextContent("Pick-up: Yaba station");
   });
 
   it("shows later orders as later, and only the first as the next", async () => {
@@ -206,8 +224,39 @@ describe("the empty and quiet states", () => {
   it("says nothing is due when items exist but no order does yet", async () => {
     api.mine.mockResolvedValue(tab({ boxes: [] }));
     show();
-    expect(await screen.findByText("Nothing to pay right now")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Nothing to pay right now" })).toBeInTheDocument();
     expect(screen.getByRole("list", { name: "Your subscribed items" })).toBeInTheDocument();
+  });
+
+  it("with nothing to pay, shows the upcoming order like an order card: the day, what is in it, and nothing to pay (the earliest only)", async () => {
+    api.mine.mockResolvedValue(
+      tab({
+        boxes: [],
+        items: [
+          item({ nextDue: "2026-12-08" }),
+          item({ id: "s2", productName: "Baby wipes", quantity: 1, nextDue: "2026-12-08" }),
+          item({ id: "s3", productName: "Nappy cream", quantity: 1, nextDue: "2026-12-22" }),
+          item({ id: "s4", productName: "Baby oil", quantity: 1, nextDue: "2026-12-01", status: "paused" }),
+        ],
+      }),
+    );
+    show();
+    const card = within(await screen.findByRole("region", { name: "Nothing to pay right now" }));
+    expect(card.getByText("UPCOMING ORDER")).toBeInTheDocument();
+    expect(card.getByRole("heading", { name: "Tue 8 Dec" })).toBeInTheDocument();
+    expect(card.getByText("Kisskids Diapers ×2")).toBeInTheDocument();
+    expect(card.getByText("Kisskids Baby wipes ×1")).toBeInTheDocument();
+    expect(card.queryByText(/Nappy cream|Baby oil/)).toBeNull();
+    expect(card.getByRole("status")).toHaveTextContent("Nothing to pay right now. We will remind you before it is due.");
+  });
+
+  it("with everything paused, says so and shows no date", async () => {
+    api.mine.mockResolvedValue(tab({ boxes: [], items: [item({ status: "paused" })] }));
+    show();
+    const card = within(await screen.findByRole("region", { name: "Nothing to pay right now" }));
+    expect(card.getByText("ALL PAUSED")).toBeInTheDocument();
+    expect(card.getByRole("status")).toHaveTextContent("Your items are paused. Resume one to get your next order.");
+    expect(card.queryByText("UPCOMING ORDER")).toBeNull();
   });
 
   it("offers to try again when it cannot load", async () => {
@@ -232,12 +281,29 @@ describe("the empty and quiet states", () => {
   });
 });
 
+describe("how often, on the tab", () => {
+  it("a monthly item reads short on its row: Every 25th, Every 2nd Monday", async () => {
+    api.mine.mockResolvedValue(
+      tab({
+        items: [
+          item({ frequency: { kind: "month_date", day: 25 }, frequencyLabel: "On the 25th of every month" }),
+          item({ id: "s2", productName: "Baby wipes", frequency: { kind: "month_weekday", nth: 2, weekday: 1 }, frequencyLabel: "The 2nd Monday of every month" }),
+        ],
+      }),
+    );
+    show();
+    expect(await screen.findByText("Every 25th")).toBeInTheDocument();
+    expect(screen.getByText("Every 2nd Monday")).toBeInTheDocument();
+    expect(screen.queryByText("On the 25th of every month")).toBeNull();
+  });
+});
+
 describe("Pay now", () => {
   it("makes the order with the total she saw, then opens the pay screen for it", async () => {
     api.pay.mockResolvedValue({ orderNumber: "NSTABC123", totalKobo: 1_190_000, claimToken: null });
     show();
     fireEvent.click(await screen.findByRole("button", { name: /Pay now/ }));
-    expect(await screen.findByText(/pay screen NSTABC123 1190000 token:\[tok\] hideGift:false wallet:5000 box:b1/)).toBeInTheDocument();
+    expect(await screen.findByText(/pay screen NSTABC123 1190000 token:\[tok\] hideGift:false wallet:5000/)).toBeInTheDocument();
     expect(api.pay).toHaveBeenCalledWith("tok", "b1", 1_190_000);
     expect(storeClaimToken).not.toHaveBeenCalled();
   });
@@ -247,11 +313,11 @@ describe("Pay now", () => {
     api.pay.mockResolvedValue({ orderNumber: "NSTABC123", totalKobo: 1_190_000, claimToken: "claim-key" });
     show({ linkAction: "pay" });
     fireEvent.click(await screen.findByRole("button", { name: /Pay now/ }));
-    expect(await screen.findByText(/pay screen NSTABC123 1190000 token:\[\] hideGift:true wallet:0 box:b1/)).toBeInTheDocument();
+    expect(await screen.findByText(/pay screen NSTABC123 1190000 token:\[\] hideGift:true wallet:0/)).toBeInTheDocument();
     expect(storeClaimToken).toHaveBeenCalledWith("NSTABC123", "claim-key");
   });
 
-  it("comes back to the tab from the pay screen, and again from the screen after she says she paid", async () => {
+  it("comes back to the tab from the pay screen, and again after she says she paid", async () => {
     api.pay.mockResolvedValue({ orderNumber: "NSTABC123", totalKobo: 1_190_000, claimToken: null });
     show();
     fireEvent.click(await screen.findByRole("button", { name: /Pay now/ }));
@@ -259,8 +325,19 @@ describe("Pay now", () => {
     expect(await screen.findByRole("heading", { name: "Tue 24 Nov" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Pay now/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "back to subscription" }));
+    fireEvent.click(await screen.findByRole("button", { name: "I have paid" }));
     expect(await screen.findByRole("heading", { name: "Tue 24 Nov" })).toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith("Payment made. We are confirming it.");
+  });
+
+  it("tells the page while the pay screen is open, so it can hide the bottom navigation", async () => {
+    api.pay.mockResolvedValue({ orderNumber: "NSTABC123", totalKobo: 1_190_000, claimToken: null });
+    const onPayScreen = vi.fn();
+    show({ onPayScreen });
+    fireEvent.click(await screen.findByRole("button", { name: /Pay now/ }));
+    await waitFor(() => expect(onPayScreen).toHaveBeenLastCalledWith(true));
+    fireEvent.click(await screen.findByRole("button", { name: "back" }));
+    await waitFor(() => expect(onPayScreen).toHaveBeenLastCalledWith(false));
   });
 
   it("tells her when the price moved, and does not open the pay screen", async () => {
@@ -297,6 +374,32 @@ describe("Pay now", () => {
     show();
     expect(await screen.findByText("PAID")).toBeInTheDocument();
     expect(screen.getByText(/It is coming Tue 24 Nov/)).toBeInTheDocument();
+    expect(screen.getByTestId("paid-check")).toHaveClass("bg-[#2F8F4E]");
+  });
+
+  it("one paid and one to pay: a carousel, the one to pay first as the next order, then the paid one", async () => {
+    api.mine.mockResolvedValue(
+      tab({
+        boxes: [
+          box({ id: "b0", status: "paid", deliveryDate: "2026-11-21", editable: false, canPay: false }),
+          box({ id: "b1", deliveryDate: "2026-11-24" }),
+        ],
+      }),
+    );
+    show();
+    const carousel = await screen.findByRole("region", { name: "Your orders" });
+    const slides = within(carousel).getAllByRole("group");
+    expect(slides.map((s) => s.getAttribute("aria-label"))).toEqual(["1 of 2", "2 of 2"]);
+    expect(within(slides[0]).getByText("NEXT ORDER")).toBeInTheDocument();
+    expect(within(slides[0]).getByRole("button", { name: /Pay now/ })).toBeInTheDocument();
+    expect(within(slides[1]).getByText("PAID")).toBeInTheDocument();
+    expect(within(carousel).getAllByRole("button", { name: /^Show order/ })).toHaveLength(2);
+  });
+
+  it("one order: no carousel", async () => {
+    show();
+    expect(await screen.findByText("NEXT ORDER")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Your orders" })).toBeNull();
   });
 
   it("will not let her pay until she says where to deliver", async () => {
@@ -400,7 +503,7 @@ describe("Make changes", () => {
   it("sends it to a pick-up station that takes subscription orders, for this order only", async () => {
     await open();
     fireEvent.click(screen.getByRole("button", { name: /Change delivery method/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "Pick-up" }));
+    fireEvent.click(await screen.findByRole("button", { name: /^Pick-up/ }));
     expect(await screen.findByRole("button", { name: /Lekki station/ })).toBeDisabled();
     expect(screen.getByText("Not taking subscription orders yet")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Yaba station/ }));
@@ -437,13 +540,13 @@ describe("Make changes", () => {
       fireEvent.click(screen.getByRole("button", { name: /Change delivery method/ }));
       await screen.findByText("How should this order reach you?");
     };
-    const pills = () => Array.from(document.querySelectorAll("[aria-pressed]")).map((b) => b.textContent);
+    const pills = () => Array.from(document.querySelectorAll("[aria-pressed]")).map((b) => b.textContent?.split(" · ")[0]);
 
     it("inside a community area: Community Delivery, Instant Delivery and Pick-up, in that order, with the one she has now chosen", async () => {
       await openMethods();
       await waitFor(() => expect(api.deliveryOptions).toHaveBeenCalledWith("tok", "b1", 6.55, 3.38));
       expect(pills()).toEqual(["Community Delivery", "Instant Delivery", "Pick-up"]);
-      expect(screen.getByRole("button", { name: "Community Delivery" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: /^Community Delivery/ })).toHaveAttribute("aria-pressed", "true");
       expect(await screen.findByText("Community Delivery · ₦500")).toBeInTheDocument();
     });
 
@@ -451,13 +554,13 @@ describe("Make changes", () => {
       api.deliveryOptions.mockResolvedValue(OUT_OF_AREA);
       await openMethods();
       await waitFor(() => expect(pills()).toEqual(["Instant Delivery", "Pick-up"]));
-      expect(screen.getByRole("button", { name: "Instant Delivery" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: /^Instant Delivery/ })).toHaveAttribute("aria-pressed", "true");
       expect(await screen.findByText("Instant Delivery · ₦1,500")).toBeInTheDocument();
     });
 
     it("choosing Instant inside an area says it is for this order only, takes away the 'future orders' choice, and sends Instant for this box", async () => {
       await openMethods();
-      fireEvent.click(await screen.findByRole("button", { name: "Instant Delivery" }));
+      fireEvent.click(await screen.findByRole("button", { name: /^Instant Delivery/ }));
       expect(await screen.findByText("Instant Delivery · ₦1,500")).toBeInTheDocument();
       expect(screen.getByText(/Instant Delivery is for this order only/)).toBeInTheDocument();
       expect(screen.queryByRole("radio", { name: "This and my future orders" })).toBeNull();
@@ -469,9 +572,9 @@ describe("Make changes", () => {
 
     it("going back to Community Delivery brings the 'future orders' choice back", async () => {
       await openMethods();
-      fireEvent.click(await screen.findByRole("button", { name: "Instant Delivery" }));
+      fireEvent.click(await screen.findByRole("button", { name: /^Instant Delivery/ }));
       expect(screen.queryByRole("radio", { name: "This and my future orders" })).toBeNull();
-      fireEvent.click(screen.getByRole("button", { name: "Community Delivery" }));
+      fireEvent.click(screen.getByRole("button", { name: /^Community Delivery/ }));
       expect(screen.getByRole("radio", { name: "This and my future orders" })).toBeInTheDocument();
     });
 
@@ -493,7 +596,7 @@ describe("Make changes", () => {
       fireEvent.click(await screen.findByRole("button", { name: "Change address" }));
       fireEvent.click(await screen.findByRole("button", { name: "pick an address" })); // 6.45, 3.43: outside
       await waitFor(() => expect(pills()).toEqual(["Instant Delivery", "Pick-up"]));
-      expect(screen.getByRole("button", { name: "Instant Delivery" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: /^Instant Delivery/ })).toHaveAttribute("aria-pressed", "true");
     });
 
     it("cannot be saved for a new address until the server has said which methods it supports (so the dearer one is never saved by accident)", async () => {
@@ -526,7 +629,7 @@ describe("Make changes", () => {
       api.deliveryOptions.mockResolvedValue({ community: { feeKobo: null }, instant: { feeKobo: null } });
       await openMethods();
       await waitFor(() => expect(api.deliveryOptions).toHaveBeenCalled());
-      expect(screen.getByRole("button", { name: "Instant Delivery" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^Instant Delivery/ })).toBeInTheDocument();
       expect(screen.queryByText(/Community Delivery ·/)).toBeNull();
     });
 
@@ -567,19 +670,6 @@ describe("an item", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(api.setFrequency).toHaveBeenCalledWith("tok", "s1", { kind: "month_date", day: 25 }));
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Saved. Next one: Fri 25 Dec."));
-  });
-
-  it("asks if monthly will really last when a pack runs out sooner, and Ignore puts the question away", async () => {
-    api.mine.mockResolvedValue(tab({ items: [item({ recommendedFrequencyWeeks: 3, quantity: 1 })] }));
-    show();
-    await screen.findByText("Kisskids Diapers");
-    fireEvent.click(screen.getByRole("button", { name: /Kisskids Diapers/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Change renewal frequency/ }));
-    expect(screen.queryByText("Sure this will last a month?")).not.toBeInTheDocument(); // every 4 weeks is a weekly choice: no question
-    fireEvent.click(screen.getByRole("radio", { name: "Monthly, on a particular date" }));
-    expect(screen.getByText("Sure this will last a month?").parentElement).toHaveTextContent("One pack lasts about 21 days, and a month is 30. Every 3 weeks keeps you covered.");
-    fireEvent.click(screen.getByRole("button", { name: "Ignore" }));
-    expect(screen.queryByText("Sure this will last a month?")).not.toBeInTheDocument();
   });
 
   it("reads the tab again after a frequency change, so the new day and order show", async () => {
@@ -680,5 +770,41 @@ describe("when the switch is turned off while she is looking", () => {
     show();
     await screen.findByRole("button", { name: "Try again" });
     expect(resetSubscribeEnabled).not.toHaveBeenCalled();
+  });
+});
+
+describe("an item row's name and how many", () => {
+  it("with no size or type, how many sits on the name's line", async () => {
+    api.mine.mockResolvedValue(tab({ items: [item({ variantLabel: null, quantity: 1 })] }));
+    show();
+    const row = within(await screen.findByRole("button", { name: "Manage Kisskids Diapers" }));
+    const name = row.getByText((_, el) => el?.textContent === "Kisskids Diapers ×1" && el.classList.contains("font-extrabold"));
+    expect(within(name).getByText("×1")).toHaveClass("font-normal");
+  });
+
+  it("with a size, how many goes beside it, under the name", async () => {
+    show();
+    const row = within(await screen.findByRole("button", { name: "Manage Kisskids Diapers" }));
+    expect(row.getByText("Kisskids Diapers")).toBeInTheDocument();
+    expect(row.getByText("Size 3 · ×2")).toBeInTheDocument();
+  });
+});
+
+describe("the order of her subscribed items", () => {
+  it("soonest due first, paused ones last", async () => {
+    api.mine.mockResolvedValue(
+      tab({
+        items: [
+          item({ id: "a", productName: "Kisskids Later", nextDue: "2026-12-28" }),
+          item({ id: "b", productName: "Kisskids Paused", status: "paused", nextDue: null }),
+          item({ id: "c", productName: "Kisskids Soonest", nextDue: "2026-12-01" }),
+          item({ id: "d", productName: "Kisskids Middle", nextDue: "2026-12-24" }),
+        ],
+      }),
+    );
+    show();
+    const list = within(await screen.findByRole("list", { name: "Your subscribed items" }));
+    const names = list.getAllByRole("button", { name: /^Manage / }).map((b) => b.getAttribute("aria-label"));
+    expect(names).toEqual(["Manage Kisskids Soonest", "Manage Kisskids Middle", "Manage Kisskids Later", "Manage Kisskids Paused"]);
   });
 });

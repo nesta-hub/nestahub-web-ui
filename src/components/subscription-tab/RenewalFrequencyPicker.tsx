@@ -29,7 +29,7 @@ function Step({ label, onClick, disabled, children }: { label: string; onClick: 
 /** A bar with - and + either side of a line of text: "Every 4 weeks", "On the 25th". */
 function Stepper({ text, onDown, onUp, downDisabled, downLabel, upLabel }: { text: string; onDown: () => void; onUp: () => void; downDisabled?: boolean; downLabel: string; upLabel: string }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-[30px] border border-[#E5E0DC] bg-shop-page p-[5px]">
+    <div className="flex items-center justify-between gap-2 rounded-[30px] border border-[#EDE8E3] bg-shop-page p-[5px]">
       <Step label={downLabel} onClick={onDown} disabled={downDisabled}>
         <Minus className="h-4 w-4" aria-hidden="true" />
       </Step>

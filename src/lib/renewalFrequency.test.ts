@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { describeFrequency, describeFrequencyInSentence, legacyWeeks, ordinal, sameFrequency, switchKind } from "./renewalFrequency";
+import type { RenewalFrequency } from "@/lib/subscriptionBoxes";
+import { describeFrequency, describeFrequencyInSentence, legacyWeeks, nextDue, ordinal, sameFrequency, shortFrequency, switchKind } from "./renewalFrequency";
 
 describe("describeFrequency", () => {
   it.each([
@@ -25,7 +26,8 @@ describe("ordinal", () => {
 describe("switchKind", () => {
   it("starts each kind somewhere sensible", () => {
     const weeks = { kind: "weeks", every: 6 } as const;
-    expect(switchKind(weeks, "month_date")).toEqual({ kind: "month_date", day: 25 });
+    expect(switchKind(weeks, "month_date", "2026-11-24")).toEqual({ kind: "month_date", day: 24 });
+    expect(switchKind(weeks, "month_date", "2026-12-31")).toEqual({ kind: "month_date", day: 31 });
     expect(switchKind(weeks, "month_weekday")).toEqual({ kind: "month_weekday", nth: 1, weekday: 1 });
     expect(switchKind({ kind: "month_date", day: 10 }, "weeks")).toEqual({ kind: "weeks", every: 4 });
   });
@@ -59,5 +61,34 @@ describe("describeFrequencyInSentence", () => {
     expect(describeFrequencyInSentence({ kind: "month_date", day: 25 })).toBe("on the 25th of every month");
     expect(describeFrequencyInSentence({ kind: "month_weekday", nth: 2, weekday: 2 })).toBe("the 2nd Tuesday of every month");
     expect(describeFrequencyInSentence({ kind: "month_weekday", nth: -1, weekday: 5 })).toBe("the last Friday of every month");
+  });
+});
+
+describe("shortFrequency (the Subscription tab only)", () => {
+  it("shortens the monthly ones, and leaves weeks as they are", () => {
+    expect(shortFrequency({ kind: "month_date", day: 25 })).toBe("Every 25th");
+    expect(shortFrequency({ kind: "month_weekday", nth: 2, weekday: 1 })).toBe("Every 2nd Monday");
+    expect(shortFrequency({ kind: "month_weekday", nth: -1, weekday: 5 })).toBe("Every last Friday");
+    expect(shortFrequency({ kind: "weeks", every: 3 })).toBe("Every 3 weeks");
+    expect(shortFrequency({ kind: "weeks", every: 1 })).toBe("Every week");
+  });
+
+  it("everywhere else keeps the full wording", () => {
+    expect(describeFrequency({ kind: "month_date", day: 25 })).toBe("On the 25th of every month");
+    expect(describeFrequency({ kind: "month_weekday", nth: 2, weekday: 1 })).toBe("The 2nd Monday of every month");
+  });
+});
+
+describe("nextDue (the API's rule)", () => {
+  it.each([
+    [{ kind: "weeks", every: 4 }, "2026-11-26", "2026-12-24"],
+    [{ kind: "weeks", every: 1 }, "2026-12-29", "2027-01-05"],
+    [{ kind: "month_date", day: 27 }, "2026-11-26", "2026-12-27"], // tomorrow is too soon
+    [{ kind: "month_date", day: 27 }, "2026-11-10", "2026-11-27"],
+    [{ kind: "month_date", day: 31 }, "2027-01-31", "2027-02-28"], // clamped to the month's end
+    [{ kind: "month_weekday", nth: -1, weekday: 5 }, "2026-12-26", "2027-01-29"], // last Friday, over the new year
+    [{ kind: "month_weekday", nth: 2, weekday: 2 }, "2026-11-26", "2026-12-08"],
+  ] as const)("%j from %s is %s", (frequency, from, due) => {
+    expect(nextDue(frequency as RenewalFrequency, from)).toBe(due);
   });
 });

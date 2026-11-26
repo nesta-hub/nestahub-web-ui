@@ -14,6 +14,8 @@ import { metaPixel } from "@/lib/metaPixel";
 import { useSubscribeEnabled } from "@/hooks/useSubscribeEnabled";
 import { usePendingExtras } from "@/contexts/PendingExtrasContext";
 import { SubscribeCard } from "@/components/subscribe-card/SubscribeCard";
+import { AlreadySubscribedCard } from "@/components/subscribe-card/AlreadySubscribed";
+import { useSubscribedItems } from "@/hooks/useSubscribedItems";
 import { subscribeFields, type SubscribeChoice } from "@/components/subscribe-card/choice";
 
 async function shareProduct(title: string, slug: string) {
@@ -74,6 +76,7 @@ export function DesktopProductDetailContent({
   // Shopping for the order she is about to pay ("Add extra items"): the page adds to that order, with no subscribing.
   const pending = usePendingExtras();
   const addingExtras = subscribeOn && !!pending.boxId;
+  const subscribedTo = useSubscribedItems(subscribeOn && !addingExtras);
 
   const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
@@ -110,7 +113,9 @@ export function DesktopProductDetailContent({
 
   const unitPrice = variant?.price ?? null;
   const canAdd = !!variant && variant.isActive && unitPrice != null;
-  const canSubscribe = subscribeOn && !addingExtras && !!variant?.isSubscribable;
+  // She already subscribes to this type and size: show that subscription, and only a one-time purchase.
+  const existing = subscribedTo(variant?.id);
+  const canSubscribe = subscribeOn && !addingExtras && !!variant?.isSubscribable && !existing;
 
   // A size that cannot be subscribed to cannot carry a subscription choice made on another size.
   useEffect(() => {
@@ -339,7 +344,11 @@ export function DesktopProductDetailContent({
         </div>
 
         {subscribeOn ? (
-          canSubscribe && variant ? (
+          existing && !addingExtras ? (
+            <div className="px-6 pt-5">
+              <AlreadySubscribedCard item={existing} />
+            </div>
+          ) : canSubscribe && variant ? (
             <div className="px-6 pt-5">
               <SubscribeCard
                 price={variant.price}

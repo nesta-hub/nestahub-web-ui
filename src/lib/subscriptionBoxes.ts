@@ -104,6 +104,8 @@ export interface MyBoxes {
   boxes: Box[];
   items: SubscribedItem[];
   defaultDelivery: BoxDelivery | null;
+  /** The last address she had things delivered to: where a pick-up order can be delivered instead. */
+  lastAddress?: { address: string; lat: number; lng: number } | null;
   /** The box the link she opened was sent for. Empty when she is signed in. */
   linkBoxId?: string | null;
 }
@@ -340,6 +342,9 @@ export const subscriptionBoxesApi = {
   /** Applies at once. Answers with the day the item is next due now. */
   setFrequency: (accessToken: string | null | undefined, subscriptionId: string, frequency: RenewalFrequency) =>
     boxFetch<{ nextDue: string }>(`/items/${subscriptionId}/frequency`, accessToken, { method: 'PATCH', body: { frequency } }),
+  /** When it would next be due with this frequency. Saves nothing. */
+  previewFrequency: (accessToken: string | null | undefined, subscriptionId: string, frequency: RenewalFrequency) =>
+    boxFetch<{ nextDue: string }>(`/items/${subscriptionId}/frequency/preview`, accessToken, { method: 'POST', body: { frequency } }),
 
   pause: (accessToken: string | null | undefined, subscriptionId: string) => boxFetch<{ ok: true }>(`/items/${subscriptionId}/pause`, accessToken, { method: 'POST' }),
   resume: (accessToken: string | null | undefined, subscriptionId: string) => boxFetch<{ ok: true }>(`/items/${subscriptionId}/resume`, accessToken, { method: 'POST' }),
@@ -394,6 +399,12 @@ export function formatDeadline(iso: string): string {
   const h12 = hour % 12 === 0 ? 12 : hour % 12;
   const time = `${h12}${minute ? `:${String(minute).padStart(2, '0')}` : ''}${hour < 12 ? 'am' : 'pm'}`;
   return `${formatDay(ymd)}, ${time}`;
+}
+
+/** The name as the shop shows it, brand first ("Kisskids Baby Wipes"), unless the name already starts with the brand. */
+export function brandedName(brand: string | null | undefined, name: string): string {
+  if (!brand || name.toLowerCase().startsWith(brand.toLowerCase())) return name;
+  return `${brand} ${name}`;
 }
 
 /** What to show for where a box goes: "12 Ifako St, Gbagada", "Pick-up: Yaba station", or a prompt. */

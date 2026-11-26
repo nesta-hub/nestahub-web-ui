@@ -8,7 +8,7 @@ describe("the category pills", () => {
   it("sit in one row she swipes sideways, never wrapping onto more lines", () => {
     render(<CategoryChips categories={categories} value={null} onChange={vi.fn()} />);
     const row = screen.getByRole("group", { name: "Categories" });
-    expect(row).toHaveClass("flex", "overflow-x-auto");
+    expect(row).toHaveClass("flex", "overflow-x-auto", "scrollbar-hide");
     expect(row).not.toHaveClass("flex-wrap");
     for (const pill of within(row).getAllByRole("button")) expect(pill).toHaveClass("shrink-0", "whitespace-nowrap");
   });

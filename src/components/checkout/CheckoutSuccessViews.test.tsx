@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { CheckoutSuccessView } from './CheckoutSuccessView';
 import { DesktopCheckoutSuccessView } from './DesktopCheckoutSuccessView';
 import { PaymentOutcomeView } from '@/components/gifting/PaymentOutcomeView';
+import { resolveOutcomeCopy } from '@/lib/giftOutcomeCopy';
 
 /** After ordering, the buyer is told how and when their order is being delivered. */
 
@@ -93,5 +94,90 @@ describe('the content slot under the message', () => {
       render(<PaymentOutcomeView copy={copy} giftCards={[]} onAction={vi.fn()} variant={variant} />).unmount();
       expect(screen.queryByText('offer here')).toBeNull();
     }
+  });
+});
+
+describe('mobile success screen in the Subscribe design (switch on, a shop order)', () => {
+  const show = (props: Partial<Parameters<typeof CheckoutSuccessView>[0]> = {}) =>
+    render(
+      <MemoryRouter>
+        <CheckoutSuccessView orderId="NSTCSKIH3" paymentOption="pay-on-delivery" deliverySummary={SUMMARY} subscribeDesign {...props} />
+      </MemoryRouter>,
+    );
+
+  it('says "Order placed", the order ID, and the delivery, under a tick', () => {
+    show();
+    expect(screen.getByRole('heading', { name: 'Order placed' })).toBeInTheDocument();
+    expect(screen.getByText('NSTCSKIH3').closest('p')).toHaveTextContent('Order ID NSTCSKIH3');
+    expect(screen.getByTestId('delivery-summary')).toHaveTextContent(`Delivery: ${SUMMARY}`);
+    expect(screen.queryByText('Order Placed!')).toBeNull();
+  });
+
+  it('puts the Subscribe panel inside the same card as the note about the order', () => {
+    show({ afterContent: <p>the subscribe panel</p> });
+    const card = screen.getByRole('region', { name: 'What happens next' });
+    expect(card).toHaveTextContent("Your order has been placed. We'll prepare it and get it to you. Pay when it arrives.");
+    expect(card).toContainElement(screen.getByText('the subscribe panel'));
+  });
+
+  it('is just the note when there is nothing to offer', () => {
+    show();
+    expect(screen.getByRole('region', { name: 'What happens next' })).toHaveTextContent(/^Your order has been placed/);
+  });
+
+  it('ends with View Order Status and Return to Shop, in the Nesta Hub brown', () => {
+    show();
+    expect(screen.getByRole('button', { name: 'View Order Status' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Return to Shop' })).toHaveClass('bg-shop-cta');
+  });
+
+  it('switch off (no subscribeDesign): the screen is exactly as before', () => {
+    show({ subscribeDesign: false });
+    expect(screen.getByText('Order Placed!')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'What happens next' })).toBeNull();
+  });
+});
+
+describe('bank-transfer result in the Subscribe design (switch on, a shop order)', () => {
+  const confirmed = resolveOutcomeCopy({ authState: 'user', deliveryMethod: 'link', confirmed: true, orderKind: 'other', buyerEmail: 'ada@example.com' });
+  const pending = resolveOutcomeCopy({ authState: 'user', deliveryMethod: 'link', confirmed: false, orderKind: 'other', buyerEmail: 'ada@example.com' });
+  const show = (copy = confirmed, afterContent?: React.ReactNode, design: boolean = true) => {
+    const onAction = vi.fn();
+    render(
+      <PaymentOutcomeView
+        copy={copy}
+        giftCards={[]}
+        onAction={onAction}
+        afterContent={afterContent}
+        subscribeDesign={design ? { orderId: 'NSTCSKIH3', deliverySummary: SUMMARY } : undefined}
+      />,
+    );
+    return onAction;
+  };
+
+  it('confirmed: the same heading and words, with the order ID and delivery, and the Subscribe panel inside the card', () => {
+    show(confirmed, <p>the subscribe panel</p>);
+    expect(screen.getByRole('heading', { name: 'Payment Confirmed' })).toBeInTheDocument();
+    expect(screen.getByText('NSTCSKIH3').closest('p')).toHaveTextContent('Order ID NSTCSKIH3');
+    expect(screen.getByTestId('delivery-summary')).toHaveTextContent(`Delivery: ${SUMMARY}`);
+    const card = screen.getByRole('region', { name: 'What happens next' });
+    expect(card).toHaveTextContent("We've received your payment and your order is being processed.");
+    expect(card).toContainElement(screen.getByText('the subscribe panel'));
+  });
+
+  it('not confirmed yet: says so, with where we will write, and the same buttons', () => {
+    const onAction = show(pending);
+    expect(screen.getByRole('heading', { name: "We couldn't confirm your payment just yet" })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'What happens next' })).toHaveTextContent("We don't want to keep you waiting.");
+    expect(screen.getByRole('region', { name: 'What happens next' })).toHaveTextContent('ada@example.com');
+    screen.getByRole('button', { name: 'View Order Status' }).click();
+    expect(onAction).toHaveBeenCalledWith('order-history');
+    expect(screen.getByRole('button', { name: 'Return to Shop' })).toHaveClass('bg-shop-cta');
+  });
+
+  it('switch off (no subscribeDesign): the screen is exactly as before', () => {
+    show(confirmed, null, false);
+    expect(screen.queryByRole('region', { name: 'What happens next' })).toBeNull();
+    expect(screen.queryByText('NSTCSKIH3')).toBeNull();
   });
 });

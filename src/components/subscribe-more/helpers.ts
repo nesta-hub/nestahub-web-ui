@@ -18,10 +18,10 @@ export function matchesSearch(item: Pick<CatalogItem, "productName" | "brand" | 
   return words.every((word) => text.includes(word));
 }
 
-/** The body the API wants. A first day only goes with "every N weeks". */
+/** The body the API wants: the day of her first order goes with any frequency. */
 export function enrolInput(item: Pick<CatalogItem, "variantId">, quantity: number, choice: SubscribeChoice): EnrolInput {
   const input: EnrolInput = { variantId: item.variantId, quantity, frequency: choice.frequency };
-  if (choice.frequency.kind === "weeks" && choice.firstDate) input.firstDate = choice.firstDate;
+  if (choice.firstDate) input.firstDate = choice.firstDate;
   return input;
 }
 
@@ -42,6 +42,7 @@ export function describeEnrolFailure(error: unknown): { message: string; already
 export interface CatalogProduct {
   productId: string;
   name: string;
+  brand: string | null;
   imageUrl: string | null;
   /** Its sizes she can subscribe to, in the list's order. */
   items: CatalogItem[];
@@ -77,6 +78,7 @@ export function groupCatalog(items: CatalogItem[], categories: Array<{ id: strin
     sections.get(key)?.products.push({
       productId: first.productId,
       name: first.productName,
+      brand: first.brand,
       imageUrl: group.find((item) => item.imageUrl)?.imageUrl ?? null,
       items: group,
       fromKobo: Math.min(...pays),

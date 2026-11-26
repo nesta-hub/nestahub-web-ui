@@ -4,6 +4,7 @@ import { LayoutGrid, RotateCcw, Search } from "lucide-react";
 import { HeaderCartIcon } from "@/components/cart";
 import { MobileMenu } from "@/components/layout/MobileMenu";
 import { useAuth } from "@/contexts/AuthContext";
+import { useShoppingForExtras } from "@/hooks/useShoppingForExtras";
 import { CategoryTile } from "@/components/catalogue/v2/CategoryTile";
 import { apiCategoryToCatalogue } from "@/lib/catalogueAdapter";
 import type { Category as ApiCategory, CategoryGroup as ApiGroup } from "@/lib/api";
@@ -67,6 +68,8 @@ export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasR
   const anchorRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const { stuck } = useGroupScrollSpy([], barRef, { stuckAt: 0.5 });
+  // While adding extras to an order the bar over the shop takes the top row's place, and there is no cart to show.
+  const addingExtras = useShoppingForExtras() !== null;
 
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -122,19 +125,23 @@ export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasR
     <div className="min-h-screen pb-24 text-shop-ink">
       {/* Top row: the menu on the left, the logo in the middle, the cart on the right. The wallet isn't here:
           a signed-in customer's balance is in the welcome card. */}
-      <div className="grid h-[60px] grid-cols-[46px_1fr_46px] items-center px-2 pt-3">
+      {addingExtras ? (
         <h1 className="sr-only">Shop</h1>
-        <MobileMenu className="justify-self-center" />
-        <Link to="/shop" aria-label="Nesta Hub" className="flex items-center justify-center">
-          <img src={nestaLogo} alt="" className="h-10 w-auto" />
-        </Link>
-        <div className="flex justify-end">
-          <HeaderCartIcon />
+      ) : (
+        <div className="grid h-[60px] grid-cols-[46px_1fr_46px] items-center px-2 pt-3">
+          <h1 className="sr-only">Shop</h1>
+          <MobileMenu className="justify-self-center" />
+          <Link to="/shop" aria-label="Nesta Hub" className="flex items-center justify-center">
+            <img src={nestaLogo} alt="" className="h-10 w-auto" />
+          </Link>
+          <div className="flex justify-end">
+            <HeaderCartIcon />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Search */}
-      <div className="flex gap-2.5 px-5 pb-[18px] pt-1.5">
+      <div className={cn("flex gap-2.5 px-5 pb-[18px]", addingExtras ? "pt-3" : "pt-1.5")}>
         <button
           type="button"
           onClick={() => onSearch()}
@@ -179,9 +186,9 @@ export function MobileShopHome({ groups, loading = false, initialGroupSlug, hasR
         <div
           className={cn(
             "flex flex-none items-center justify-center overflow-hidden pb-1.5 pt-2.5 transition-[flex-basis] duration-200",
-            stuck ? "basis-[52px]" : "basis-0",
+            stuck && !addingExtras ? "basis-[52px]" : "basis-0",
           )}
-          aria-hidden={!stuck}
+          aria-hidden={!stuck || addingExtras}
           data-testid="stuck-cart"
         >
           <HeaderCartIcon />

@@ -1,7 +1,8 @@
-import { ArrowRight, MapPin } from "lucide-react";
+import { ArrowRight, Check, MapPin, Minus } from "lucide-react";
 import { formatPrice } from "@/lib/api";
-import { describePlace, formatDay, type Box } from "@/lib/subscriptionBoxes";
+import { brandedName, describePlace, formatDay, type Box } from "@/lib/subscriptionBoxes";
 import { cn } from "@/lib/utils";
+import { METHOD_LABEL } from "./deliveryMethods";
 import { Thumb } from "./Thumb";
 
 interface Props {
@@ -15,6 +16,8 @@ interface Props {
   /** Start shopping for extra items to add to this order. */
   onAddExtras: () => void;
   onChangeLocation: () => void;
+  /** Take a one-time extra out of this order. */
+  onRemoveExtra?: (lineId: string) => void;
 }
 
 const chip = "inline-block rounded-full bg-white/70 px-[9px] py-[3px] text-[9.5px] font-extrabold leading-3 tracking-[0.14em] text-[#46564A]";
@@ -36,35 +39,88 @@ function Pictures({ box }: { box: Box }) {
   );
 }
 
-/** What is in the box, one line each: "Kisskids diapers ×2". Something she added just for this order says "(extra)"; an item on its first delivery says "(new)". */
-function Lines({ box }: { box: Box }) {
+/**
+ * What is in the box, one item each: "Kisskids Baby Wipes ×1", with its size or type under it. Something she added just
+ * for this order says "(extra)" and, while the order can still change, has a red minus to take it out; an item on its
+ * first delivery says "(new)".
+ */
+function Lines({ box, busy, onRemoveExtra }: { box: Box; busy?: boolean; onRemoveExtra?: (lineId: string) => void }) {
+  return (
+    <span className="flex flex-col gap-1.5">
+      {box.items.map((l) => {
+        const removable = l.kind === "one_time" && box.editable && !!onRemoveExtra;
+        return (
+          <span key={l.id} className="flex items-start gap-2">
+            <span className="block min-w-0 flex-1">
+              <span className="block">
+                {`${brandedName(l.brand, l.productName)} ×${l.quantity}`}
+                {l.kind === "one_time" ? " (extra)" : l.firstTime ? " (new)" : ""}
+              </span>
+              {l.variantLabel && <span className="block text-[12px] font-medium leading-4 text-[#46564A]">{l.variantLabel}</span>}
+            </span>
+            {removable && (
+              <button
+                type="button"
+                aria-label={`Remove ${l.productName} (extra)`}
+                disabled={busy}
+                onClick={() => onRemoveExtra(l.id)}
+                className="-my-1.5 -mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center disabled:opacity-40"
+              >
+                <span aria-hidden="true" className="flex h-5 w-5 items-center justify-center rounded-full bg-[#D14343] text-white">
+                  <Minus className="h-3 w-3" strokeWidth={3} />
+                </span>
+              </button>
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+/** How it reaches her, then where: "Community Delivery: 12 Ifako St", "Pick-up: Yaba station". */
+function Place({ box }: { box: Box }) {
+  const { type, address, pickupStationName } = box.delivery;
+  if (!type) return <>{describePlace(box.delivery)}</>;
+  const where = type === "pickup" ? (pickupStationName ?? "your station") : (address ?? "Your saved address");
   return (
     <>
-      {box.items.map((l) => (
-        <span key={l.id} className="block">
-          {`${l.productName} ×${l.quantity}`}
-          {l.kind === "one_time" ? " (extra)" : l.firstTime ? " (new)" : ""}
-        </span>
-      ))}
+      <span className="font-bold text-shop-ink">{METHOD_LABEL[type]}:</span> {where}
     </>
   );
 }
 
 /** The card's top: the chip, the day, where it goes, and what is in it. Shared by an order she can pay and one she skipped. */
-function CardTop({ chip: chipText, date, box, onChangeLocation }: { chip: string; date: string; box: Box; onChangeLocation: () => void }) {
+function CardTop({
+  chip: chipText,
+  date,
+  box,
+  onChangeLocation,
+  busy,
+  onRemoveExtra,
+}: {
+  chip: string;
+  date: string;
+  box: Box;
+  onChangeLocation: () => void;
+  busy?: boolean;
+  onRemoveExtra?: (lineId: string) => void;
+}) {
   return (
     <>
       <span className={chip}>{chipText}</span>
       <h2 className="mt-2 text-[32px] font-extrabold leading-[38px] tracking-[-0.025em] text-shop-ink">{date}</h2>
 
-      <button type="button" onClick={onChangeLocation} disabled={!box.editable} className="mt-0.5 flex items-center gap-1.5 text-left text-[14px] leading-5 text-[#34443A] disabled:cursor-default">
-        <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span className={cn(box.needsDelivery && "font-extrabold underline underline-offset-2")}>{describePlace(box.delivery)}</span>
+      <button type="button" onClick={onChangeLocation} disabled={!box.editable} className="mt-1.5 flex items-start gap-1.5 text-left text-[14px] leading-5 text-[#34443A] disabled:cursor-default">
+        <MapPin className="mt-[3px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span className={cn("line-clamp-2 min-w-0", box.needsDelivery && "font-extrabold underline underline-offset-2")}>
+          <Place box={box} />
+        </span>
       </button>
 
       <div className="mt-3.5 flex items-center gap-3 rounded-[18px] bg-white/[0.72] px-3 py-2.5">
         <Pictures box={box} />
-        <span className="min-w-0 flex-1 text-[13px] font-bold leading-[18px] text-shop-ink"><Lines box={box} /></span>
+        <span className="min-w-0 flex-1 text-[13px] font-bold leading-[18px] text-shop-ink"><Lines box={box} busy={busy} onRemoveExtra={onRemoveExtra} /></span>
       </div>
     </>
   );
@@ -74,7 +130,7 @@ function CardTop({ chip: chipText, date, box, onChangeLocation }: { chip: string
  * One order she can pay: the day, where it goes, what is in it, what it costs, and what she
  * can do. Once she has said she paid, or it is paid, the buttons give way to a plain status.
  */
-export function NextOrderCard({ box, first, busy, onPay, onMakeChanges, onSkip, onAddExtras, onChangeLocation }: Props) {
+export function NextOrderCard({ box, first, busy, onPay, onMakeChanges, onSkip, onAddExtras, onChangeLocation, onRemoveExtra }: Props) {
   const confirming = box.order?.status === "payment_made";
   const paid = box.status === "paid" || box.status === "delivered";
   const fee = box.deliveryFeeKobo;
@@ -86,7 +142,7 @@ export function NextOrderCard({ box, first, busy, onPay, onMakeChanges, onSkip, 
     >
       <span aria-hidden="true" className="absolute -right-12 -top-16 h-[200px] w-[200px] rounded-full bg-[#E6EBE3]" />
       <div className="relative">
-        <CardTop chip={paid ? "PAID" : first ? "NEXT ORDER" : "LATER ORDER"} date={formatDay(box.deliveryDate)} box={box} onChangeLocation={onChangeLocation} />
+        <CardTop chip={paid ? "PAID" : first ? "NEXT ORDER" : "LATER ORDER"} date={formatDay(box.deliveryDate)} box={box} onChangeLocation={onChangeLocation} busy={busy} onRemoveExtra={onRemoveExtra} />
 
         {box.needsDelivery ? (
           <div className="mt-3.5">
@@ -118,8 +174,13 @@ export function NextOrderCard({ box, first, busy, onPay, onMakeChanges, onSkip, 
           </p>
         )}
         {paid && (
-          <p role="status" className="mt-4 rounded-[18px] bg-white/[0.72] px-4 py-3 text-[13px] leading-[18px] text-[#34443A]">
-            <b className="font-extrabold text-shop-ink">{box.status === "delivered" ? "Delivered." : "Paid."}</b> {box.status === "delivered" ? "Thank you." : `It is coming ${formatDay(box.deliveryDate)}.`}
+          <p role="status" className="mt-4 flex items-center gap-2.5 rounded-[18px] bg-white/[0.72] px-4 py-3 text-[13px] leading-[18px] text-[#34443A]">
+            <span aria-hidden="true" data-testid="paid-check" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#2F8F4E] text-white">
+              <Check className="h-3 w-3" strokeWidth={3} />
+            </span>
+            <span>
+              <b className="font-extrabold text-shop-ink">{box.status === "delivered" ? "Delivered." : "Paid."}</b> {box.status === "delivered" ? "Thank you." : `It is coming ${formatDay(box.deliveryDate)}.`}
+            </span>
           </p>
         )}
 
@@ -132,7 +193,7 @@ export function NextOrderCard({ box, first, busy, onPay, onMakeChanges, onSkip, 
               className="flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-3xl bg-shop-ink px-2.5 text-[14px] font-extrabold leading-[18px] text-shop-cream disabled:opacity-60"
             >
               <span>{box.order ? "Continue to pay" : "Pay now"}</span>
-              <ArrowRight className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
+              {!box.order && <ArrowRight className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />}
             </button>
             <button type="button" onClick={onMakeChanges} disabled={busy} className={option}>
               Make changes

@@ -103,7 +103,7 @@ export function SubscribeCard({ price, subscriptionPrice, recommendedFrequencyWe
       {on && (
         <div className="mt-3.5 border-t border-[#EEE8E1] pt-3.5">
           <p className={`mb-2.5 ${EYEBROW}`}>Renewal frequency</p>
-          <SubscribeChoiceFields value={value} onChange={onChange} recommendedFrequencyWeeks={recommendedFrequencyWeeks} quantity={quantity} now={now} />
+          <SubscribeChoiceFields value={value} onChange={onChange} showFirstRenewal={false} now={now} />
         </div>
       )}
     </section>

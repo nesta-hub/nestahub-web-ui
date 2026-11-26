@@ -10,6 +10,9 @@ vi.mock("@/components/cart", () => ({ HeaderCartIcon: () => <button type="button
 // Signed in or not is the one thing these tests change; the welcome card has tests of its own.
 const auth = vi.hoisted(() => ({ session: null as { access_token: string } | null }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ session: auth.session }) }));
+// Adding extra items to a subscription order is the other thing some tests change.
+const extras = vi.hoisted(() => ({ boxId: null as string | null }));
+vi.mock("@/hooks/useShoppingForExtras", () => ({ useShoppingForExtras: () => extras.boxId }));
 vi.mock("./WelcomeCard", () => ({
   // The tap on "Shop now" is passed in, so a stub button stands in for it.
   SignedInWelcome: ({ onShop }: { onShop: () => void }) => (
@@ -25,6 +28,7 @@ vi.mock("./WelcomeCard", () => ({
 
 beforeEach(() => {
   auth.session = null;
+  extras.boxId = null;
   vi.useFakeTimers();
   window.scrollTo = vi.fn() as never;
   vi.stubGlobal("requestAnimationFrame", () => 0);
@@ -546,5 +550,21 @@ describe("signed out", () => {
 
     expect(screen.queryByTestId("welcome")).toBeNull();
     expect(within(screen.getByRole("region", { name: "Offers" })).getByText("Everything for baby and mum")).toBeInTheDocument();
+  });
+});
+
+describe("while she is adding extra items to an order", () => {
+  it("has no menu, logo or cart row: the bar over the shop takes its place, and the search comes first", () => {
+    extras.boxId = "b1";
+    show();
+    expect(screen.queryByRole("link", { name: "Nesta Hub" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Open cart" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Search baby products and brands" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Shop" })).toBeInTheDocument();
+  });
+
+  it("shows the usual top row otherwise", () => {
+    show();
+    expect(screen.getByRole("link", { name: "Nesta Hub" })).toBeInTheDocument();
   });
 });

@@ -2,18 +2,19 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { SignInForm } from "@/components/auth/SignInForm";
+import { CheckoutPaymentView } from "@/components/checkout/CheckoutPaymentView";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePendingExtras } from "@/contexts/PendingExtrasContext";
 import { useSubscriptionTab } from "@/hooks/useSubscriptionTab";
 import { storeClaimToken } from "@/lib/api";
 import { BOX_CODES, BoxApiError, formatDay, subscriptionBoxesApi, type Box, type PayResult } from "@/lib/subscriptionBoxes";
 import { AddItemButton } from "./AddItemButton";
-import { BoxPayView } from "./BoxPayView";
 import { EmptyTab, NothingDueCard } from "./EmptyTab";
 import { ItemDrawer } from "./ItemDrawer";
 import { ItemRow } from "./ItemRow";
 import { MakeChangesDrawer } from "./MakeChangesDrawer";
 import { NextOrderCard, SkippedCard, SkippedOrderCard } from "./NextOrderCard";
+import { OrderCarousel } from "./OrderCarousel";
 import { ResumeDrawer } from "./ResumeDrawer";
 
 /** Which link she came in by, when she came from a message. */
@@ -35,7 +36,7 @@ function Skeleton() {
  * Used for a signed-in customer and, with `linkAction`, for someone who opened a link in a
  * message (the same screen, with the right drawer already open).
  */
-export function SubscriptionTab({ linkAction }: { linkAction?: LinkAction }) {
+export function SubscriptionTab({ linkAction, onPayScreen }: { linkAction?: LinkAction; /** The pay screen opened or closed: the page hides its bottom navigation meanwhile. */ onPayScreen?: (open: boolean) => void }) {
   const navigate = useNavigate();
   const pending = usePendingExtras();
   const { session, walletBalance, signOut } = useAuth();
@@ -43,14 +44,24 @@ export function SubscriptionTab({ linkAction }: { linkAction?: LinkAction }) {
   const { data, isLoading, error, accessToken, act, refresh } = tab;
 
   const [busy, setBusy] = useState(false);
-  const [paying, setPaying] = useState<(PayResult & { box: Box }) | null>(null);
+  const [paying, setPaying] = useState<PayResult | null>(null);
+  const payScreenOpen = paying !== null;
+  useEffect(() => {
+    onPayScreen?.(payScreenOpen);
+  }, [payScreenOpen, onPayScreen]);
+  useEffect(() => () => onPayScreen?.(false), [onPayScreen]);
   const [changes, setChanges] = useState<{ boxId: string; startOn: "menu" | "location" } | null>(null);
   const [itemId, setItemId] = useState<string | null>(null);
   const [resumeOpen, setResumeOpen] = useState(false);
   const [linkHandled, setLinkHandled] = useState(false);
 
   const boxes = useMemo(() => (data?.boxes ?? []).filter((b) => LIVE.has(b.status) || b.status === "skipped"), [data]);
-  const firstOpenId = boxes.find((b) => b.status !== "skipped")?.id;
+  // The orders shown as full cards: the ones waiting for her first (by day), then the paid ones on their way.
+  const orderCards = useMemo(
+    () => [...boxes.filter((b) => b.status === "scheduled" || b.status === "asked"), ...boxes.filter((b) => b.status === "paid")],
+    [boxes],
+  );
+  const firstOpenId = orderCards.find((b) => b.status !== "paid")?.id;
   const paused = useMemo(() => (data?.items ?? []).filter((i) => i.status === "paused"), [data]);
 
   // A link from a message opens the drawer it was about, once.
@@ -81,7 +92,7 @@ export function SubscriptionTab({ linkAction }: { linkAction?: LinkAction }) {
       if ("value" in result) {
         // Someone who opened a link has no sign-in: the key for this one order is what lets the pay screen act on it.
         if (result.value.claimToken) storeClaimToken(result.value.orderNumber, result.value.claimToken);
-        setPaying({ ...result.value, box });
+        setPaying(result.value);
         return;
       }
       const err = result.error;
@@ -96,21 +107,21 @@ export function SubscriptionTab({ linkAction }: { linkAction?: LinkAction }) {
     }
   };
 
-  // The pay screen: the same steps as every order's (bank details, "Payment made", wallet for someone signed in), in the Subscribe design.
+  // The pay screen is the one every shop order uses: bank details, "Payment Made", wallet and gift card for someone signed in.
   if (paying) {
     return (
-      <BoxPayView
-        box={paying.box}
-        orderNumber={paying.orderNumber}
-        totalKobo={paying.totalKobo}
+      <CheckoutPaymentView
+        orderId={paying.orderNumber}
+        totalAmount={paying.totalKobo}
         token={session?.access_token ?? ""}
         walletBalance={session ? (walletBalance ?? 0) : 0}
-        allowGiftCard={!!session}
-        onBack={() => {
+        hideGiftCardRedeem={!session}
+        onPaymentConfirmed={() => {
           setPaying(null);
+          toast.success("Payment made. We are confirming it.");
           void refresh();
         }}
-        onDone={() => {
+        onBack={() => {
           setPaying(null);
           void refresh();
         }}
@@ -141,16 +152,38 @@ export function SubscriptionTab({ linkAction }: { linkAction?: LinkAction }) {
     );
   }
 
+  // Soonest due first; paused items (nothing due) after them, in the order they came.
+  const itemsSoonestFirst = [...(data?.items ?? [])].sort((a, b) => {
+    const due = (i: typeof a) => (i.status === "active" && i.nextDue ? i.nextDue : "9999-12-31");
+    return due(a).localeCompare(due(b));
+  });
   const changesBox = changes ? (data?.boxes.find((b) => b.id === changes.boxId) ?? null) : null;
   const item = itemId ? (data?.items.find((i) => i.id === itemId) ?? null) : null;
   const nextDueOverall = (data?.items ?? [])
     .filter((i) => i.status === "active" && i.nextDue)
     .map((i) => i.nextDue as string)
     .sort()[0] ?? null;
+  /** What is due on that day, for the card shown when no order is waiting. */
+  const dueThen = (data?.items ?? []).filter((i) => i.status === "active" && i.nextDue === nextDueOverall);
   const nextOrderDate = (boxes.find((b) => b.status !== "skipped")?.deliveryDate ?? nextDueOverall) || null;
   // Nothing is waiting after an order she skipped: it stays as the page's one card, showing the day the next one is due.
   const nothingAfterSkip = !boxes.some((b) => b.status !== "skipped");
   const empty = !data || (data.items.length === 0 && boxes.length === 0);
+
+  const orderCard = (box: Box) => (
+    <NextOrderCard
+      key={box.id}
+      box={box}
+      first={box.id === firstOpenId}
+      busy={busy}
+      onPay={() => void pay(box)}
+      onMakeChanges={() => setChanges({ boxId: box.id, startOn: "menu" })}
+      onSkip={() => void run(() => subscriptionBoxesApi.skip(accessToken, box.id))}
+      onAddExtras={() => addExtras(box)}
+      onChangeLocation={() => setChanges({ boxId: box.id, startOn: "location" })}
+      onRemoveExtra={(lineId) => void run(() => subscriptionBoxesApi.removeExtra(accessToken, box.id, lineId))}
+    />
+  );
 
   /** Start shopping for this order: what she picks in the shop goes to it, not to her cart. */
   const addExtras = (box: Box) => {
@@ -180,35 +213,26 @@ export function SubscriptionTab({ linkAction }: { linkAction?: LinkAction }) {
         ) : (
           <>
             <div className="space-y-4">
-              {boxes.length === 0 && <NothingDueCard nextDue={nextDueOverall} />}
-              {boxes.map((box) =>
-                box.status === "skipped" ? (
-                  nothingAfterSkip ? (
-                    <SkippedOrderCard
-                      key={box.id}
-                      box={box}
-                      nextOrder={nextOrderDate}
-                      busy={busy}
-                      onUndo={() => void run(() => subscriptionBoxesApi.undoSkip(accessToken, box.id))}
-                      onChangeLocation={() => undefined}
-                    />
-                  ) : (
-                    <SkippedCard key={box.id} box={box} nextOrder={nextOrderDate} busy={busy} onUndo={() => void run(() => subscriptionBoxesApi.undoSkip(accessToken, box.id))} />
-                  )
-                ) : (
-                  <NextOrderCard
+              {boxes.length === 0 && <NothingDueCard nextDue={nextDueOverall} dueThen={dueThen} />}
+              {nothingAfterSkip &&
+                boxes.map((box) => (
+                  <SkippedOrderCard
                     key={box.id}
                     box={box}
-                    first={box.id === firstOpenId}
+                    nextOrder={nextOrderDate}
                     busy={busy}
-                    onPay={() => void pay(box)}
-                    onMakeChanges={() => setChanges({ boxId: box.id, startOn: "menu" })}
-                    onSkip={() => void run(() => subscriptionBoxesApi.skip(accessToken, box.id))}
-                    onAddExtras={() => addExtras(box)}
-                    onChangeLocation={() => setChanges({ boxId: box.id, startOn: "location" })}
+                    onUndo={() => void run(() => subscriptionBoxesApi.undoSkip(accessToken, box.id))}
+                    onChangeLocation={() => undefined}
                   />
-                ),
-              )}
+                ))}
+              {orderCards.length === 1 && orderCard(orderCards[0])}
+              {orderCards.length > 1 && <OrderCarousel>{orderCards.map(orderCard)}</OrderCarousel>}
+              {!nothingAfterSkip &&
+                boxes
+                  .filter((box) => box.status === "skipped")
+                  .map((box) => (
+                    <SkippedCard key={box.id} box={box} nextOrder={nextOrderDate} busy={busy} onUndo={() => void run(() => subscriptionBoxesApi.undoSkip(accessToken, box.id))} />
+                  ))}
             </div>
 
             <h3 className="mb-3 mt-[26px] text-[10.5px] font-semibold uppercase leading-[14px] tracking-[0.16em] text-[#6B5F55]">Your subscribed items</h3>
@@ -216,7 +240,7 @@ export function SubscriptionTab({ linkAction }: { linkAction?: LinkAction }) {
               <li className="list-none">
                 <AddItemButton label="Subscribe to something else" />
               </li>
-              {data.items.map((i) => (
+              {itemsSoonestFirst.map((i) => (
                 <ItemRow key={i.id} item={i} onOpen={() => setItemId(i.id)} />
               ))}
             </ul>
@@ -235,6 +259,7 @@ export function SubscriptionTab({ linkAction }: { linkAction?: LinkAction }) {
         onMoveDay={(date) => run(() => subscriptionBoxesApi.moveDay(accessToken, changesBox!.id, date))}
         onChangeLocation={(location) => run(() => subscriptionBoxesApi.changeLocation(accessToken, changesBox!.id, location))}
         loadDeliveryOptions={(lat, lng) => subscriptionBoxesApi.deliveryOptions(accessToken, changesBox!.id, lat, lng)}
+        lastAddress={data?.lastAddress ?? null}
       />
 
       <ItemDrawer
@@ -249,6 +274,7 @@ export function SubscriptionTab({ linkAction }: { linkAction?: LinkAction }) {
           if ("value" in changed && changed.value.nextDue) toast.success(`Saved. Next one: ${formatDay(changed.value.nextDue)}.`);
           return changed.ok;
         }}
+        onPreviewFrequency={async (frequency) => (await subscriptionBoxesApi.previewFrequency(accessToken, item!.id, frequency)).nextDue}
         onPause={() => run(() => subscriptionBoxesApi.pause(accessToken, item!.id))}
         onResume={() => run(() => subscriptionBoxesApi.resume(accessToken, item!.id))}
         onStop={() => run(() => subscriptionBoxesApi.stop(accessToken, item!.id))}

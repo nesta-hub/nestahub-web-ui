@@ -19,12 +19,12 @@ const line = (over: Partial<OfferLine> = {}): OfferLine => ({
 });
 const offer = (over: Partial<Offer> = {}): Offer => ({ state: "offer", orderNumber: "NST-1", eligible: [line()], subscribed: [], ...over });
 
-function show(orderNumber = "NST-1") {
+function show(orderNumber = "NST-1", embedded?: boolean) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
-        <SubscribeOffer orderNumber={orderNumber} />
+        <SubscribeOffer orderNumber={orderNumber} embedded={embedded} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -69,6 +69,14 @@ describe("SubscribeOffer", () => {
     expect(screen.getByText(/before it finishes/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View my subscriptions" })).toHaveAttribute("href", "/subscriptions");
     expect(screen.queryByRole("link", { name: "Subscribe" })).not.toBeInTheDocument();
+  });
+
+  it("on its own it is a bordered card; inside the order-placed card it has no border of its own", async () => {
+    const { unmount } = show();
+    expect(await screen.findByRole("region", { name: "Subscribe to what you just bought" })).toHaveClass("border");
+    unmount();
+    show("NST-1", true);
+    expect(await screen.findByRole("region", { name: "Subscribe to what you just bought" })).not.toHaveClass("border");
   });
 
   it("encodes the order number in the link", async () => {

@@ -31,11 +31,9 @@ export function CatalogTile({ product, onOpen }: Props) {
           <span className="absolute bottom-2 left-2 rounded-full bg-[#DDE3DA] px-[9px] py-[3px] text-[11px] font-extrabold leading-[15px] text-[#34443A]">Subscribed</span>
         )}
       </span>
-      <span className="mt-2 line-clamp-2 block text-[13.5px] font-extrabold leading-[18px] text-shop-ink">{product.name}</span>
-      <span className="mt-px block text-[12.5px] leading-[17px] text-shop-muted">
-        {product.pricesDiffer ? "From " : ""}
-        {formatPrice(product.fromKobo)}
-      </span>
+      {/* Name and price as the shop's product cards show them: brand and name on one line, then the price, small and grey. */}
+      <span className="mt-1.5 block truncate text-sm font-medium text-foreground">{[product.brand, product.name].filter(Boolean).join(" ")}</span>
+      <span className="block text-xs text-muted-foreground">{product.pricesDiffer ? `from ${formatPrice(product.fromKobo)}` : formatPrice(product.fromKobo)}</span>
     </>
   );
 

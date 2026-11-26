@@ -3,6 +3,7 @@ import { Navigate, useParams } from "react-router-dom";
 import { Layout } from "@/components/layout";
 import { SubscriptionTab, type LinkAction } from "@/components/subscription-tab/SubscriptionTab";
 import { useSubscribeStatus } from "@/hooks/useSubscribeEnabled";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { clearBoxToken, setBoxToken } from "@/lib/subscriptionBoxes";
 
 const ACTIONS: readonly LinkAction[] = ["pay", "edit", "open", "resume"];
@@ -22,6 +23,8 @@ export default function SubscriptionLink() {
     return true;
   });
   const status = useSubscribeStatus();
+  const isMobile = useIsMobile();
+  const [payScreen, setPayScreen] = useState(false);
   const known = ACTIONS.includes(action as LinkAction);
 
   useEffect(() => {
@@ -40,8 +43,8 @@ export default function SubscriptionLink() {
     );
   }
   return (
-    <Layout>
-      <SubscriptionTab linkAction={action as LinkAction} />
+    <Layout showNav={!(isMobile && payScreen)}>
+      <SubscriptionTab linkAction={action as LinkAction} onPayScreen={setPayScreen} />
     </Layout>
   );
 }

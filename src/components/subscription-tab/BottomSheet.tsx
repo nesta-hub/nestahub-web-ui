@@ -77,16 +77,19 @@ export function TextButton({ children, onClick }: { children: ReactNode; onClick
   );
 }
 
-/** A row in a drawer's menu: a round icon, a label, what it is now, and a chevron. */
+/** A row in a drawer's menu: a round icon, a label (and maybe a line under it), what it is now, and a chevron. */
 export function MenuRow({
   icon,
   label,
+  sub,
   detail,
   onClick,
   danger,
 }: {
   icon: ReactNode;
   label: string;
+  /** A second, lighter line under the label: what it is now, when that is too long for the right-hand side. */
+  sub?: string;
   detail?: string;
   onClick: () => void;
   danger?: boolean;
@@ -95,12 +98,15 @@ export function MenuRow({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-[60px] w-full items-center gap-3 border-b border-[#EEE8E1] text-left ${danger ? "text-[#9A4A3A]" : "text-shop-ink"}`}
+      className={`flex w-full items-center gap-3 border-b border-[#EEE8E1] text-left ${sub ? "min-h-[60px] py-2.5" : "h-[60px]"} ${danger ? "text-[#9A4A3A]" : "text-shop-ink"}`}
     >
       <span aria-hidden="true" className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EFEAE4] ${danger ? "" : "text-shop-brown"}`}>
         {icon}
       </span>
-      <span className="min-w-0 flex-1 text-[15px] font-bold leading-5">{label}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-bold leading-5">{label}</span>
+        {sub && <span className="mt-0.5 block truncate text-[13px] font-semibold leading-[18px] text-[#6B5F55]">{sub}</span>}
+      </span>
       {detail && <span className="max-w-[40%] truncate text-[13px] font-semibold leading-[18px] text-[#6B5F55]">{detail}</span>}
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9A8F85" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
         <path d="m9 18 6-6-6-6" />

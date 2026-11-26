@@ -21,8 +21,6 @@ vi.mock("@/hooks/useSubscribeEnabled", () => ({ useSubscribeStatus: () => status
 const details = vi.hoisted(() => ({ value: {} as Record<string, unknown> }));
 vi.mock("@/hooks/useCatalogue", () => ({ useProductDetail: (key: string) => ({ data: details.value[key], isLoading: false }) }));
 
-const cart = vi.hoisted(() => ({ add: vi.fn() }));
-vi.mock("@/contexts/CartContext", () => ({ useCart: () => ({ addToCart: cart.add }) }));
 vi.mock("@/lib/shareProduct", () => ({ shareProduct: vi.fn() }));
 
 // The page around it brings its own header, nav and providers: it is stood in for.
@@ -30,6 +28,14 @@ vi.mock("@/components/layout", () => ({ Layout: ({ children, showNav = true }: {
 vi.mock("@/components/auth/SignInForm", () => ({ SignInForm: ({ title }: { title: string }) => <p>sign in: {title}</p> }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 import { toast } from "sonner";
+
+// "Monthly, on a particular date" starts on today's date: pin today to Wed 25 Nov so these tests do not depend on
+// the day they run. A caller that passes its own moment still gets the real answer.
+vi.mock("@/lib/lagosDay", async (original) => {
+  const real = await original<typeof import("@/lib/lagosDay")>();
+  return { ...real, lagosToday: (now?: Date) => (now ? real.lagosToday(now) : "2026-11-25") };
+});
+
 
 // ---- fixtures -------------------------------------------------------------------------------
 const item = (over: Partial<CatalogItem> = {}): CatalogItem => ({
@@ -150,25 +156,25 @@ describe("who gets the page", () => {
 });
 
 describe("the list", () => {
-  it("has a row for each category, in the categories' order, with a tile for each product", async () => {
+  it("has a row for each category, in the categories' order, with a tile for each product, named as the shop names it (brand, then name)", async () => {
     show();
-    await screen.findByText("Infant formula");
+    await screen.findByText("Nutrilac Infant formula");
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Diapers", "Feeding"]);
     expect(row("Diapers").getAllByRole("listitem")).toHaveLength(1);
-    expect(row("Feeding").getAllByRole("listitem").map((li) => li.querySelector("span.line-clamp-2")?.textContent)).toEqual(["Baby wipes", "Infant formula"]);
+    expect(row("Feeding").getAllByRole("listitem").map((li) => li.querySelector("span.truncate")?.textContent)).toEqual(["Softcare Baby wipes", "Nutrilac Infant formula"]);
   });
 
   it("shows one tile for a product with several sizes, at the least she would pay, from its subscription price", async () => {
     show();
-    await screen.findByText("Kisskids Diapers");
+    await screen.findByText("Kisskids Kisskids Diapers");
     const diapersTile = within(tileOf(/Kisskids Diapers/));
-    expect(diapersTile.getByText("From ₦4,500")).toBeInTheDocument();
+    expect(diapersTile.getByText("from ₦4,500")).toBeInTheDocument();
     expect(tileOf(/Kisskids Diapers/).querySelector("s")).toBeNull();
   });
 
   it("shows just the price for a product with one size, and the regular price when there is no subscription price", async () => {
     show();
-    await screen.findByText("Baby wipes");
+    await screen.findByText("Softcare Baby wipes");
     expect(within(tileOf(/Baby wipes/)).getByText("₦2,400")).toBeInTheDocument();
     // The formula's subscription price is not lower, so it is the regular one.
     expect(within(tileOf(/Infant formula/)).getByText("₦12,000")).toBeInTheDocument();
@@ -178,7 +184,7 @@ describe("the list", () => {
   it("shows the product's picture, or a stand-in when there is none", async () => {
     api.catalog.mockResolvedValue({ categories, items: [item({ imageUrl: "https://img.test/d.jpg" }), wipes] });
     show();
-    await screen.findByText("Kisskids Diapers");
+    await screen.findByText("Kisskids Kisskids Diapers");
     expect(tileOf(/Kisskids Diapers/).querySelector("img")).toHaveAttribute("src", "https://img.test/d.jpg");
     expect(tileOf(/Baby wipes/).querySelector("img")).toBeNull();
     expect(tileOf(/Baby wipes/).querySelector("svg")).not.toBeNull();
@@ -187,7 +193,7 @@ describe("the list", () => {
   it("puts anything whose category it was not told about in a last row, Other", async () => {
     api.catalog.mockResolvedValue({ categories, items: [diapers, item({ variantId: "v9", productId: "p9", productName: "Mystery", categoryId: null })] });
     show();
-    await screen.findByText("Mystery");
+    await screen.findByText("Kisskids Mystery");
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual(["Diapers", "Other"]);
   });
 
@@ -201,7 +207,7 @@ describe("the list", () => {
     api.catalog.mockRejectedValueOnce(new BoxApiError("down", 500));
     show();
     fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
-    expect(await screen.findByText("Kisskids Diapers")).toBeInTheDocument();
+    expect(await screen.findByText("Kisskids Kisskids Diapers")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 });
@@ -209,7 +215,7 @@ describe("the list", () => {
 describe("what she already subscribes to", () => {
   it("is tagged, and its tile takes her to her subscription instead of opening its page", async () => {
     show();
-    await screen.findByText("Infant formula");
+    await screen.findByText("Nutrilac Infant formula");
     expect(within(tileOf(/Infant formula/)).getByText("Subscribed")).toBeInTheDocument();
     expect(within(tileOf(/Kisskids Diapers/)).queryByText("Subscribed")).toBeNull();
 
@@ -223,7 +229,7 @@ describe("what she already subscribes to", () => {
   it("tags a product when she has any one of its sizes", async () => {
     api.catalog.mockResolvedValue({ categories, items: [diapers, { ...diapers4, subscribed: true }] });
     show();
-    await screen.findByText("Kisskids Diapers");
+    await screen.findByText("Kisskids Kisskids Diapers");
     expect(within(tileOf(/Kisskids Diapers/)).getByText("Subscribed")).toBeInTheDocument();
     expect(tile(/Kisskids Diapers/)).not.toBeNull();
   });
@@ -232,48 +238,48 @@ describe("what she already subscribes to", () => {
 describe("finding something", () => {
   it("shows one category when she taps its pill, asking the server for it, and everything again on All", async () => {
     show();
-    await screen.findByText("Infant formula");
+    await screen.findByText("Nutrilac Infant formula");
     expect(api.catalog).toHaveBeenLastCalledWith("tok", undefined);
 
     fireEvent.click(screen.getByRole("button", { name: "Feeding" }));
     expect(api.catalog).toHaveBeenLastCalledWith("tok", "c2");
-    await waitFor(() => expect(screen.queryByText("Kisskids Diapers")).toBeNull());
-    expect(screen.getByText("Baby wipes")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Kisskids Kisskids Diapers")).toBeNull());
+    expect(screen.getByText("Softcare Baby wipes")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Feeding" })).toHaveAttribute("aria-pressed", "true");
     // The other pills are still there to change her mind with.
     expect(screen.getByRole("button", { name: "Diapers" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "All" }));
-    expect(await screen.findByText("Kisskids Diapers")).toBeInTheDocument();
+    expect(await screen.findByText("Kisskids Kisskids Diapers")).toBeInTheDocument();
     expect(api.catalog).toHaveBeenLastCalledWith("tok", undefined);
     expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("keeps the pills when a category does not load, so she can go back", async () => {
     show();
-    await screen.findByText("Infant formula");
+    await screen.findByText("Nutrilac Infant formula");
     api.catalog.mockRejectedValueOnce(new BoxApiError("down", 500));
     fireEvent.click(screen.getByRole("button", { name: "Feeding" }));
     expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "All" }));
-    expect(await screen.findByText("Kisskids Diapers")).toBeInTheDocument();
+    expect(await screen.findByText("Kisskids Kisskids Diapers")).toBeInTheDocument();
   });
 
   it("starts on All", async () => {
     show();
-    await screen.findByText("Kisskids Diapers");
+    await screen.findByText("Kisskids Kisskids Diapers");
     expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it.each([
-    ["name", "baby wipes", "Baby wipes"],
-    ["brand", "NUTRILAC", "Infant formula"],
-    ["size", "80 SHEETS", "Baby wipes"],
-    ["name, brand and size together", "kisskids size 4", "Kisskids Diapers"],
+    ["name", "baby wipes", "Softcare Baby wipes"],
+    ["brand", "NUTRILAC", "Nutrilac Infant formula"],
+    ["size", "80 SHEETS", "Softcare Baby wipes"],
+    ["name, brand and size together", "kisskids size 4", "Kisskids Kisskids Diapers"],
   ])("finds a product by its %s, in any case", async (_what, typed, found) => {
     show();
-    await screen.findByText("Kisskids Diapers");
+    await screen.findByText("Kisskids Kisskids Diapers");
     fireEvent.change(screen.getByRole("searchbox", { name: "Search subscribable items" }), { target: { value: typed } });
     expect(screen.getByText(found)).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
@@ -281,7 +287,7 @@ describe("finding something", () => {
 
   it("says there is nothing to show when nothing matches, and brings the list back when she clears it", async () => {
     show();
-    await screen.findByText("Kisskids Diapers");
+    await screen.findByText("Kisskids Kisskids Diapers");
     const box = screen.getByRole("searchbox", { name: "Search subscribable items" });
     fireEvent.change(box, { target: { value: "zzz" } });
     expect(screen.getByText("Nothing to show")).toBeInTheDocument();
@@ -291,7 +297,7 @@ describe("finding something", () => {
 
   it("does not ask the server again for a search", async () => {
     show();
-    await screen.findByText("Kisskids Diapers");
+    await screen.findByText("Kisskids Kisskids Diapers");
     const calls = api.catalog.mock.calls.length;
     fireEvent.change(screen.getByRole("searchbox", { name: "Search subscribable items" }), { target: { value: "wipes" } });
     expect(api.catalog.mock.calls.length).toBe(calls);
@@ -299,27 +305,28 @@ describe("finding something", () => {
 });
 
 describe("the product page", () => {
-  it("opens as a full page for the product she taps, with Subscribe switched on", async () => {
+  it("opens as a full page for the product she taps, ready to subscribe: no switch, no one-time purchase", async () => {
     show();
     const page = await openProduct();
     expect(page.getByRole("heading", { level: 1, name: "Kisskids Diapers" })).toBeInTheDocument();
     expect(page.getByText("Size 3", { selector: "p" })).toBeInTheDocument();
-    expect(page.getByRole("switch", { name: "Subscribe to this item", hidden: true })).toHaveAttribute("aria-checked", "true");
+    expect(page.queryByRole("switch", { hidden: true })).toBeNull();
+    expect(page.queryByRole("button", { name: /Add to cart/, hidden: true })).toBeNull();
     expect(page.getByRole("radiogroup", { name: "Renewal frequency", hidden: true })).toBeInTheDocument();
     expect(quantity(page)).toBe("1");
     expect(where()).toBe("/subscriptions/add?product=p1");
   });
 
-  it("shows the regular price at the top, what she pays on Subscribe beside it, and on the button", async () => {
+  it("shows the subscription price at the top and on the button, and no 'and pay' beside Subscribe", async () => {
     show();
     const page = await openProduct();
-    expect(page.getByText("₦5,000")).toBeInTheDocument();
-    expect(page.getByText("and pay ₦4,500")).toBeInTheDocument();
+    expect(page.getByText("₦4,500", { selector: "p" })).toBeInTheDocument();
+    expect(page.queryByText("₦5,000")).toBeNull();
+    expect(page.queryByText(/and pay/)).toBeNull();
     expect(mainButton(page)).toHaveTextContent(/^Subscribe₦4,500$/);
 
     fireEvent.click(page.getByRole("button", { name: "More", hidden: true }));
-    expect(page.getByText("₦10,000")).toBeInTheDocument();
-    expect(page.getByText("and pay ₦9,000")).toBeInTheDocument();
+    expect(page.getByText("₦9,000", { selector: "p" })).toBeInTheDocument();
     expect(mainButton(page)).toHaveTextContent(/₦9,000$/);
   });
 
@@ -331,8 +338,7 @@ describe("the product page", () => {
     expect(sizes.getByRole("button", { name: "Size 3", hidden: true })).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(sizes.getByRole("button", { name: "Size 4", hidden: true }));
-    expect(page.getByText("₦5,200")).toBeInTheDocument();
-    expect(page.getByText("and pay ₦4,700")).toBeInTheDocument();
+    expect(page.getByText("₦4,700", { selector: "p" })).toBeInTheDocument();
     // Size 4 lasts 3 weeks, and she had not chosen how often yet.
     expect(page.getByText("Every 3 weeks")).toBeInTheDocument();
   });
@@ -389,7 +395,7 @@ describe("the product page", () => {
     fireEvent.click(page.getByRole("button", { name: "Back", hidden: true }));
     await waitFor(() => expect(productPage()).toBeNull());
     expect(where()).toBe("/subscriptions/add");
-    expect(screen.getByText("Kisskids Diapers")).toBeInTheDocument();
+    expect(screen.getByText("Kisskids Kisskids Diapers")).toBeInTheDocument();
   });
 
   it("counts from 1 to 99", async () => {
@@ -401,7 +407,7 @@ describe("the product page", () => {
     expect(page.getByRole("button", { name: "More", hidden: true })).toBeDisabled();
     fireEvent.click(page.getByRole("button", { name: "Fewer", hidden: true }));
     expect(quantity(page)).toBe("98");
-  });
+  }, 15_000); // 98 taps: slow when the whole suite runs at once
 
   it("folds a long description to two lines, with more", async () => {
     show();
@@ -421,21 +427,20 @@ describe("the product page", () => {
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "How Subscribe works" })?.getAttribute("data-state") ?? "closed").toBe("closed"));
   });
 
-  it("switched off, is an ordinary product: Add to cart at the regular price, and back to the list", async () => {
+  it("asks for the day of her first order, not a first renewal, whatever the frequency", async () => {
     show();
     const page = await openProduct();
-    fireEvent.click(page.getByRole("switch", { name: "Subscribe to this item", hidden: true }));
-    expect(page.queryByRole("radiogroup", { name: "Renewal frequency", hidden: true })).toBeNull();
-    expect(mainButton(page)).toHaveTextContent(/^Add to cart₦5,000$/);
-
-    fireEvent.click(mainButton(page));
-    expect(cart.add).toHaveBeenCalledTimes(1);
-    const [added, count] = cart.add.mock.calls[0];
-    expect(count).toBe(1);
-    expect(added).toMatchObject({ variantId: "v1", productId: "p1", unitPrice: 500_000, isAutoRenew: false, renewalFrequency: null, attributes: [{ attributeName: "Size", value: "3", displayValue: "Size 3" }] });
-    expect(toast.success).toHaveBeenCalledWith("Added to cart", expect.anything());
-    expect(api.enrol).not.toHaveBeenCalled();
-    await waitFor(() => expect(productPage()).toBeNull());
+    expect(page.getByText("First order")).toBeInTheDocument();
+    expect(page.queryByText("First renewal")).toBeNull();
+    // Today is Wed 25 Nov: every 4 weeks puts the first order four weeks on, with a way to change it.
+    expect(page.getByText("Wed 23 Dec")).toBeInTheDocument();
+    expect(page.queryByRole("button", { name: "Pick a day", hidden: true })).toBeNull();
+    // Monthly on the 25th (today's date): the next 25th at least a week away.
+    fireEvent.click(page.getByRole("radio", { name: "Monthly, on a particular date", hidden: true }));
+    expect(page.getByText("First order")).toBeInTheDocument();
+    expect(page.getByText("Fri 25 Dec")).toBeInTheDocument();
+    fireEvent.click(page.getByRole("button", { name: "Change date", hidden: true }));
+    expect(page.getByLabelText("Day of the first order")).toHaveAttribute("min", lagosToday());
   });
 });
 
@@ -453,8 +458,8 @@ describe("Subscribe", () => {
     const page = await openProduct();
     fireEvent.click(page.getByRole("button", { name: "More weeks", hidden: true })); // every 5 weeks
     const day = addDaysYmd(lagosToday(), 10);
-    fireEvent.click(page.getByRole("button", { name: "Pick a day", hidden: true }));
-    fireEvent.change(page.getByLabelText("Day of the first renewal"), { target: { value: day } });
+    fireEvent.click(page.getByRole("button", { name: "Change date", hidden: true }));
+    fireEvent.change(page.getByLabelText("Day of the first order"), { target: { value: day } });
     fireEvent.click(page.getByRole("button", { name: "More", hidden: true }));
     fireEvent.click(page.getByRole("button", { name: "More", hidden: true }));
     expect(page.getByText("Every 5 weeks")).toBeInTheDocument();
@@ -464,16 +469,17 @@ describe("Subscribe", () => {
     expect(enrolBody()).toStrictEqual({ variantId: "v1", quantity: 3, frequency: { kind: "weeks", every: 5 }, firstDate: day });
   });
 
-  it("sends monthly on a date, with no first day, even if she had picked one for weekly", async () => {
+  it("sends monthly on a date with the first order day she picked, kept when she changes the frequency", async () => {
     show();
     const page = await openProduct();
-    fireEvent.click(page.getByRole("button", { name: "Pick a day", hidden: true }));
-    fireEvent.change(page.getByLabelText("Day of the first renewal"), { target: { value: addDaysYmd(lagosToday(), 10) } });
+    const day = lagosToday();
+    fireEvent.click(page.getByRole("button", { name: "Change date", hidden: true }));
+    fireEvent.change(page.getByLabelText("Day of the first order"), { target: { value: day } });
     fireEvent.click(page.getByRole("radio", { name: "Monthly, on a particular date", hidden: true }));
     fireEvent.click(page.getByRole("button", { name: "Later date", hidden: true })); // the 26th
     fireEvent.click(mainButton(page));
     await waitFor(() => expect(api.enrol).toHaveBeenCalled());
-    expect(enrolBody()).toStrictEqual({ variantId: "v1", quantity: 1, frequency: { kind: "month_date", day: 26 } });
+    expect(enrolBody()).toStrictEqual({ variantId: "v1", quantity: 1, frequency: { kind: "month_date", day: 26 }, firstDate: day });
   });
 
   it("sends monthly on a day of the month", async () => {

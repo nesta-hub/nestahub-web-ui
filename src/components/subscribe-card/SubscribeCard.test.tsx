@@ -4,6 +4,14 @@ import { describe, expect, it, vi } from "vitest";
 import { startingChoice, type SubscribeChoice } from "./choice";
 import { SubscribeCard } from "./SubscribeCard";
 
+// "Monthly, on a particular date" starts on today's date: pin today to Wed 25 Nov so these tests do not depend on
+// the day they run. A caller that passes its own moment still gets the real answer.
+vi.mock("@/lib/lagosDay", async (original) => {
+  const real = await original<typeof import("@/lib/lagosDay")>();
+  return { ...real, lagosToday: (now?: Date) => (now ? real.lagosToday(now) : "2026-11-25") };
+});
+
+
 const NOW = new Date("2026-11-15T09:00:00.000Z"); // Sun 15 Nov, Lagos
 
 interface Opts {
@@ -90,97 +98,16 @@ describe("SubscribeCard", () => {
     expect(screen.queryByText("First renewal")).not.toBeInTheDocument();
   });
 
-  describe("the first renewal day (weekly)", () => {
-    it("says it counts from arrival until she picks a day", () => {
-      show({ value: { frequency: { kind: "weeks", every: 4 } } });
-      expect(screen.getByText("First renewal")).toBeInTheDocument();
-      expect(screen.getByText("4 weeks after it arrives")).toBeInTheDocument();
-    });
-
-    it("says a week, not 1 weeks", () => {
-      show({ value: { frequency: { kind: "weeks", every: 1 } } });
-      expect(screen.getByText("A week after it arrives")).toBeInTheDocument();
-    });
-
-    it("picking a day stores it, and shows it", () => {
-      const onChange = show({ value: { frequency: { kind: "weeks", every: 4 } } });
-      fireEvent.click(screen.getByRole("button", { name: "Pick a day" }));
-      fireEvent.change(screen.getByLabelText("Day of the first renewal"), { target: { value: "2026-12-01" } });
-      expect(onChange).toHaveBeenLastCalledWith({ frequency: { kind: "weeks", every: 4 }, firstDate: "2026-12-01" });
-      expect(screen.getByText("Tue 1 Dec")).toBeInTheDocument();
-    });
-
-    it("allows tomorrow to 26 weeks ahead, and no other day", () => {
-      show({ value: { frequency: { kind: "weeks", every: 4 } } });
-      fireEvent.click(screen.getByRole("button", { name: "Pick a day" }));
-      const input = screen.getByLabelText("Day of the first renewal");
-      expect(input).toHaveAttribute("min", "2026-11-16");
-      expect(input).toHaveAttribute("max", "2027-05-16");
-    });
-
-    it.each(["2026-11-15", "2027-05-17", "2026-02-31"])("ignores %s", (day) => {
-      const onChange = show({ value: { frequency: { kind: "weeks", every: 4 } } });
-      fireEvent.click(screen.getByRole("button", { name: "Pick a day" }));
-      onChange.mockClear();
-      fireEvent.change(screen.getByLabelText("Day of the first renewal"), { target: { value: day } });
-      expect(onChange).not.toHaveBeenCalled();
-    });
-
-    it("clearing goes back to counting from arrival", () => {
-      const onChange = show({ value: { frequency: { kind: "weeks", every: 4 }, firstDate: "2026-12-01" } });
-      fireEvent.click(screen.getByRole("button", { name: "Change" }));
-      fireEvent.click(screen.getByRole("button", { name: "Clear" }));
-      expect(onChange).toHaveBeenLastCalledWith({ frequency: { kind: "weeks", every: 4 } });
-      expect(screen.getByText("4 weeks after it arrives")).toBeInTheDocument();
-    });
+  it("from the shop, asks no first renewal day: it counts from delivery", () => {
+    show({ value: { frequency: { kind: "weeks", every: 4 } } });
+    expect(screen.queryByText("First renewal")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pick a day" })).not.toBeInTheDocument();
   });
 
-  describe("how often against how long it lasts", () => {
-    it("a monthly choice for something that lasts 3 weeks asks if it will last a month", () => {
-      show({ value: { frequency: { kind: "month_date", day: 25 } }, recommendedFrequencyWeeks: 3 });
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "Sure this will last a month? One pack lasts about 21 days, and a month is 30. Every 3 weeks keeps you covered.",
-      );
-    });
-
-    it("Ignore hides it, until she changes how often", () => {
-      show({ value: { frequency: { kind: "month_date", day: 25 } }, recommendedFrequencyWeeks: 3 });
-      fireEvent.click(screen.getByRole("button", { name: "Ignore" }));
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: "Later date" }));
-      expect(screen.getByRole("status")).toHaveTextContent("Sure this will last a month?");
-    });
-
-    it("going back to weeks takes it away", () => {
-      show({ value: { frequency: { kind: "month_date", day: 25 } }, recommendedFrequencyWeeks: 3 });
-      fireEvent.click(screen.getByRole("radio", { name: "Every few weeks" }));
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    });
-
-    it("a monthly choice for something that lasts 8 weeks says there is more than a month", () => {
-      show({ value: { frequency: { kind: "month_weekday", nth: 1, weekday: 2 } }, recommendedFrequencyWeeks: 8 });
-      expect(screen.getByRole("status")).toHaveTextContent("Sure you need it every month? One pack lasts about 56 days");
-    });
-
-    it("monthly for something that lasts a month needs no check", () => {
-      show({ value: { frequency: { kind: "month_date", day: 25 } }, recommendedFrequencyWeeks: 4 });
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    });
-
-    it("a weekly choice gets no check", () => {
-      show({ value: { frequency: { kind: "weeks", every: 2 } }, recommendedFrequencyWeeks: 3 });
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    });
-
-    it("counts the quantity: two that last 2 weeks each last 4", () => {
-      show({ value: { frequency: { kind: "month_date", day: 25 } }, recommendedFrequencyWeeks: 2, quantity: 2 });
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    });
-
-    it("says packs for more than one", () => {
-      show({ value: { frequency: { kind: "month_date", day: 25 } }, recommendedFrequencyWeeks: 1, quantity: 2 });
-      expect(screen.getByRole("status")).toHaveTextContent("2 packs last about 14 days");
-    });
+  it("asks nothing about whether monthly will last, whatever the pack", () => {
+    show({ value: { frequency: { kind: "month_date", day: 25 } }, recommendedFrequencyWeeks: 3 });
+    expect(screen.queryByText(/Sure this will last a month/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("explains how it works in place, when asked", () => {

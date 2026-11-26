@@ -4,14 +4,23 @@ import { describe, expect, it, vi } from "vitest";
 import type { SubscribedItem } from "@/lib/subscriptionBoxes";
 import { ItemDrawer } from "./ItemDrawer";
 
+// "Monthly, on a particular date" starts on today's date: pin today to Wed 25 Nov so these tests do not depend on
+// the day they run. A caller that passes its own moment still gets the real answer.
+vi.mock("@/lib/lagosDay", async (original) => {
+  const real = await original<typeof import("@/lib/lagosDay")>();
+  return { ...real, lagosToday: (now?: Date) => (now ? real.lagosToday(now) : "2026-11-25") };
+});
+
+
 const item = (over: Partial<SubscribedItem> = {}): SubscribedItem => ({
   id: "s1", status: "active", variantId: "jumbo-3", productId: "p1", productName: "Kisskids Superdry baby diaper", brand: "Kisskids", slug: "diapers",
   variantLabel: "Jumbo · Size 3", imageUrl: null, quantity: 2, unitPriceKobo: 450_000, regularPriceKobo: 500_000, subscriptionPriceKobo: 450_000,
   recommendedFrequencyWeeks: null, frequency: { kind: "weeks", every: 4 }, frequencyLabel: "Every 4 weeks", nextDue: "2026-11-25", boxId: null, problem: null, enrolSource: null, ...over,
 });
 
-function show(over: Partial<SubscribedItem> = {}) {
+function show(over: Partial<SubscribedItem> = {}, preview: (f: unknown) => Promise<string> = vi.fn().mockResolvedValue("2026-12-08")) {
   const calls = {
+    onPreviewFrequency: vi.fn(preview),
     onClose: vi.fn(),
     onQuantity: vi.fn().mockResolvedValue(true),
     onFrequency: vi.fn().mockResolvedValue(true),
@@ -138,5 +147,34 @@ describe("the main buttons", () => {
     const button = screen.getByRole("button", { name });
     expect(button).toHaveClass("justify-center", "bg-shop-cta");
     expect(button).not.toHaveClass("bg-shop-ink");
+  });
+});
+
+describe("the next date, before she saves a new frequency", () => {
+  it("shows the next date as it is, until she changes anything (and asks the server nothing)", () => {
+    const calls = show();
+    fireEvent.click(dialog().getByRole("button", { name: /Change renewal frequency/ }));
+    expect(dialog().getByText("Next: Wed 25 Nov")).toBeInTheDocument();
+    expect(calls.onPreviewFrequency).not.toHaveBeenCalled();
+  });
+
+  it("shows when the next one would be with what she picked, worked out by the server, before she saves", async () => {
+    const calls = show({ frequency: { kind: "month_date", day: 25 }, frequencyLabel: "On the 25th of every month", nextDue: "2026-12-25" });
+    fireEvent.click(dialog().getByRole("button", { name: /Change renewal frequency/ }));
+    fireEvent.click(dialog().getByRole("radio", { name: "Monthly, on a particular day" }));
+    expect(await dialog().findByText("Next: Tue 8 Dec")).toBeInTheDocument();
+    expect(calls.onPreviewFrequency).toHaveBeenCalledWith({ kind: "month_weekday", nth: 1, weekday: 1 });
+    expect(calls.onFrequency).not.toHaveBeenCalled();
+  });
+
+  it("says it is working it out meanwhile, and shows nothing if it cannot", async () => {
+    let fail: (e: Error) => void = () => {};
+    show({}, () => new Promise((_, reject) => (fail = reject)));
+    fireEvent.click(dialog().getByRole("button", { name: /Change renewal frequency/ }));
+    fireEvent.click(dialog().getByRole("button", { name: "More weeks" }));
+    expect(await dialog().findByText("Working out the next date…")).toBeInTheDocument();
+    fail(new Error("offline"));
+    await waitFor(() => expect(dialog().queryByText("Working out the next date…")).toBeNull());
+    expect(dialog().queryByText(/^Next:/)).toBeNull();
   });
 });

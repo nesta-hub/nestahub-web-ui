@@ -7,6 +7,14 @@ import type { ProductDetail, ProductVariant } from "@/lib/api";
 import { DesktopProductDetailContent } from "./DesktopProductDetailContent";
 import { ProductDetailContent } from "./ProductDetailContent";
 
+// "Monthly, on a particular date" starts on today's date: pin today to Wed 25 Nov so these tests do not depend on
+// the day they run. A caller that passes its own moment still gets the real answer.
+vi.mock("@/lib/lagosDay", async (original) => {
+  const real = await original<typeof import("@/lib/lagosDay")>();
+  return { ...real, lagosToday: (now?: Date) => (now ? real.lagosToday(now) : "2026-11-25") };
+});
+
+
 /**
  * The product page, mobile and desktop, in both modes: the new Subscribe card when the experience is on, and
  * the old One-Time / Subscribe & Save choice exactly as it was when it is off.
@@ -14,6 +22,8 @@ import { ProductDetailContent } from "./ProductDetailContent";
 
 const flag = vi.hoisted(() => ({ on: true }));
 vi.mock("@/hooks/useSubscribeEnabled", () => ({ useSubscribeEnabled: () => flag.on }));
+// She has no subscriptions here (the page that shows one she has is tested in ShopProductPage.test.tsx).
+vi.mock("@/hooks/useSubscribedItems", () => ({ useSubscribedItems: () => () => null }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/metaPixel", () => ({ metaPixel: { addToCart: vi.fn() } }));
 
@@ -115,14 +125,13 @@ describe.each(PAGES)("the %s product page", (_name, Page) => {
       expect(cart()[0]).not.toHaveProperty("firstRenewalDate");
     });
 
-    it("carries a first renewal day for weekly, and a monthly choice as 4 weeks with no day", () => {
+    it("weekly carries no first renewal day from the shop: it counts from delivery", () => {
       show();
       fireEvent.click(subscribeSwitch());
-      fireEvent.click(screen.getByRole("button", { name: "Pick a day" }));
-      const tomorrow = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
-      fireEvent.change(screen.getByLabelText("Day of the first renewal"), { target: { value: tomorrow } });
+      expect(screen.queryByRole("button", { name: "Pick a day" })).not.toBeInTheDocument();
       addToCart();
-      expect(cart()[0]).toMatchObject({ renewalFrequency: { kind: "weeks", every: 3 }, firstRenewalDate: tomorrow });
+      expect(cart()[0]).toMatchObject({ renewalFrequency: { kind: "weeks", every: 3 } });
+      expect(cart()[0].firstRenewalDate).toBeUndefined();
     });
 
     it("a monthly choice is stored as 4 weeks for the old column", () => {
@@ -133,14 +142,11 @@ describe.each(PAGES)("the %s product page", (_name, Page) => {
       expect(cart()[0]).toMatchObject({ isAutoRenew: true, frequencyWeeks: 4, renewalFrequency: { kind: "month_date", day: 25 } });
     });
 
-    it("quantity changes how long it lasts, and the nudge follows", () => {
+    it("asks nothing about whether monthly will last", () => {
       show();
       fireEvent.click(subscribeSwitch());
       fireEvent.click(screen.getByRole("radio", { name: "Monthly, on a particular date" }));
-      expect(screen.getByRole("status")).toHaveTextContent("One pack lasts about 21 days");
-      // The quantity control's buttons have no names: minus first, plus second.
-      fireEvent.click(screen.getAllByRole("button", { name: "" })[1]);
-      expect(screen.getByRole("status")).toHaveTextContent("2 packs last about 42 days");
+      expect(screen.queryByText(/Sure this will last a month/)).not.toBeInTheDocument();
     });
 
     it("a size that cannot be subscribed to shows no card, and a choice made on another size does not follow it", () => {

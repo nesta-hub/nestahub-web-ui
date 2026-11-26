@@ -66,9 +66,9 @@ describe("the Make changes drawer, drawn as the design has it", () => {
 
   it("offers the methods as pills, and her address as a picked radio row with 'Change address' under it", async () => {
     const sheet = drawer("location");
-    expect(sheet.getAllByRole("button", { pressed: true }).map((b) => b.textContent)).toEqual(["Community Delivery"]);
-    expect(sheet.getByRole("button", { name: "Instant Delivery", pressed: false })).toBeInTheDocument();
-    expect(sheet.getByRole("button", { name: "Pick-up", pressed: false })).toBeInTheDocument();
+    expect(sheet.getAllByRole("button", { pressed: true }).map((b) => b.textContent?.split(" · ")[0])).toEqual(["Community Delivery"]);
+    expect(sheet.getByRole("button", { name: /^Instant Delivery/, pressed: false })).toBeInTheDocument();
+    expect(sheet.getByRole("button", { name: /^Pick-up/, pressed: false })).toBeInTheDocument();
     expect(sheet.getByText("12 Soluyi Road")).toBeInTheDocument();
     expect(sheet.getByRole("button", { name: "Change address" })).toBeInTheDocument();
     expect(sheet.queryByText(/^Now:/)).toBeNull();
@@ -76,7 +76,7 @@ describe("the Make changes drawer, drawn as the design has it", () => {
 
   it("lists the pick-up stations with their address and their day and hours", async () => {
     const sheet = drawer("location");
-    fireEvent.click(sheet.getByRole("button", { name: "Pick-up" }));
+    fireEvent.click(sheet.getByRole("button", { name: /^Pick-up/ }));
     expect(await sheet.findByText("Gbagada station")).toBeInTheDocument();
     expect(sheet.getByText("4 Diya St")).toBeInTheDocument();
     expect(sheet.getByText("Tuesdays · 10am to 4pm")).toBeInTheDocument();

@@ -174,3 +174,64 @@ describe("editing the profile", () => {
     await waitFor(() => expect(updateWhatsAppNumber).toHaveBeenCalledWith({ useProfilePhone: true }));
   });
 });
+
+describe("her WhatsApp number on the account page, once she has one", () => {
+  const confirmed = (extra: Record<string, unknown> = {}) =>
+    signedIn({ phone: "8012345678", whatsappNumber: "2348012345678", whatsappConfirmedAt: "2026-11-20T10:00:00.000Z", ...extra });
+  const editProfile = () => fireEvent.click(screen.getByRole("button", { name: "Edit profile" }));
+  const field = () => screen.getByLabelText("WhatsApp number", { selector: "input" });
+  const save = () => fireEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+
+  it("shows under her email, with the WhatsApp logo (and the word, for screen readers)", async () => {
+    confirmed();
+    await open();
+    const line = screen.getByTestId("profile-whatsapp");
+    expect(line).toHaveTextContent("WhatsApp: 0801 234 5678");
+    expect(line.querySelector("svg")).not.toBeNull();
+    expect(line.querySelector(".sr-only")).toHaveTextContent("WhatsApp:");
+  });
+
+  it.each([
+    ["she has not confirmed one", { whatsappConfirmedAt: undefined }],
+    ["she replied STOP", { whatsappOptedOutAt: "2026-11-21T10:00:00.000Z" }],
+  ])("is not shown when %s", async (_why, extra) => {
+    confirmed(extra);
+    await open();
+    expect(screen.queryByTestId("profile-whatsapp")).toBeNull();
+  });
+
+  it("is not shown with the new experience off", async () => {
+    useSubscribeEnabled.mockReturnValue(false);
+    confirmed();
+    await open();
+    expect(screen.queryByTestId("profile-whatsapp")).toBeNull();
+  });
+
+  it("can be changed from Edit profile, and only a changed number is saved", async () => {
+    confirmed();
+    await open();
+    editProfile();
+    expect(field()).toHaveValue("0801 234 5678");
+    save();
+    await waitFor(() => expect(updatePhone).toHaveBeenCalled());
+    expect(updateWhatsAppNumber).not.toHaveBeenCalled();
+  });
+
+  it("saves a new number she types", async () => {
+    confirmed();
+    await open();
+    editProfile();
+    fireEvent.change(field(), { target: { value: "0903 555 1212" } });
+    save();
+    await waitFor(() => expect(updateWhatsAppNumber).toHaveBeenCalledWith({ whatsappNumber: "0903 555 1212" }));
+  });
+
+  it("will not save a number that is not a Nigerian mobile, and says why", async () => {
+    confirmed();
+    await open();
+    editProfile();
+    fireEvent.change(field(), { target: { value: "12345" } });
+    expect(screen.getByText("Enter a Nigerian mobile number, like 0801 234 5678.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Save changes/ })).toBeDisabled();
+  });
+});

@@ -1,12 +1,10 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Minus, Plus, RefreshCw, Share2, X, ZoomIn } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { Link } from "react-router-dom";
 import { SubscribeChoiceFields } from "@/components/subscribe-card/SubscribeChoiceFields";
-import { startingChoice, subscribeFields, type SubscribeChoice } from "@/components/subscribe-card/choice";
+import { startingChoice, type SubscribeChoice } from "@/components/subscribe-card/choice";
 import { VariantPicker } from "@/components/subscription-tab/VariantPicker";
 import { selectionOf, variantFor } from "@/components/subscription-tab/variantChoices";
-import { useCart } from "@/contexts/CartContext";
 import { useProductDetail } from "@/hooks/useCatalogue";
 import { formatPrice, type ProductDetail } from "@/lib/api";
 import { apiProductToCatalogue, defaultSelectedAttrs } from "@/lib/catalogueAdapter";
@@ -27,8 +25,6 @@ interface Props {
   /** Back to the list, with nothing done. */
   onBack: () => void;
   onSubscribe: (item: CatalogItem, input: EnrolInput) => Promise<EnrolOutcome>;
-  /** Subscribe switched off and the item put in her cart: back to the list. */
-  onAddedToCart: () => void;
 }
 
 const roundButton =
@@ -47,12 +43,10 @@ function startingSelection(view: ProductDetail, items: CatalogItem[]): Record<st
 
 /**
  * A product she can subscribe to, as a full page, opened from "Subscribe to something else": the picture, the name and
- * price, the type and size, how many, and the Subscribe card, which starts switched on. Subscribe signs her up without
- * buying it first. Switched off, it is an ordinary product page and the button puts it in her cart.
+ * subscription price, the type and size, how many, how often and the day of her first order. Subscribe signs her up
+ * without buying it first; there is no one-time purchase here.
  */
-export function SubscribeProductPage({ items, onBack, onSubscribe, onAddedToCart }: Props) {
-  const navigate = useNavigate();
-  const { addToCart } = useCart();
+export function SubscribeProductPage({ items, onBack, onSubscribe }: Props) {
   const first = items[0];
   const { data: detail, isLoading } = useProductDetail(first.slug ?? first.productId);
 
@@ -61,7 +55,6 @@ export function SubscribeProductPage({ items, onBack, onSubscribe, onAddedToCart
   // Without the product's details (they did not load), the size is picked from the list's own labels.
   const [pickedId, setPickedId] = useState(() => (items.find((item) => !item.subscribed) ?? first).variantId);
   const [quantity, setQuantity] = useState(MIN_QUANTITY);
-  const [on, setOn] = useState(true);
   // Her own choice of how often, once she makes one. Until then it follows how long what she picked lasts.
   const [ownChoice, setOwnChoice] = useState<SubscribeChoice | null>(null);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
@@ -77,7 +70,7 @@ export function SubscribeProductPage({ items, onBack, onSubscribe, onAddedToCart
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-shop-page">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-shop-page">
         <p className="animate-pulse text-sm text-shop-muted">Loading product…</p>
       </div>
     );
@@ -96,14 +89,8 @@ export function SubscribeProductPage({ items, onBack, onSubscribe, onAddedToCart
 
   const { payKobo } = item ? priceFor(item) : { payKobo: 0 };
   const choice = ownChoice ?? startingChoice(item?.recommendedFrequencyWeeks, quantity);
-  const totalKobo = item ? (on ? payKobo : item.priceKobo) * quantity : null;
-  const alreadyHave = on && !!item?.subscribed;
-
-  const switchTo = (next: boolean) => {
-    setOn(next);
-    setOwnChoice(null);
-    setError(null);
-  };
+  const totalKobo = item ? payKobo * quantity : null;
+  const alreadyHave = !!item?.subscribed;
 
   const subscribe = async () => {
     if (!item || busy) return;
@@ -121,38 +108,10 @@ export function SubscribeProductPage({ items, onBack, onSubscribe, onAddedToCart
     }
   };
 
-  const addItemToCart = () => {
-    if (!item) return;
-    const attributes = usable ? (apiProductToCatalogue(usable).attributes ?? []) : [];
-    const [typeAttr, sizeAttr] = attributes;
-    addToCart(
-      {
-        variantId: item.variantId,
-        productId: item.productId,
-        productName: name,
-        brand: detail?.brand ?? item.brand ?? "",
-        slug: detail?.slug ?? item.slug ?? "",
-        typeId: (typeAttr ? selected[typeAttr.name] : null) || "_default",
-        typeName: typeAttr?.values.find((v) => v.id === selected[typeAttr.name])?.name || "",
-        sizeId: sizeAttr ? selected[sizeAttr.name] : undefined,
-        sizeName: sizeAttr?.values.find((v) => v.id === selected[sizeAttr.name])?.name,
-        attributes: variant?.attributes.map((a) => ({ attributeName: a.attributeName, value: a.value, displayValue: a.displayValue })),
-        unitPrice: item.priceKobo,
-        image: image || undefined,
-        ...subscribeFields(null),
-        subscriptionPrice: item.subscriptionPriceKobo ?? undefined,
-        recommendedFrequencyWeeks: item.recommendedFrequencyWeeks ?? undefined,
-      },
-      quantity,
-    );
-    toast.success("Added to cart", { duration: 3000, action: { label: "Go to Cart", onClick: () => navigate("/cart") } });
-    onAddedToCart();
-  };
-
   const message = error ?? (alreadyHave ? "You already subscribe to this one." : null);
 
   return (
-    <div role="dialog" aria-label={name} className="fixed inset-0 z-50 flex flex-col bg-shop-page text-shop-ink">
+    <div role="dialog" aria-label={name} className="fixed inset-0 z-[60] flex flex-col bg-shop-page text-shop-ink">
       <div className={cn("min-h-0 flex-1 overflow-y-auto", message ? "pb-[150px]" : "pb-[124px]")}>
         {/* Top bar */}
         <div className="box-border flex h-16 items-center justify-between px-3 pt-3">
@@ -182,7 +141,7 @@ export function SubscribeProductPage({ items, onBack, onSubscribe, onAddedToCart
           <div className="min-w-0 flex-1">
             <h1 className="m-0 text-[22px] font-extrabold leading-[27px] tracking-[-0.015em]">{name}</h1>
             {label && <p className="mt-[3px] text-[13px] leading-[18px] text-shop-muted">{label}</p>}
-            <p className="mt-0.5 text-[20px] font-extrabold leading-7 tracking-[-0.01em]">{item ? formatPrice(item.priceKobo * quantity) : "—"}</p>
+            <p className="mt-0.5 text-[20px] font-extrabold leading-7 tracking-[-0.01em]">{totalKobo === null ? "—" : formatPrice(totalKobo)}</p>
           </div>
         </div>
 
@@ -256,7 +215,7 @@ export function SubscribeProductPage({ items, onBack, onSubscribe, onAddedToCart
         )}
 
         {/* Quantity */}
-        <div className="flex items-center justify-between px-5 pt-3.5">
+        <div className="flex items-center justify-between px-5 pt-4">
           <span className={smallCaps}>Quantity</span>
           <span className="flex items-center gap-1.5">
             <button type="button" aria-label="Fewer" disabled={quantity <= MIN_QUANTITY} onClick={() => setQuantity((q) => Math.max(MIN_QUANTITY, q - 1))} className={stepButton}>
@@ -273,19 +232,12 @@ export function SubscribeProductPage({ items, onBack, onSubscribe, onAddedToCart
 
         {/* Subscribe */}
         <section aria-label="Subscribe" className="mx-5 mt-4 rounded-[24px] border border-[#E5E0DC] bg-white p-[15px]">
-          <div className="flex items-center gap-2.5">
-            <span aria-hidden="true" className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-[#DDE3DA] text-[#46564A]">
-              <RefreshCw className="h-6 w-6" strokeWidth={1.9} />
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#DDE3DA] text-[#46564A]">
+              <RefreshCw className="h-5 w-5" strokeWidth={1.9} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="m-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[16px] font-extrabold leading-[22px]">
-                Subscribe
-                {item && (
-                  <span className="whitespace-nowrap rounded-full bg-[#DDE3DA] px-[9px] py-[3px] text-[12px] font-extrabold leading-[18px] text-[#34443A]">
-                    and pay {formatPrice(payKobo * quantity)}
-                  </span>
-                )}
-              </p>
+              <p className="m-0 text-[16px] font-extrabold leading-[22px]">Subscribe</p>
               <p className="mt-0.5 text-[12.5px] font-medium leading-[17px] text-shop-muted">
                 Never run out or come back to reorder.{" "}
                 <button
@@ -297,29 +249,20 @@ export function SubscribeProductPage({ items, onBack, onSubscribe, onAddedToCart
                 </button>
               </p>
             </div>
-            <button type="button" role="switch" aria-checked={on} aria-label="Subscribe to this item" onClick={() => switchTo(!on)} className="relative h-11 w-12 shrink-0">
-              <span className={cn("absolute left-0 top-[7px] h-[30px] w-12 rounded-[15px] transition-colors duration-200", on ? "bg-shop-brown" : "bg-[#D5CCC1]")} />
-              <span
-                className={cn(
-                  "absolute top-[9px] h-[26px] w-[26px] rounded-full bg-white shadow-[0_2px_4px_rgba(51,38,28,0.3)] transition-[left] duration-200",
-                  on ? "left-5" : "left-0.5",
-                )}
-              />
-            </button>
           </div>
 
-          {/* How often, and the first renewal, while Subscribe is on */}
-          {on && item && (
+          {/* How often, and the day of the first order */}
+          {item && (
             <div className="mt-3.5 border-t border-[#EEE8E1] pt-3.5">
               <p className={cn(smallCaps, "mb-2.5")}>Renewal frequency</p>
-              <SubscribeChoiceFields value={choice} onChange={setOwnChoice} recommendedFrequencyWeeks={item.recommendedFrequencyWeeks} quantity={quantity} />
+              <SubscribeChoiceFields value={choice} onChange={setOwnChoice} firstOrder />
             </div>
           )}
         </section>
         <div className="h-6" />
       </div>
 
-      {/* Subscribe (or Add to cart), pinned */}
+      {/* Subscribe, pinned */}
       <div className="absolute inset-x-0 bottom-0 box-border min-h-[100px] border-t border-shop-line bg-shop-cream/[0.96] px-5 pb-8 pt-3 backdrop-blur-[14px]">
         {message && (
           <p role="alert" className="mb-2.5 text-center text-[13px] font-bold leading-[18px] text-[#9A4A3A]">
@@ -337,10 +280,10 @@ export function SubscribeProductPage({ items, onBack, onSubscribe, onAddedToCart
         <button
           type="button"
           disabled={!item || busy || alreadyHave}
-          onClick={() => (on ? void subscribe() : addItemToCart())}
+          onClick={() => void subscribe()}
           className="flex h-14 w-full items-center justify-between rounded-[28px] bg-shop-cta pl-6 pr-2 text-[15px] font-extrabold text-shop-cream hover:bg-shop-cta-hover disabled:opacity-50"
         >
-          <span>{busy ? "One moment…" : on ? "Subscribe" : "Add to cart"}</span>
+          <span>{busy ? "One moment…" : "Subscribe"}</span>
           <span className="flex items-center gap-2.5">
             <span className="tabular-nums">{totalKobo === null ? "" : formatPrice(totalKobo)}</span>
             <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-shop-cream text-shop-cta">

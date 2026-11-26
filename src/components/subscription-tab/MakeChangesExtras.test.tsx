@@ -22,7 +22,14 @@ vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => auth.value }));
 
 vi.mock("@/components/layout/MobileMenu", () => ({ MobileMenu: () => <button type="button">menu</button> }));
 vi.mock("@/components/cart/HeaderCartIcon", () => ({ HeaderCartIcon: () => <button type="button">cart</button> }));
-vi.mock("@/components/checkout/CheckoutAddressSection", () => ({ CheckoutAddressSection: () => <div /> }));
+vi.mock("@/components/checkout/CheckoutAddressSection", () => ({
+  CheckoutAddressSection: ({ headerAction }: { headerAction?: React.ReactNode }) => (
+    <div data-testid="address-search">
+      <h3>Enter Delivery Address</h3>
+      {headerAction}
+    </div>
+  ),
+}));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 // ---- fixtures -------------------------------------------------------------------------------
@@ -75,8 +82,44 @@ describe("the Make changes menu", () => {
   it("has three options with the delivery method above the date, and 'Add extra items' is not one of them (it is a button on the order)", async () => {
     drawer();
     const rows = (await screen.findAllByRole("button")).map((b) => b.textContent);
-    expect(rows.slice(0, 3).map((t) => t?.replace(/\s+/g, " ").trim())).toEqual(["Remove an item", "Change delivery methodCommunity Delivery", "Change delivery dateTue 24 Nov"]);
+    expect(rows.slice(0, 3).map((t) => t?.replace(/\s+/g, " ").trim())).toEqual([
+      "Remove an item",
+      "Change delivery methodCommunity Delivery · 12 Soluyi Road",
+      "Change delivery dateTue 24 Nov",
+    ]);
     expect(screen.queryByRole("button", { name: /Add extra items/ })).toBeNull();
+  });
+
+  it("shows how and where the order goes under 'Change delivery method', so she can see the address can change too", async () => {
+    drawer();
+    const where = await screen.findByText("Community Delivery · 12 Soluyi Road");
+    expect(where).toHaveClass("truncate");
+  });
+
+  it("for pick-up, names the station", async () => {
+    drawer({ box: box({ delivery: { type: "pickup", zoneName: null, address: null, lat: null, lng: null, pickupStationId: "st1", pickupStationName: "Yaba station" } }) });
+    expect(await screen.findByText("Pick-up · Yaba station")).toBeInTheDocument();
+  });
+});
+
+describe("changing a pick-up order to delivery", () => {
+  const pickupBox = () => box({ delivery: { type: "pickup", zoneName: null, address: null, lat: null, lng: null, pickupStationId: "st1", pickupStationName: "Yaba station" } });
+
+  it("starts from her last delivery address, so Community Delivery is offered again", async () => {
+    const { loadDeliveryOptions } = drawer({ box: pickupBox(), startOn: "location", lastAddress: { address: "3 Faramobi Ajike St", lat: 6.55, lng: 3.38 } });
+    expect(await screen.findByRole("button", { name: /^Community Delivery · ₦500/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Pick-up/ })).toHaveAttribute("aria-pressed", "true");
+    expect(loadDeliveryOptions).toHaveBeenCalledWith(6.55, 3.38);
+    fireEvent.click(screen.getByRole("button", { name: /^Community Delivery/ }));
+    expect(screen.getByText("3 Faramobi Ajike St")).toBeInTheDocument();
+    expect(screen.getByText("Your last delivery address")).toBeInTheDocument();
+  });
+
+  it("with no address ever used, it cannot know yet: Community Delivery comes once she enters one", async () => {
+    const { loadDeliveryOptions } = drawer({ box: pickupBox(), startOn: "location" });
+    expect(await screen.findByRole("button", { name: /^Instant Delivery/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Community Delivery/ })).toBeNull();
+    expect(loadDeliveryOptions).not.toHaveBeenCalled();
   });
 });
 
@@ -131,6 +174,68 @@ describe("removing things from the order", () => {
     const sheet = await openRemove();
     expect(sheet.getByRole("button", { name: "Remove Baby wipes" })).toBeEnabled();
     expect(sheet.queryByText(/An order needs at least one item/)).toBeNull();
+  });
+});
+
+describe("the delivery method pills carry their price", () => {
+  it("each pill says what that way costs once known; pick-up is free", async () => {
+    drawer();
+    fireEvent.click(await screen.findByRole("button", { name: /Change delivery method/ }));
+    expect(await screen.findByRole("button", { name: "Community Delivery · ₦500" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Instant Delivery · ₦1,500" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pick-up · Free" })).toBeInTheDocument();
+  });
+});
+
+describe("the address under the delivery method", () => {
+  it("has 'Change address' right under it, as a small link (not a big dashed button), with no line between", async () => {
+    drawer();
+    fireEvent.click(await screen.findByRole("button", { name: /Change delivery method/ }));
+    const change = await screen.findByRole("button", { name: "Change address" });
+    const row = screen.getByText("12 Soluyi Road").closest("div")!;
+    expect(row).toContainElement(change);
+    expect(row.className).not.toMatch(/border-b/);
+    expect(change.className).not.toMatch(/dashed/);
+    expect(change).toHaveClass("underline");
+  });
+});
+
+describe("changing the address, then changing her mind", () => {
+  it("Cancel under the address search goes back to the address she had, with nothing changed", async () => {
+    const h = drawer();
+    fireEvent.click(await screen.findByRole("button", { name: /Change delivery method/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Change address" }));
+    expect(screen.queryByText("12 Soluyi Road")).toBeNull();
+    // Cancel sits on the "Enter Delivery Address" row.
+    expect(within(screen.getByTestId("address-search")).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByText("12 Soluyi Road")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change address" })).toBeInTheDocument();
+    expect(h.onChangeLocation).not.toHaveBeenCalled();
+  });
+});
+
+describe("which days 'Change delivery date' offers, in words", () => {
+  const openDates = async () => fireEvent.click(await screen.findByRole("button", { name: /Change delivery date/ }));
+
+  it("Community Delivery: these are the area's days; for another day, switch to Instant first (and a link goes there)", async () => {
+    drawer();
+    await openDates();
+    expect(await screen.findByText(/These are the next Community Delivery days for your area\. For a different day, change the delivery method to Instant Delivery first/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Change delivery method" }));
+    expect(await screen.findByText("How should this order reach you?")).toBeInTheDocument();
+  });
+
+  it("Instant Delivery: the next Instant days", async () => {
+    drawer({ box: box({ delivery: { type: "instant", zoneName: null, address: "3 Faramobi Ajike St", lat: 6.56, lng: 3.37, pickupStationId: null, pickupStationName: null } }) });
+    await openDates();
+    expect(await screen.findByText("These are the next days we deliver by Instant Delivery. Pick one and save.")).toBeInTheDocument();
+  });
+
+  it("Pick-up: the station's next pick-up days", async () => {
+    drawer({ box: box({ delivery: { type: "pickup", zoneName: null, address: null, lat: null, lng: null, pickupStationId: "st1", pickupStationName: "Yaba station" } }) });
+    await openDates();
+    expect(await screen.findByText("These are the next pick-up days at Yaba station. Pick one and save.")).toBeInTheDocument();
   });
 });
 

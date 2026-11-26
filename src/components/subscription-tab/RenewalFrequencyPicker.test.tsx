@@ -3,6 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import type { RenewalFrequency } from "@/lib/subscriptionBoxes";
 import { RenewalFrequencyPicker } from "./RenewalFrequencyPicker";
 
+// "Monthly, on a particular date" starts on today's date: pin today to Wed 25 Nov so these tests do not depend on
+// the day they run. A caller that passes its own moment still gets the real answer.
+vi.mock("@/lib/lagosDay", async (original) => {
+  const real = await original<typeof import("@/lib/lagosDay")>();
+  return { ...real, lagosToday: (now?: Date) => (now ? real.lagosToday(now) : "2026-11-25") };
+});
+
+
 const show = (value: RenewalFrequency) => {
   const onChange = vi.fn();
   render(<RenewalFrequencyPicker value={value} onChange={onChange} />);

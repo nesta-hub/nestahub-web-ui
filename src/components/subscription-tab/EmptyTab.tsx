@@ -1,6 +1,11 @@
 import { Bell, RefreshCw, Wallet } from "lucide-react";
 import { AddItemButton } from "./AddItemButton";
 import { UsualBuys } from "./UsualBuys";
+import { brandedName, formatDay, type SubscribedItem } from "@/lib/subscriptionBoxes";
+import { cn } from "@/lib/utils";
+import { Thumb } from "./Thumb";
+
+const CHIP = "inline-block rounded-full bg-white/70 px-[9px] py-[3px] text-[9.5px] font-extrabold leading-3 tracking-[0.14em] text-[#46564A]";
 
 const STEPS = [
   { icon: Bell, label: "You get reminders" },
@@ -37,13 +42,55 @@ export function EmptyTab() {
   );
 }
 
-/** Items are subscribed, but nothing is due yet. */
-export function NothingDueCard({ nextDue }: { nextDue: string | null }) {
+/**
+ * Items are subscribed, but no order is waiting yet. It takes the next-order card's place, so it is drawn the same way:
+ * the chip, the day as the heading, what will be in it, and a plain status where the order card's status goes.
+ */
+export function NothingDueCard({ nextDue, dueThen = [] }: { nextDue: string | null; dueThen?: SubscribedItem[] }) {
   return (
-    <section className="rounded-[28px] bg-[#DDE3DA] p-5 shadow-[0_10px_24px_-14px_rgba(51,38,28,0.4)]">
-      <span className="inline-block rounded-full bg-white/70 px-[9px] py-[3px] text-[9.5px] font-extrabold leading-3 tracking-[0.14em] text-[#46564A]">ALL SET</span>
-      <h2 className="mt-2 text-[22px] font-extrabold leading-7 tracking-[-0.02em] text-shop-ink">Nothing to pay right now</h2>
-      <p className="mt-1 text-[14px] leading-5 text-[#34443A]">{nextDue ? "We will remind you before your next order is due." : "Your items are paused."}</p>
+    <section
+      aria-label="Nothing to pay right now"
+      className="relative overflow-hidden rounded-[28px] bg-[#DDE3DA] p-5 shadow-[0_10px_24px_-14px_rgba(51,38,28,0.4)]"
+    >
+      <span aria-hidden="true" className="absolute -right-12 -top-16 h-[200px] w-[200px] rounded-full bg-[#E6EBE3]" />
+      <div className="relative">
+        {nextDue ? (
+          <>
+            <span className={CHIP}>UPCOMING ORDER</span>
+            <h2 className="mt-2 text-[32px] font-extrabold leading-[38px] tracking-[-0.025em] text-shop-ink">{formatDay(nextDue)}</h2>
+            {dueThen.length > 0 && (
+              <div className="mt-3.5 flex items-center gap-3 rounded-[18px] bg-white/[0.72] px-3 py-2.5">
+                <span className="flex items-center">
+                  {dueThen.slice(0, 3).map((item, i) => (
+                    <span key={item.id} className={cn("h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[#EFEAE4] ring-2 ring-[#EEF1EB]", i > 0 && "-ml-2.5")}>
+                      <Thumb src={item.imageUrl} />
+                    </span>
+                  ))}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-1.5 text-[13px] font-bold leading-[18px] text-shop-ink">
+                  {dueThen.map((item) => (
+                    <span key={item.id} className="block">
+                      <span className="block">{`${brandedName(item.brand, item.productName)} ×${item.quantity}`}</span>
+                      {item.variantLabel && <span className="block text-[12px] font-medium leading-4 text-[#46564A]">{item.variantLabel}</span>}
+                    </span>
+                  ))}
+                </span>
+              </div>
+            )}
+            <p role="status" className="mt-4 text-[13px] leading-[18px] text-[#34443A]">
+              <b className="font-extrabold text-shop-ink">Nothing to pay right now.</b> We will remind you before it is due.
+            </p>
+          </>
+        ) : (
+          <>
+            <span className={CHIP}>ALL PAUSED</span>
+            <h2 className="mt-2 text-[22px] font-extrabold leading-7 tracking-[-0.02em] text-shop-ink">Nothing coming up</h2>
+            <p role="status" className="mt-1 text-[13px] leading-[18px] text-[#34443A]">
+              <b className="font-extrabold text-shop-ink">Your items are paused.</b> Resume one to get your next order.
+            </p>
+          </>
+        )}
+      </div>
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CheckCircle } from "lucide-react";
+import { Check, CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,14 +12,68 @@ interface CheckoutSuccessViewProps {
   deliverySummary?: string | null;
   /** Something to show under the message (the offer to subscribe, after a shop order). */
   afterContent?: ReactNode;
+  /** The new Subscribe experience's look, with `afterContent` inside the same card as the message. Off: as before. */
+  subscribeDesign?: boolean;
 }
 
-export function CheckoutSuccessView({ orderId, paidWithGiftCard, paymentOption, deliverySummary, afterContent }: CheckoutSuccessViewProps) {
+function message(paidWithGiftCard: boolean | undefined, paymentOption: string | undefined): string {
+  if (paidWithGiftCard) return "Your order is confirmed! We'll send an email shortly with the details.";
+  if (paymentOption === "pay-on-delivery") return "Your order has been placed. We'll prepare it and get it to you. Pay when it arrives.";
+  return "We'll verify your payment and send a confirmation via Email. Please keep your phone handy!";
+}
+
+export function CheckoutSuccessView({ orderId, paidWithGiftCard, paymentOption, deliverySummary, afterContent, subscribeDesign }: CheckoutSuccessViewProps) {
   const navigate = useNavigate();
 
   const handleReturnShopping = () => {
     navigate("/catalogue");
   };
+
+  if (subscribeDesign) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-shop-page text-shop-ink">
+        <div className="min-h-0 flex-1 overflow-y-auto px-9 pb-4 pt-9">
+          <div className="flex flex-col items-center text-center">
+            <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-full bg-[#DDE3DA] text-[#46564A]">
+              <Check className="h-[30px] w-[30px]" strokeWidth={2.2} />
+            </span>
+            <h1 className="mt-3.5 text-[28px] font-extrabold leading-[34px] tracking-[-0.02em]">Order placed</h1>
+            <p className="mt-1.5 text-[15px] leading-[22px] text-shop-muted">
+              Order ID <b className="font-extrabold text-shop-ink">{orderId}</b>
+            </p>
+            {deliverySummary && (
+              <p className="mt-0.5 text-[13.5px] leading-5 text-shop-muted" data-testid="delivery-summary">
+                Delivery: {deliverySummary}
+              </p>
+            )}
+          </div>
+
+          {/* One card: the note about the order, then (when there is one) the Subscribe panel inside it. */}
+          <section aria-label="What happens next" className="mt-10 overflow-hidden rounded-[22px] border border-shop-line bg-white/55">
+            <p className="px-5 py-6 text-center text-[13.5px] leading-[21px] text-shop-muted">{message(paidWithGiftCard, paymentOption)}</p>
+            {afterContent}
+          </section>
+        </div>
+
+        <div className="flex shrink-0 flex-col gap-2 border-t border-shop-line bg-[rgba(251,249,246,0.96)] px-5 pb-4 pt-3">
+          <button
+            type="button"
+            onClick={() => navigate("/orders")}
+            className="flex h-[50px] w-full items-center justify-center rounded-[25px] border border-shop-line-soft bg-white text-[15px] font-extrabold text-shop-ink"
+          >
+            View Order Status
+          </button>
+          <button
+            type="button"
+            onClick={handleReturnShopping}
+            className="flex h-[50px] w-full items-center justify-center rounded-[25px] bg-shop-cta text-[15px] font-extrabold text-shop-cream hover:bg-shop-cta-hover"
+          >
+            Return to Shop
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">

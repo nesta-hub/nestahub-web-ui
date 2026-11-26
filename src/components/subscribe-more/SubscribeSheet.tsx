@@ -109,7 +109,7 @@ export function SubscribeSheet({ item, open, onClose, onSubscribe }: Props) {
 
         <div>
           <p className="mb-2.5 text-[15px] font-extrabold">How often</p>
-          <SubscribeChoiceFields value={choice} onChange={setChoice} recommendedFrequencyWeeks={item.recommendedFrequencyWeeks} quantity={quantity} />
+          <SubscribeChoiceFields value={choice} onChange={setChoice} firstOrder />
         </div>
 
         <div>

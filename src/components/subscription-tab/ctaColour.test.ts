@@ -31,7 +31,7 @@ describe("the Subscribe screens' buttons", () => {
 
   it("uses the Nesta Hub brown for the buttons that carry the main action", () => {
     const withCta = screens.filter(([, source]) => source.includes("bg-shop-cta")).map(([path]) => path.split("/").pop());
-    for (const name of ["BottomSheet.tsx", "NextOrderCard.tsx", "UsualBuys.tsx", "SubscribeSetup.tsx", "PendingExtrasBar.tsx", "ExtrasProductPage.tsx", "SubscribeProductPage.tsx", "BoxPayView.tsx"]) {
+    for (const name of ["BottomSheet.tsx", "NextOrderCard.tsx", "UsualBuys.tsx", "SubscribeSetup.tsx", "PendingExtrasBar.tsx", "ExtrasProductPage.tsx", "SubscribeProductPage.tsx"]) {
       expect(withCta).toContain(name);
     }
   });

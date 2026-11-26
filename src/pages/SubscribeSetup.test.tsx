@@ -6,6 +6,14 @@ import { toast } from "sonner";
 import { BOX_CODES, BoxApiError, type Offer, type OfferLine } from "@/lib/subscriptionBoxes";
 import SubscribeSetup from "./SubscribeSetup";
 
+// "Monthly, on a particular date" starts on today's date: pin today to Wed 25 Nov so these tests do not depend on
+// the day they run. A caller that passes its own moment still gets the real answer.
+vi.mock("@/lib/lagosDay", async (original) => {
+  const real = await original<typeof import("@/lib/lagosDay")>();
+  return { ...real, lagosToday: (now?: Date) => (now ? real.lagosToday(now) : "2026-11-25") };
+});
+
+
 const api = vi.hoisted(() => ({ offer: vi.fn(), subscribeFromOrder: vi.fn() }));
 vi.mock("@/lib/subscriptionBoxes", async (original) => ({ ...(await original<typeof import("@/lib/subscriptionBoxes")>()), subscriptionBoxesApi: api }));
 const status = vi.hoisted(() => ({ value: "on" as "on" | "off" | "loading" }));
@@ -140,7 +148,7 @@ describe("the setup page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Subscribe to Kisskids Diapers" }));
     const drawer = await screen.findByRole("dialog");
     fireEvent.click(within(drawer).getByRole("radio", { name: "Monthly, on a particular date" }));
-    expect(within(drawer).getByRole("status")).toHaveTextContent("Sure this will last a month?"); // it lasts 3 weeks
+    expect(within(drawer).queryByText(/Sure this will last a month/)).toBeNull();
     fireEvent.click(within(drawer).getByRole("button", { name: "Subscribe" }));
     // A drawer that is closing keeps the page behind it hidden from the accessibility tree (it never finishes
     // its exit animation in jsdom), so look for the button even when hidden.
@@ -150,18 +158,17 @@ describe("the setup page", () => {
     expect(api.subscribeFromOrder.mock.calls[0][2][0]).toEqual({ orderItemId: "i1", frequency: { kind: "month_date", day: 25 } });
   });
 
-  it("sends the first day she picked for a weekly item", async () => {
+  it("asks no first renewal day for a weekly item, and sends none: it counts from delivery", async () => {
     show();
     await screen.findByText("Kisskids Diapers");
     fireEvent.click(screen.getByRole("button", { name: "Subscribe to Baby wipes" }));
     const drawer = await screen.findByRole("dialog");
-    fireEvent.click(within(drawer).getByRole("button", { name: "Pick a day" }));
-    const day = new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10);
-    fireEvent.change(within(drawer).getByLabelText("Day of the first renewal"), { target: { value: day } });
+    expect(within(drawer).queryByText("First renewal")).toBeNull();
+    expect(within(drawer).queryByRole("button", { name: "Pick a day" })).toBeNull();
     fireEvent.click(within(drawer).getByRole("button", { name: "Subscribe" }));
     fireEvent.click(screen.getByRole("button", { name: "Done", hidden: true }));
     await waitFor(() => expect(api.subscribeFromOrder).toHaveBeenCalled());
-    expect(api.subscribeFromOrder.mock.calls[0][2][0]).toEqual({ orderItemId: "i2", frequency: { kind: "weeks", every: 4 }, firstDate: day });
+    expect(api.subscribeFromOrder.mock.calls[0][2][0]).toEqual({ orderItemId: "i2", frequency: { kind: "weeks", every: 4 } });
   });
 
   it("tells her what could not be done, in plain words, next to what could", async () => {

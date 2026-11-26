@@ -1,5 +1,6 @@
 import type { SubscribedItem } from "@/lib/subscriptionBoxes";
 import { BottomSheet } from "./BottomSheet";
+import { shortFrequency } from "@/lib/renewalFrequency";
 
 /** From the "we paused it" message: the paused items, each with a button to turn it back on. */
 export function ResumeDrawer({
@@ -25,7 +26,7 @@ export function ResumeDrawer({
             <span className="h-[46px] w-[46px] shrink-0 overflow-hidden rounded-[14px] bg-[#EFEAE4]">{item.imageUrl && <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />}</span>
             <span className="min-w-0 flex-1">
               <span className="block text-[14px] font-extrabold leading-[18px]">{item.productName}</span>
-              <span className="block text-[12px] leading-4 text-[#6B5F55]">{item.frequencyLabel}</span>
+              <span className="block text-[12px] leading-4 text-[#6B5F55]">{shortFrequency(item.frequency)}</span>
             </span>
             <button
               type="button"

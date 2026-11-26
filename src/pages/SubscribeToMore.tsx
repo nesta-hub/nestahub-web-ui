@@ -160,7 +160,7 @@ function AddScreen() {
               {/* The trailing space keeps the last tile off the edge once she scrolls to it. */}
               <ul
                 aria-label={section.name}
-                className="m-0 flex list-none snap-x snap-proximity scroll-px-5 gap-3 overflow-x-auto px-5 pb-1.5 pt-0.5 after:block after:w-2 after:shrink-0 after:content-['']"
+                className="scrollbar-hide m-0 flex list-none snap-x snap-proximity scroll-px-5 gap-3 overflow-x-auto px-5 pb-1.5 pt-0.5 after:block after:w-2 after:shrink-0 after:content-['']"
               >
                 {section.products.map((product) => (
                   <CatalogTile key={product.productId} product={product} onOpen={() => openProduct(product.productId)} />
@@ -172,7 +172,7 @@ function AddScreen() {
       )}
 
       {productItems.length > 0 && (
-        <SubscribeProductPage key={productId} items={productItems} onBack={closeProduct} onSubscribe={subscribe} onAddedToCart={closeProduct} />
+        <SubscribeProductPage key={productId} items={productItems} onBack={closeProduct} onSubscribe={subscribe} />
       )}
     </div>
   );

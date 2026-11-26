@@ -55,7 +55,7 @@ export function ExtrasProductPage({ productKey, onBack, onAdded }: Props) {
 
   if (isLoading || !detail || !view) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-shop-page">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-shop-page">
         <p className="animate-pulse text-sm text-shop-muted">Loading product…</p>
       </div>
     );
@@ -86,7 +86,7 @@ export function ExtrasProductPage({ productKey, onBack, onAdded }: Props) {
   };
 
   return (
-    <div role="dialog" aria-label={title} className="fixed inset-0 z-50 flex flex-col bg-shop-page text-shop-ink">
+    <div role="dialog" aria-label={title} className="fixed inset-0 z-[60] flex flex-col bg-shop-page text-shop-ink">
       <div className="min-h-0 flex-1 overflow-y-auto pb-[124px]">
         {/* Top bar */}
         <div className="box-border flex h-16 items-center justify-between px-3 pt-3">
