@@ -20,10 +20,10 @@ interface Props {
   onRemoveExtra?: (lineId: string) => void;
 }
 
-const chip = "inline-block rounded-full bg-white/70 px-[9px] py-[3px] text-[9.5px] font-extrabold leading-3 tracking-[0.14em] text-[#46564A]";
+const chip = "inline-block rounded-full bg-white/70 px-[9px] py-[3px] text-[9.5px] font-bold leading-3 tracking-[0.14em] text-[#46564A]";
 /** The four buttons under the total: two by two, each 48px tall. */
 const option =
-  "flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-3xl bg-white/[0.72] px-2.5 text-[14px] font-extrabold leading-[18px] text-shop-ink disabled:opacity-50";
+  "flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-3xl bg-white/[0.72] px-2.5 text-[14px] font-semibold leading-[18px] text-shop-ink disabled:opacity-50";
 
 /** The pictures of what is in the box, overlapping. */
 function Pictures({ box }: { box: Box }) {
@@ -85,7 +85,7 @@ function Place({ box }: { box: Box }) {
   const where = type === "pickup" ? (pickupStationName ?? "your station") : (address ?? "Your saved address");
   return (
     <>
-      <span className="font-bold text-shop-ink">{METHOD_LABEL[type]}:</span> {where}
+      <span className="font-semibold text-shop-ink">{METHOD_LABEL[type]}:</span> {where}
     </>
   );
 }
@@ -109,18 +109,18 @@ function CardTop({
   return (
     <>
       <span className={chip}>{chipText}</span>
-      <h2 className="mt-2 text-[32px] font-extrabold leading-[38px] tracking-[-0.025em] text-shop-ink">{date}</h2>
+      <h2 className="mt-2 text-[32px] font-bold leading-[38px] tracking-[-0.025em] text-shop-ink">{date}</h2>
 
       <button type="button" onClick={onChangeLocation} disabled={!box.editable} className="mt-1.5 flex items-start gap-1.5 text-left text-[14px] leading-5 text-[#34443A] disabled:cursor-default">
         <MapPin className="mt-[3px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span className={cn("line-clamp-2 min-w-0", box.needsDelivery && "font-extrabold underline underline-offset-2")}>
+        <span className={cn("line-clamp-2 min-w-0", box.needsDelivery && "font-semibold underline underline-offset-2")}>
           <Place box={box} />
         </span>
       </button>
 
       <div className="mt-3.5 flex items-center gap-3 rounded-[18px] bg-white/[0.72] px-3 py-2.5">
         <Pictures box={box} />
-        <span className="min-w-0 flex-1 text-[13px] font-bold leading-[18px] text-shop-ink"><Lines box={box} busy={busy} onRemoveExtra={onRemoveExtra} /></span>
+        <span className="min-w-0 flex-1 text-[13px] font-semibold leading-[18px] text-shop-ink"><Lines box={box} busy={busy} onRemoveExtra={onRemoveExtra} /></span>
       </div>
     </>
   );
@@ -147,7 +147,7 @@ export function NextOrderCard({ box, first, busy, onPay, onMakeChanges, onSkip, 
         {box.needsDelivery ? (
           <div className="mt-3.5">
             <p className="text-[13px] leading-[18px] text-[#34443A]">Tell us where to deliver, then you can pay.</p>
-            <button type="button" onClick={onChangeLocation} className="mt-3 flex h-14 w-full items-center justify-center rounded-[28px] bg-shop-cta hover:bg-shop-cta-hover text-[15px] font-extrabold text-shop-cream">
+            <button type="button" onClick={onChangeLocation} className="mt-3 flex h-14 w-full items-center justify-center rounded-[28px] bg-shop-cta hover:bg-shop-cta-hover text-[15px] font-bold text-shop-cream">
               Add a delivery address
             </button>
           </div>
@@ -155,8 +155,8 @@ export function NextOrderCard({ box, first, busy, onPay, onMakeChanges, onSkip, 
           <>
             <div className="mt-3.5 flex items-end justify-between gap-3">
               <span>
-                <span className="block text-[12px] font-bold leading-4 text-[#46564A]">Total</span>
-                <span className="block text-[28px] font-extrabold leading-8 tracking-[-0.02em] tabular-nums text-shop-ink">
+                <span className="block text-[12px] font-semibold leading-4 text-[#46564A]">Total</span>
+                <span className="block text-[28px] font-bold leading-8 tracking-[-0.02em] tabular-nums text-shop-ink">
                   {box.totalKobo === null ? "—" : formatPrice(box.totalKobo)}
                 </span>
               </span>
@@ -170,7 +170,7 @@ export function NextOrderCard({ box, first, busy, onPay, onMakeChanges, onSkip, 
 
         {confirming && (
           <p role="status" className="mt-4 rounded-[18px] bg-white/[0.72] px-4 py-3 text-[13px] leading-[18px] text-[#34443A]">
-            <b className="font-extrabold text-shop-ink">Payment made.</b> We are confirming it. This usually takes a few minutes.
+            <b className="font-semibold text-shop-ink">Payment made.</b> We are confirming it. This usually takes a few minutes.
           </p>
         )}
         {paid && (
@@ -179,7 +179,7 @@ export function NextOrderCard({ box, first, busy, onPay, onMakeChanges, onSkip, 
               <Check className="h-3 w-3" strokeWidth={3} />
             </span>
             <span>
-              <b className="font-extrabold text-shop-ink">{box.status === "delivered" ? "Delivered." : "Paid."}</b> {box.status === "delivered" ? "Thank you." : `It is coming ${formatDay(box.deliveryDate)}.`}
+              <b className="font-semibold text-shop-ink">{box.status === "delivered" ? "Delivered." : "Paid."}</b> {box.status === "delivered" ? "Thank you." : `It is coming ${formatDay(box.deliveryDate)}.`}
             </span>
           </p>
         )}
@@ -190,7 +190,7 @@ export function NextOrderCard({ box, first, busy, onPay, onMakeChanges, onSkip, 
               type="button"
               onClick={onPay}
               disabled={busy || !box.canPay}
-              className="flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-3xl bg-shop-ink px-2.5 text-[14px] font-extrabold leading-[18px] text-shop-cream disabled:opacity-60"
+              className="flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-3xl bg-shop-ink px-2.5 text-[14px] font-bold leading-[18px] text-shop-cream disabled:opacity-60"
             >
               <span>{box.order ? "Continue to pay" : "Pay now"}</span>
               {!box.order && <ArrowRight className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />}
@@ -236,11 +236,11 @@ export function SkippedOrderCard({ box, nextOrder, busy, onUndo, onChangeLocatio
         <CardTop chip={nextOrder ? "NEXT ORDER" : "SKIPPED"} date={formatDay(nextOrder ?? box.deliveryDate)} box={{ ...box, editable: false }} onChangeLocation={onChangeLocation} />
         <div className="mt-3.5 flex items-center justify-between gap-2 rounded-[18px] bg-white/[0.72] py-1.5 pl-3.5 pr-1.5">
           <p className="text-[13px] leading-[18px] text-[#34443A]">
-            <b className="font-extrabold text-shop-ink">You skipped {formatDay(box.deliveryDate)}.</b>
+            <b className="font-semibold text-shop-ink">You skipped {formatDay(box.deliveryDate)}.</b>
             {nextOrder ? ` Your next order is ${formatDay(nextOrder)}.` : ""}
           </p>
           {box.canUndoSkip && (
-            <button type="button" onClick={onUndo} disabled={busy} className="h-11 shrink-0 px-2.5 text-[13px] font-bold text-shop-brown underline underline-offset-[3px] disabled:opacity-50">
+            <button type="button" onClick={onUndo} disabled={busy} className="h-11 shrink-0 px-2.5 text-[13px] font-semibold text-shop-brown underline underline-offset-[3px] disabled:opacity-50">
               Undo
             </button>
           )}
@@ -255,11 +255,11 @@ export function SkippedCard({ box, nextOrder, busy, onUndo }: { box: Box; nextOr
   return (
     <section aria-label="Skipped order" className="flex items-center justify-between gap-2 rounded-[22px] bg-[#DDE3DA] py-2.5 pl-4 pr-2 shadow-[0_10px_24px_-14px_rgba(51,38,28,0.4)]">
       <p className="text-[13px] leading-[18px] text-[#34443A]">
-        <b className="font-extrabold text-shop-ink">You skipped {formatDay(box.deliveryDate)}.</b>
+        <b className="font-semibold text-shop-ink">You skipped {formatDay(box.deliveryDate)}.</b>
         {nextOrder ? ` Your next order is ${formatDay(nextOrder)}.` : ""}
       </p>
       {box.canUndoSkip && (
-        <button type="button" onClick={onUndo} disabled={busy} className="h-11 shrink-0 px-2.5 text-[13px] font-bold text-shop-brown underline underline-offset-[3px] disabled:opacity-50">
+        <button type="button" onClick={onUndo} disabled={busy} className="h-11 shrink-0 px-2.5 text-[13px] font-semibold text-shop-brown underline underline-offset-[3px] disabled:opacity-50">
           Undo
         </button>
       )}

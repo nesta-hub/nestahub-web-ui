@@ -6,7 +6,7 @@ import { startingChoice, type SubscribeChoice } from "@/components/subscribe-car
 import { BigButton, BottomSheet } from "@/components/subscription-tab/BottomSheet";
 import { formatPrice } from "@/lib/api";
 import { describeFrequencyInSentence } from "@/lib/renewalFrequency";
-import type { CatalogItem, EnrolInput } from "@/lib/subscriptionBoxes";
+import { brandedName, type CatalogItem, type EnrolInput } from "@/lib/subscriptionBoxes";
 import { GENERIC_FAILURE, enrolInput, priceFor } from "./helpers";
 
 export const MIN_QUANTITY = 1;
@@ -32,7 +32,7 @@ function Stepper({ value, onChange }: { value: number; onChange: (n: number) => 
       <button type="button" aria-label="Fewer" className={button} disabled={value <= MIN_QUANTITY} onClick={() => onChange(value - 1)}>
         <Minus className="h-4 w-4" aria-hidden="true" />
       </button>
-      <span className="min-w-10 text-center text-[24px] font-extrabold leading-8 tabular-nums" aria-live="polite">
+      <span className="min-w-10 text-center text-[24px] font-bold leading-8 tabular-nums" aria-live="polite">
         {value}
       </span>
       <button type="button" aria-label="More" className={button} disabled={value >= MAX_QUANTITY} onClick={() => onChange(value + 1)}>
@@ -72,7 +72,7 @@ export function SubscribeSheet({ item, open, onClose, onSubscribe }: Props) {
     <div className="flex items-center gap-3 pb-1">
       <span className="h-[46px] w-[46px] shrink-0 overflow-hidden rounded-[14px] bg-[#EFEAE4]">{item.imageUrl && <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />}</span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-extrabold leading-[19px]">{item.productName}</span>
+        <span className="block text-[15px] font-bold leading-[19px]">{brandedName(item.brand, item.productName)}</span>
         {item.variantLabel && <span className="mt-px block text-[12.5px] leading-[17px] text-[#6B5F55]">{item.variantLabel}</span>}
       </span>
     </div>
@@ -81,7 +81,7 @@ export function SubscribeSheet({ item, open, onClose, onSubscribe }: Props) {
   const footer = (
     <>
       {(error || item.subscribed) && (
-        <p role="alert" className="mb-2.5 text-center text-[13px] font-bold leading-[18px] text-[#9A4A3A]">
+        <p role="alert" className="mb-2.5 text-center text-[13px] font-semibold leading-[18px] text-[#9A4A3A]">
           {error ?? "You already subscribe to this one."}
           {item.subscribed && (
             <>
@@ -100,20 +100,20 @@ export function SubscribeSheet({ item, open, onClose, onSubscribe }: Props) {
   );
 
   return (
-    <BottomSheet open={open} onClose={() => !busy && onClose()} title={`Subscribe to ${item.productName}`} header={header} footer={footer}>
+    <BottomSheet open={open} onClose={() => !busy && onClose()} title={`Subscribe to ${brandedName(item.brand, item.productName)}`} header={header} footer={footer}>
       <div className="space-y-5 border-t border-[#EEE8E1] pt-4">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[15px] font-extrabold">Quantity</p>
+          <p className="text-[15px] font-semibold">Quantity</p>
           <Stepper value={quantity} onChange={setQuantity} />
         </div>
 
         <div>
-          <p className="mb-2.5 text-[15px] font-extrabold">How often</p>
+          <p className="mb-2.5 text-[15px] font-semibold">How often</p>
           <SubscribeChoiceFields value={choice} onChange={setChoice} firstOrder />
         </div>
 
         <div>
-          <p className="text-[15px] font-extrabold leading-5">
+          <p className="text-[15px] font-semibold leading-5">
             {formatPrice(payKobo)} each, {describeFrequencyInSentence(choice.frequency)}
           </p>
           <p className="mt-0.5 text-[12.5px] leading-[17px] text-shop-muted">We remind you before each one is due. You pay only when you say yes.</p>

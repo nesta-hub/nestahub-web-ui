@@ -37,7 +37,7 @@ function Stepper({ value, onChange }: { value: number; onChange: (n: number) => 
       <button type="button" aria-label="Fewer" className={button} disabled={value <= 1} onClick={() => onChange(value - 1)}>
         <Minus className="h-4 w-4" />
       </button>
-      <span className="min-w-12 text-center text-[30px] font-extrabold leading-9 tabular-nums" aria-live="polite">{value}</span>
+      <span className="min-w-12 text-center text-[30px] font-bold leading-9 tabular-nums" aria-live="polite">{value}</span>
       <button type="button" aria-label="More" className={button} disabled={value >= MAX_QUANTITY} onClick={() => onChange(value + 1)}>
         <Plus className="h-4 w-4" />
       </button>
@@ -113,14 +113,14 @@ export function ItemDrawer({ item, open, busy, onClose, onQuantity, onVariant, o
     <div className="flex items-center gap-3">
       <span className="h-[46px] w-[46px] shrink-0 overflow-hidden rounded-[14px] bg-[#EFEAE4]">{item.imageUrl && <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />}</span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-extrabold leading-[19px]">{brandedName(item.brand, item.productName)}</span>
+        <span className="block text-[15px] font-semibold leading-[19px]">{brandedName(item.brand, item.productName)}</span>
         <span className="mt-px block text-[12.5px] leading-[17px] text-[#6B5F55]">{[item.variantLabel, `×${item.quantity}`].filter(Boolean).join(" · ")}</span>
       </span>
     </div>
   );
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={item.productName} header={header}>
+    <BottomSheet open={open} onClose={onClose} title={brandedName(item.brand, item.productName)} header={header}>
       {view === "menu" && (
         <div className="mt-0.5 border-t border-[#EEE8E1]">
           <MenuRow icon={<MenuIcon><path d="M5 12h14" /><path d="M12 5v14" /></MenuIcon>} label="Change quantity" detail={`×${item.quantity}`} onClick={() => setView("quantity")} />
@@ -145,7 +145,7 @@ export function ItemDrawer({ item, open, busy, onClose, onQuantity, onVariant, o
 
       {view === "quantity" && (
         <div>
-          <p className="mb-3 mt-3 text-[17px] font-extrabold leading-[23px]">Change quantity</p>
+          <p className="mb-3 mt-3 text-[17px] font-bold leading-[23px]">Change quantity</p>
           <Stepper value={quantity} onChange={setQuantity} />
           <p className="mt-3 text-center text-[12.5px] leading-[18px] text-[#6B5F55]">This changes your next order and the ones after it.</p>
           <div className="mt-[18px]">
@@ -156,7 +156,7 @@ export function ItemDrawer({ item, open, busy, onClose, onQuantity, onVariant, o
 
       {view === "size" && (
         <div>
-          <p className="mb-1 mt-3 text-[17px] font-extrabold leading-[23px]">Change size</p>
+          <p className="mb-1 mt-3 text-[17px] font-bold leading-[23px]">Change size</p>
           <p className="mb-3.5 text-[12.5px] leading-[18px] text-[#6B5F55]">
             {choices && choices.variants.length > 0 ? `${pickText(apiProductToCatalogue(choices).attributes.map((a) => a.name))} ` : ""}This changes your next order and the ones after it.
           </p>
@@ -177,13 +177,13 @@ export function ItemDrawer({ item, open, busy, onClose, onQuantity, onVariant, o
 
       {view === "frequency" && (
         <div>
-          <p className="mt-3 text-[17px] font-extrabold leading-[23px]">Change renewal frequency</p>
+          <p className="mt-3 text-[17px] font-bold leading-[23px]">Change renewal frequency</p>
           <div className="mb-2.5 mt-3 flex items-baseline justify-between gap-2">
             <span className="text-[10.5px] font-semibold uppercase leading-[14px] tracking-[0.16em] text-[#6B5F55]">Renewal frequency</span>
           </div>
           <RenewalFrequencyPicker value={frequency} onChange={setFrequency} />
           {nextLine && (
-            <p aria-live="polite" className="mt-3 text-[13px] font-bold leading-[18px] text-[#46564A]">
+            <p aria-live="polite" className="mt-3 text-[13px] font-semibold leading-[18px] text-[#46564A]">
               {nextLine}
             </p>
           )}
@@ -195,7 +195,7 @@ export function ItemDrawer({ item, open, busy, onClose, onQuantity, onVariant, o
 
       {view === "pause" && (
         <div>
-          <p className="mt-3 text-[17px] font-extrabold leading-[23px]">{paused ? `Resume ${item.productName}?` : `Pause ${item.productName}?`}</p>
+          <p className="mt-3 text-[17px] font-bold leading-[23px]">{paused ? `Resume ${brandedName(item.brand, item.productName)}?` : `Pause ${brandedName(item.brand, item.productName)}?`}</p>
           <p className="mt-1.5 text-[13.5px] leading-5 text-[#5A4E44]">{paused ? "It will come back in your next order." : "We will leave it out of your orders until you resume it."}</p>
           <div className="mt-4">
             <BigButton busy={busy} onClick={() => finish(paused ? onResume() : onPause())}>{paused ? "Resume" : "Pause"}</BigButton>
@@ -206,7 +206,7 @@ export function ItemDrawer({ item, open, busy, onClose, onQuantity, onVariant, o
 
       {view === "stop" && (
         <div>
-          <p className="mt-3 text-[17px] font-extrabold leading-[23px]">Stop subscribing to {item.productName}?</p>
+          <p className="mt-3 text-[17px] font-bold leading-[23px]">Stop subscribing to {brandedName(item.brand, item.productName)}?</p>
           <p className="mt-1.5 text-[13.5px] leading-5 text-[#5A4E44]">It will not come in your next order. You can subscribe again any time.</p>
           <div className="mt-4">
             <BigButton tone="danger" busy={busy} onClick={() => finish(onStop())}>Stop subscription</BigButton>

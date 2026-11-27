@@ -116,7 +116,7 @@ export function ConfirmExtrasSheet({ box, accessToken, open, onClose }: Props) {
                 <Thumb src={pick.imageUrl} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-extrabold leading-[18px]">{pick.productName}</span>
+                <span className="block text-[14px] font-semibold leading-[18px]">{pick.productName}</span>
                 <span className="block text-[12px] leading-4 text-[#6B5F55]">
                   {[pick.variantLabel ? `${pick.variantLabel}${pick.quantity > 1 ? ` · ×${pick.quantity}` : ""}` : pick.quantity > 1 ? `×${pick.quantity}` : null, formatPrice(pick.unitPriceKobo * pick.quantity)]
                     .filter(Boolean)
@@ -128,7 +128,7 @@ export function ConfirmExtrasSheet({ box, accessToken, open, onClose }: Props) {
                 aria-label={`Remove ${pick.productName}`}
                 disabled={busy}
                 onClick={() => remove(pick.variantId)}
-                className="flex h-10 shrink-0 items-center rounded-[20px] border-[1.5px] border-shop-brown bg-transparent px-4 text-[13px] font-extrabold text-shop-brown disabled:opacity-40"
+                className="flex h-10 shrink-0 items-center rounded-[20px] border-[1.5px] border-shop-brown bg-transparent px-4 text-[13px] font-semibold text-shop-brown disabled:opacity-40"
               >
                 Remove
               </button>
@@ -140,13 +140,13 @@ export function ConfirmExtrasSheet({ box, accessToken, open, onClose }: Props) {
       {picks.length > 0 && (
         <div className="pb-1.5 pt-3.5">
           <div className="flex items-center justify-between">
-            <span className="text-[13.5px] font-bold leading-5 text-[#6B5F55]">Extra items total</span>
-            <span className="text-[15px] font-extrabold leading-5 tabular-nums">{formatPrice(extrasKobo)}</span>
+            <span className="text-[13.5px] font-semibold leading-5 text-[#6B5F55]">Extra items total</span>
+            <span className="text-[15px] font-bold leading-5 tabular-nums">{formatPrice(extrasKobo)}</span>
           </div>
           {box.totalKobo !== null && (
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-[13.5px] font-bold leading-5 text-[#6B5F55]">Pending order total</span>
-              <span className="text-[20px] font-extrabold leading-[26px] tabular-nums">{formatPrice(box.totalKobo + extrasKobo)}</span>
+              <span className="text-[13.5px] font-semibold leading-5 text-[#6B5F55]">Pending order total</span>
+              <span className="text-[20px] font-bold leading-[26px] tabular-nums">{formatPrice(box.totalKobo + extrasKobo)}</span>
             </div>
           )}
         </div>

@@ -89,7 +89,7 @@ function ActiveBar({ boxId }: { boxId: string }) {
             <Package className="h-[19px] w-[19px]" strokeWidth={1.9} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[15px] font-extrabold leading-5 tracking-[-0.01em]">
+            <span className="block truncate text-[15px] font-bold leading-5 tracking-[-0.01em]">
               {count > 0 ? `${count} extra ${count === 1 ? "item" : "items"} added` : "Adding to your pending order"}
             </span>
             <span className="block truncate text-[12.5px] font-semibold leading-[17px] text-[#46564A]">
@@ -118,7 +118,7 @@ function ActiveBar({ boxId }: { boxId: string }) {
             type="button"
             disabled={!box}
             onClick={() => setReviewing(true)}
-            className="flex h-14 w-full items-center justify-between rounded-[28px] bg-shop-cta pl-6 pr-2 text-[15px] font-extrabold text-shop-cream hover:bg-shop-cta-hover disabled:opacity-50"
+            className="flex h-14 w-full items-center justify-between rounded-[28px] bg-shop-cta pl-6 pr-2 text-[15px] font-bold text-shop-cream hover:bg-shop-cta-hover disabled:opacity-50"
           >
             <span>Proceed</span>
             <span className="flex items-center gap-2.5">

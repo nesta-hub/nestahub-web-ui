@@ -33,7 +33,7 @@ function Stepper({ text, onDown, onUp, downDisabled, downLabel, upLabel }: { tex
       <Step label={downLabel} onClick={onDown} disabled={downDisabled}>
         <Minus className="h-4 w-4" aria-hidden="true" />
       </Step>
-      <span className="min-w-0 flex-1 text-center text-[17px] font-extrabold leading-6 tabular-nums text-shop-ink" aria-live="polite">{text}</span>
+      <span className="min-w-0 flex-1 text-center text-[17px] font-bold leading-6 tabular-nums text-shop-ink" aria-live="polite">{text}</span>
       <Step label={upLabel} onClick={onUp}>
         <Plus className="h-4 w-4" aria-hidden="true" />
       </Step>
@@ -50,7 +50,7 @@ function Choice({ selected, title, onPick, children }: { selected: boolean; titl
         role="radio"
         aria-checked={selected}
         onClick={onPick}
-        className="flex h-[52px] w-full items-center gap-3 text-left text-[14.5px] font-bold text-shop-ink"
+        className="flex h-[52px] w-full items-center gap-3 text-left text-[14.5px] font-semibold text-shop-ink"
       >
         <span aria-hidden="true" className={cn("flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2", selected ? "border-[#A08B76]" : "border-[#CFC6BC]")}>
           {selected && <span className="h-2.5 w-2.5 rounded-full bg-[#A08B76]" />}
@@ -129,7 +129,7 @@ export function RenewalFrequencyPicker({ value, onChange }: Props) {
         )}
       </Choice>
 
-      {value.kind !== "weeks" && <p className="mt-0.5 text-[13px] font-bold leading-[18px] text-[#46564A]">{describeFrequency(value)}</p>}
+      {value.kind !== "weeks" && <p className="mt-0.5 text-[13px] font-semibold leading-[18px] text-[#46564A]">{describeFrequency(value)}</p>}
     </div>
   );
 }

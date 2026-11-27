@@ -15,11 +15,11 @@ export function AlreadySubscribedCard({ item }: { item: SubscribedItem }) {
           <RefreshCw className="h-5 w-5" strokeWidth={1.9} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[16px] font-extrabold leading-[22px]">You subscribe to this</p>
+          <p className="text-[16px] font-bold leading-[22px]">You subscribe to this</p>
           <p className="mt-0.5 text-[12.5px] font-medium leading-[17px] text-shop-muted">{subscribedLine(item)}</p>
           <Link
             to="/subscriptions"
-            className="-my-2 inline-block py-2 text-[12.5px] font-bold leading-[17px] text-shop-brown underline underline-offset-[3px]"
+            className="-my-2 inline-block py-2 text-[12.5px] font-semibold leading-[17px] text-shop-brown underline underline-offset-[3px]"
           >
             View subscription
           </Link>

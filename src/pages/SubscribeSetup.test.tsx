@@ -28,7 +28,7 @@ const line = (over: Partial<OfferLine> = {}): OfferLine => ({
   orderItemId: "i1", variantId: "v1", productName: "Kisskids Diapers", brand: "Kisskids", variantLabel: "Size 3", imageUrl: null,
   quantity: 1, priceKobo: 500_000, subscriptionPriceKobo: 450_000, recommendedFrequencyWeeks: 3, timesBought: null, ...over,
 });
-const wipes = line({ orderItemId: "i2", variantId: "v2", productName: "Baby wipes", variantLabel: "80 sheets", quantity: 2, priceKobo: 240_000, subscriptionPriceKobo: null, recommendedFrequencyWeeks: null });
+const wipes = line({ orderItemId: "i2", variantId: "v2", productName: "Baby wipes", brand: "Softcare", variantLabel: "80 sheets", quantity: 2, priceKobo: 240_000, subscriptionPriceKobo: null, recommendedFrequencyWeeks: null });
 const offer = (over: Partial<Offer> = {}): Offer => ({ state: "offer", orderNumber: "NST-1", eligible: [line(), wipes], subscribed: [], ...over });
 
 function show() {
@@ -86,7 +86,7 @@ describe("the setup page", () => {
     expect(screen.getByText("Size 3 · ×1")).toBeInTheDocument();
     expect(screen.getByText("80 sheets · ×2")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Subscribe to Kisskids Diapers" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Subscribe to Baby wipes" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Subscribe to Softcare Baby wipes" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Maybe later" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Done" })).not.toBeInTheDocument();
   });
@@ -110,7 +110,7 @@ describe("the setup page", () => {
     show();
     await screen.findByText("Kisskids Diapers");
     await subscribeTo("Kisskids Diapers");
-    await subscribeTo("Baby wipes");
+    await subscribeTo("Softcare Baby wipes");
     fireEvent.click(screen.getByRole("button", { name: "Done", hidden: true }));
     await waitFor(() => expect(api.subscribeFromOrder).toHaveBeenCalledTimes(1));
     expect(api.subscribeFromOrder).toHaveBeenCalledWith("tok", "NST-1", [
@@ -124,7 +124,7 @@ describe("the setup page", () => {
   it("leaves out what she did not say yes to", async () => {
     show();
     await screen.findByText("Kisskids Diapers");
-    await subscribeTo("Baby wipes");
+    await subscribeTo("Softcare Baby wipes");
     fireEvent.click(screen.getByRole("button", { name: "Done", hidden: true }));
     await waitFor(() => expect(api.subscribeFromOrder).toHaveBeenCalled());
     expect(api.subscribeFromOrder.mock.calls[0][2]).toEqual([{ orderItemId: "i2", frequency: { kind: "weeks", every: 4 } }]);
@@ -161,7 +161,7 @@ describe("the setup page", () => {
   it("asks no first renewal day for a weekly item, and sends none: it counts from delivery", async () => {
     show();
     await screen.findByText("Kisskids Diapers");
-    fireEvent.click(screen.getByRole("button", { name: "Subscribe to Baby wipes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Subscribe to Softcare Baby wipes" }));
     const drawer = await screen.findByRole("dialog");
     expect(within(drawer).queryByText("First renewal")).toBeNull();
     expect(within(drawer).queryByRole("button", { name: "Pick a day" })).toBeNull();
@@ -176,10 +176,10 @@ describe("the setup page", () => {
     show();
     await screen.findByText("Kisskids Diapers");
     await subscribeTo("Kisskids Diapers");
-    await subscribeTo("Baby wipes");
+    await subscribeTo("Softcare Baby wipes");
     fireEvent.click(screen.getByRole("button", { name: "Done", hidden: true }));
     expect(await screen.findByText("You're subscribed")).toBeInTheDocument();
-    expect(screen.getByText("Baby wipes is already one of your subscriptions.")).toBeInTheDocument();
+    expect(screen.getByText("Softcare Baby wipes is already one of your subscriptions.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See my subscription" })).toHaveAttribute("href", "/subscriptions");
   });
 
@@ -188,7 +188,7 @@ describe("the setup page", () => {
     show();
     await screen.findByText("Kisskids Diapers");
     await subscribeTo("Kisskids Diapers");
-    await subscribeTo("Baby wipes");
+    await subscribeTo("Softcare Baby wipes");
     fireEvent.click(screen.getByRole("button", { name: "Done", hidden: true }));
     expect(await screen.findByText("Nothing was subscribed")).toBeInTheDocument();
     expect(screen.queryByText("You're subscribed")).not.toBeInTheDocument();

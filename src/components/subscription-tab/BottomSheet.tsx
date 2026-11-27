@@ -27,7 +27,7 @@ export function BottomSheet({ open, onClose, title, subtitle, children, footer, 
       >
         <div className="px-5">
           {header}
-          <DrawerTitle className={header ? "sr-only" : "text-[20px] font-extrabold leading-[25px] tracking-[-0.01em]"}>{title}</DrawerTitle>
+          <DrawerTitle className={header ? "sr-only" : "text-[20px] font-bold leading-[25px] tracking-[-0.01em]"}>{title}</DrawerTitle>
           {subtitle ? (
             <DrawerDescription className="text-[12.5px] leading-[17px] text-shop-muted">{subtitle}</DrawerDescription>
           ) : (
@@ -61,7 +61,7 @@ export function BigButton({
       type="button"
       onClick={onClick}
       disabled={disabled || busy}
-      className={`flex w-full items-center justify-center text-[15px] font-extrabold text-shop-cream disabled:opacity-50 ${tone === "danger" ? "h-[52px] rounded-[26px] bg-[#9A4A3A]" : "h-14 rounded-[28px] bg-shop-cta hover:bg-shop-cta-hover"}`}
+      className={`flex w-full items-center justify-center text-[15px] font-bold text-shop-cream disabled:opacity-50 ${tone === "danger" ? "h-[52px] rounded-[26px] bg-[#9A4A3A]" : "h-14 rounded-[28px] bg-shop-cta hover:bg-shop-cta-hover"}`}
     >
       {busy ? "One moment…" : children}
     </button>
@@ -71,7 +71,7 @@ export function BigButton({
 /** A quiet text button under a big one: "Never mind". */
 export function TextButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="mt-0.5 flex h-12 w-full items-center justify-center text-[14px] font-bold text-shop-brown">
+    <button type="button" onClick={onClick} className="mt-0.5 flex h-12 w-full items-center justify-center text-[14px] font-semibold text-shop-brown">
       {children}
     </button>
   );

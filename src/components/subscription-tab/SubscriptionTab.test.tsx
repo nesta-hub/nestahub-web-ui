@@ -129,7 +129,7 @@ describe("the next order", () => {
     const place = card.getByText("12 Soluyi Road");
     expect(place).toHaveTextContent("Community Delivery: 12 Soluyi Road");
     expect(place).toHaveClass("line-clamp-2");
-    expect(card.getByText("Community Delivery:")).toHaveClass("font-bold");
+    expect(card.getByText("Community Delivery:")).toHaveClass("font-semibold");
     expect(card.getByText("Kisskids Diapers ×2")).toBeInTheDocument();
     expect(card.getByText("Kisskids Baby wipes ×1")).toBeInTheDocument();
     expect(card.getByText("₦11,900")).toBeInTheDocument();
@@ -223,6 +223,9 @@ describe("the empty and quiet states", () => {
     expect(screen.getByText("You remain in control")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Subscribe to an item" })).toHaveAttribute("href", "/subscriptions/add");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Subscriptions");
+    // signed in, the card keeps its steps: the WhatsApp example and the login button are for visitors not signed in
+    expect(screen.queryByRole("figure", { name: "An example WhatsApp reminder" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Log in/ })).toBeNull();
   });
 
   it("the title is 'Subscription' (singular) once she has items", async () => {
@@ -798,7 +801,7 @@ describe("an item row's name and how many", () => {
     api.mine.mockResolvedValue(tab({ items: [item({ variantLabel: null, quantity: 1 })] }));
     show();
     const row = within(await screen.findByRole("button", { name: "Manage Kisskids Diapers" }));
-    const name = row.getByText((_, el) => el?.textContent === "Kisskids Diapers ×1" && el.classList.contains("font-extrabold"));
+    const name = row.getByText((_, el) => el?.textContent === "Kisskids Diapers ×1" && el.classList.contains("font-semibold"));
     expect(within(name).getByText("×1")).toHaveClass("font-normal");
   });
 

@@ -21,13 +21,13 @@ export function ItemRow({ item, onOpen }: { item: SubscribedItem; onOpen: () => 
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-px">
           {/* With no size or type, how many goes after the name, as on the order card; otherwise beside the size. */}
-          <span className="text-[15px] font-extrabold leading-5 text-shop-ink">
+          <span className="text-[14.5px] font-semibold leading-5 text-shop-ink">
             {name}
             {!item.variantLabel && <span className="font-normal text-[#6B5F55]">{` ×${item.quantity}`}</span>}
           </span>
           {item.variantLabel && <span className="text-[12.5px] leading-[18px] text-[#6B5F55]">{`${item.variantLabel} · ×${item.quantity}`}</span>}
           <span className="mt-[5px] flex flex-wrap items-center gap-2">
-            <span className="inline-flex h-7 items-center rounded-[14px] border border-shop-line bg-shop-page px-3 text-[12px] font-extrabold text-shop-ink">
+            <span className="inline-flex h-7 items-center rounded-[14px] border border-shop-line bg-shop-page px-3 text-[12px] font-semibold text-shop-ink">
               {paused ? "Paused" : shortFrequency(item.frequency)}
             </span>
             {!paused && item.nextDue && <span className="text-[12px] leading-4 text-[#7A6E64]">Next: {formatDay(item.nextDue)}</span>}

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Subscriptions from "./Subscriptions";
@@ -69,15 +69,53 @@ describe("/subscriptions", () => {
     expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
 
-  it("asks a signed-out visitor to sign in, in the words of whichever experience she is in", () => {
+  it("the old page asks a signed-out visitor to sign in", () => {
     auth.value = { user: null, loading: false };
     at("/subscriptions");
     expect(screen.getByText("sign in: Sign in to manage subscriptions")).toBeInTheDocument();
+  });
 
+  it("the new tab shows a signed-out visitor the advert and one Log in button, with the nav, and no sign-in form yet", () => {
+    auth.value = { user: null, loading: false };
     status.value = "on";
-    const { unmount } = at("/subscriptions");
-    expect(screen.getAllByText("sign in: Sign in to see your subscription").length).toBeGreaterThan(0);
-    unmount();
+    const { container } = at("/subscriptions");
+    expect(screen.getByRole("region", { name: "What Subscribe does" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Subscriptions" })).toBeInTheDocument();
+    expect(screen.queryByText(/^sign in:/)).toBeNull();
+    expect(screen.queryByText(/the new Subscription tab/)).toBeNull();
+    expect(container.querySelector("[data-nav]")).toHaveAttribute("data-nav", "true");
+  });
+
+  it("the advert shows what the WhatsApp reminder looks like, as a picture: nothing in it can be tapped", () => {
+    auth.value = { user: null, loading: false };
+    status.value = "on";
+    at("/subscriptions");
+    const preview = screen.getByRole("figure", { name: "An example WhatsApp reminder" });
+    expect(preview).toHaveTextContent("Hi Ada, your subscribed item: Kisskids Diapers ×2 is due for renewal. We have an order ready for you.");
+    expect(preview).toHaveTextContent("Delivery: Saturday");
+    expect(preview).toHaveTextContent("Pay by: Friday, 4pm");
+    for (const label of ["Pay now", "Make changes", "Skip this time"]) expect(within(preview).getByText(label)).toBeInTheDocument();
+    expect(within(preview).queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("the advert has the login button where the three steps go, inside the card, and no steps", () => {
+    auth.value = { user: null, loading: false };
+    status.value = "on";
+    at("/subscriptions");
+    const card = screen.getByRole("region", { name: "What Subscribe does" });
+    expect(within(card).getByRole("button", { name: "Log in to get started" })).toBeInTheDocument();
+    expect(screen.queryByText("You get reminders")).toBeNull();
+  });
+
+  it("Log in opens the full sign-in page, and Back returns to the advert", () => {
+    auth.value = { user: null, loading: false };
+    status.value = "on";
+    at("/subscriptions");
+    fireEvent.click(screen.getByRole("button", { name: "Log in to get started" }));
+    expect(screen.getByText("sign in: Sign in to start subscribing")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "What Subscribe does" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("region", { name: "What Subscribe does" })).toBeInTheDocument();
   });
 });
 

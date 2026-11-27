@@ -14,7 +14,7 @@ function Point({ icon, title, children }: { icon: ReactNode; title: string; chil
         {icon}
       </span>
       <span>
-        <b className="block text-[14.5px] font-extrabold leading-[19px]">{title}</b>
+        <b className="block text-[14.5px] font-semibold leading-[19px]">{title}</b>
         <span className="block text-[13px] leading-[19px] text-[#5A4E44]">{children}</span>
       </span>
     </li>

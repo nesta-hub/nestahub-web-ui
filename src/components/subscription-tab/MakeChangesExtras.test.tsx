@@ -112,7 +112,8 @@ describe("changing a pick-up order to delivery", () => {
     expect(loadDeliveryOptions).toHaveBeenCalledWith(6.55, 3.38);
     fireEvent.click(screen.getByRole("button", { name: /^Community Delivery/ }));
     expect(screen.getByText("3 Faramobi Ajike St")).toBeInTheDocument();
-    expect(screen.getByText("Your last delivery address")).toBeInTheDocument();
+    expect(screen.queryByText("Your last delivery address")).toBeNull();
+    expect(screen.queryByText("New address")).toBeNull();
   });
 
   it("with no address ever used, it cannot know yet: Community Delivery comes once she enters one", async () => {
@@ -132,7 +133,7 @@ describe("removing things from the order", () => {
   it("lists an extra, marked as extra, with its own Remove button", async () => {
     drawer();
     const sheet = await openRemove();
-    expect(sheet.getByText("Nappy cream")).toBeInTheDocument();
+    expect(sheet.getByText("Kisskids Nappy cream")).toBeInTheDocument();
     expect(sheet.getByText("100g · ×3 · extra")).toBeInTheDocument();
     expect(sheet.getByRole("button", { name: "Remove Nappy cream (extra)" })).toBeEnabled();
   });

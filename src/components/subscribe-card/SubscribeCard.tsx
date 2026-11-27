@@ -44,10 +44,10 @@ export function SubscribeCard({ price, subscriptionPrice, recommendedFrequencyWe
           <RefreshCw className="h-6 w-6" strokeWidth={1.9} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[16px] font-extrabold leading-[22px]">
+          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[16px] font-bold leading-[22px]">
             Subscribe
             {payInstead !== null && (
-              <span className="whitespace-nowrap rounded-full bg-[#DDE3DA] px-[9px] py-[3px] text-[12px] font-extrabold leading-[18px] text-[#34443A]">
+              <span className="whitespace-nowrap rounded-full bg-[#DDE3DA] px-[9px] py-[3px] text-[12px] font-bold leading-[18px] text-[#34443A]">
                 and pay {formatPrice(payInstead)}
               </span>
             )}
@@ -58,7 +58,7 @@ export function SubscribeCard({ price, subscriptionPrice, recommendedFrequencyWe
               type="button"
               aria-expanded={learnMore}
               onClick={() => setLearnMore((open) => !open)}
-              className="-mx-0.5 -my-2 inline px-0.5 py-2 font-bold text-shop-brown underline underline-offset-[3px]"
+              className="-mx-0.5 -my-2 inline px-0.5 py-2 font-semibold text-shop-brown underline underline-offset-[3px]"
             >
               Learn more
             </button>
@@ -82,7 +82,7 @@ export function SubscribeCard({ price, subscriptionPrice, recommendedFrequencyWe
 
       {learnMore && (
         <div className="mt-3.5 border-t border-[#EEE8E1] pt-3.5">
-          <p className="text-[20px] font-extrabold leading-[25px] tracking-[-0.01em]">How Subscribe works</p>
+          <p className="text-[20px] font-bold leading-[25px] tracking-[-0.01em]">How Subscribe works</p>
           <p className="text-[12.5px] leading-[17px] text-shop-muted">Auto-renew this item, and never run out.</p>
           <ul className="mt-3.5">
             {HOW_IT_WORKS.map(({ icon: Icon, title, text }) => (
@@ -91,7 +91,7 @@ export function SubscribeCard({ price, subscriptionPrice, recommendedFrequencyWe
                   <Icon className="h-4 w-4" />
                 </span>
                 <span>
-                  <b className="block text-[14.5px] font-extrabold leading-[19px]">{title}</b>
+                  <b className="block text-[14.5px] font-semibold leading-[19px]">{title}</b>
                   <span className="block text-[13px] leading-[19px] text-[#5A4E44]">{text}</span>
                 </span>
               </li>
