@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { SubscriptionsView } from "@/components/account/SubscriptionsView";
 import { DesktopSubscriptionsView } from "@/components/account/DesktopSubscriptionsView";
+import { SignedOutTab } from "@/components/subscription-tab/SignedOutTab";
 import { SubscriptionTab } from "@/components/subscription-tab/SubscriptionTab";
 import { useSubscribeStatus } from "@/hooks/useSubscribeEnabled";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const Subscriptions = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading } = useAuth();
   const isMobile = useIsMobile();
   // Which experience she gets. While it is still being worked out, neither is shown.
@@ -31,12 +33,14 @@ const Subscriptions = () => {
   // The new Subscription tab, with the nav around it.
   if (status === "on") {
     if (!user) {
+      // What Subscribe is first, then the way in. The sign-in page is in the address, so Back returns to the advert.
       return (
         <Layout>
-          <SignInForm
-            title="Sign in to see your subscription"
-            description="Your items, your next order and your reminders"
-            containerClassName="flex-1 flex flex-col items-center justify-center px-6 py-16"
+          <SignedOutTab
+            signingIn={searchParams.get("login") === "1"}
+            onLogin={() => setSearchParams({ login: "1" })}
+            // Back to the advert: the step back if she came from it, else (opened straight on the sign-in) replace it.
+            onBack={() => ((window.history.state?.idx ?? 0) > 0 ? navigate(-1) : setSearchParams({}, { replace: true }))}
           />
         </Layout>
       );

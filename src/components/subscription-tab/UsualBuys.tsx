@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { SubscribeSheet, type EnrolOutcome } from "@/components/subscribe-more/SubscribeSheet";
 import { describeEnrolFailure } from "@/components/subscribe-more/helpers";
 import { useAuth } from "@/contexts/AuthContext";
-import { subscriptionBoxesApi, type CatalogItem, type EnrolInput } from "@/lib/subscriptionBoxes";
+import { brandedName, subscriptionBoxesApi, type CatalogItem, type EnrolInput } from "@/lib/subscriptionBoxes";
 import { Thumb } from "./Thumb";
 import { MAX_SHOWN, asCatalogItem, boughtLine } from "./usualBuysHelpers";
 
@@ -41,7 +41,7 @@ export function UsualBuys() {
     setOpen(false);
     await queryClient.invalidateQueries({ queryKey: ["subscription-tab"] });
     void queryClient.invalidateQueries({ queryKey: ["subscribe-offer"] });
-    toast.success(`You're subscribed to ${target.productName}`);
+    toast.success(`You're subscribed to ${brandedName(target.brand, target.productName)}`);
     return { ok: true };
   };
 
@@ -55,18 +55,18 @@ export function UsualBuys() {
               <Thumb src={line.imageUrl} />
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="text-[15px] font-extrabold leading-5 text-shop-ink">{line.productName}</span>
+              <span className="text-[14.5px] font-semibold leading-5 text-shop-ink">{brandedName(line.brand, line.productName)}</span>
               <span className="text-[12.5px] leading-[18px] text-[#6B5F55]">{boughtLine(line)}</span>
             </span>
             <button
               type="button"
-              aria-label={`Subscribe to ${line.productName}`}
+              aria-label={`Subscribe to ${brandedName(line.brand, line.productName)}`}
               onClick={() => {
                 setItem(asCatalogItem(line));
                 setSheetId((n) => n + 1);
                 setOpen(true);
               }}
-              className="h-11 shrink-0 rounded-[22px] bg-shop-cta hover:bg-shop-cta-hover px-4 text-[13px] font-extrabold text-shop-cream"
+              className="h-11 shrink-0 rounded-[22px] bg-shop-cta hover:bg-shop-cta-hover px-4 text-[13px] font-bold text-shop-cream"
             >
               Subscribe
             </button>

@@ -139,9 +139,9 @@ export function SubscribeProductPage({ items, onBack, onSubscribe }: Props) {
             </span>
           </button>
           <div className="min-w-0 flex-1">
-            <h1 className="m-0 text-[22px] font-extrabold leading-[27px] tracking-[-0.015em]">{name}</h1>
+            <h1 className="m-0 text-[21px] font-bold leading-[27px] tracking-[-0.01em] text-shop-ink">{name}</h1>
             {label && <p className="mt-[3px] text-[13px] leading-[18px] text-shop-muted">{label}</p>}
-            <p className="mt-0.5 text-[20px] font-extrabold leading-7 tracking-[-0.01em]">{totalKobo === null ? "—" : formatPrice(totalKobo)}</p>
+            <p className="mt-1 text-[19px] font-semibold leading-[26px] text-shop-brown">{totalKobo === null ? "—" : formatPrice(totalKobo)}</p>
           </div>
         </div>
 
@@ -152,7 +152,7 @@ export function SubscribeProductPage({ items, onBack, onSubscribe }: Props) {
               <p className={cn("m-0 text-[13.5px] leading-5 text-[#5A4E44]", folded && "max-h-10 overflow-hidden")}>
                 {description}
                 {descriptionOpen && (
-                  <button type="button" aria-expanded="true" onClick={() => setDescriptionOpen(false)} className="ml-0.5 inline-block h-11 px-1 text-[13.5px] font-extrabold leading-[44px] text-shop-brown">
+                  <button type="button" aria-expanded="true" onClick={() => setDescriptionOpen(false)} className="ml-0.5 inline-block h-11 px-1 text-[13.5px] font-semibold leading-[44px] text-shop-brown">
                     less
                   </button>
                 )}
@@ -165,7 +165,7 @@ export function SubscribeProductPage({ items, onBack, onSubscribe }: Props) {
                     aria-expanded="false"
                     aria-label="Read the full description"
                     onClick={() => setDescriptionOpen(true)}
-                    className="absolute -top-3 right-0 h-11 pl-[26px] text-[13.5px] font-extrabold text-shop-brown"
+                    className="absolute -top-3 right-0 h-11 pl-[26px] text-[13.5px] font-semibold text-shop-brown"
                   >
                     …more
                   </button>
@@ -221,7 +221,7 @@ export function SubscribeProductPage({ items, onBack, onSubscribe }: Props) {
             <button type="button" aria-label="Fewer" disabled={quantity <= MIN_QUANTITY} onClick={() => setQuantity((q) => Math.max(MIN_QUANTITY, q - 1))} className={stepButton}>
               <Minus className="h-4 w-4" aria-hidden="true" />
             </button>
-            <span className="min-w-[30px] text-center text-[18px] font-extrabold tabular-nums" aria-live="polite">
+            <span className="min-w-[30px] text-center text-[18px] font-bold tabular-nums" aria-live="polite">
               {quantity}
             </span>
             <button type="button" aria-label="More" disabled={quantity >= MAX_QUANTITY} onClick={() => setQuantity((q) => Math.min(MAX_QUANTITY, q + 1))} className={stepButton}>
@@ -237,13 +237,13 @@ export function SubscribeProductPage({ items, onBack, onSubscribe }: Props) {
               <RefreshCw className="h-5 w-5" strokeWidth={1.9} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="m-0 text-[16px] font-extrabold leading-[22px]">Subscribe</p>
+              <p className="m-0 text-[16px] font-bold leading-[22px]">Subscribe</p>
               <p className="mt-0.5 text-[12.5px] font-medium leading-[17px] text-shop-muted">
                 Never run out or come back to reorder.{" "}
                 <button
                   type="button"
                   onClick={() => setLearnMore(true)}
-                  className="-mx-0.5 -my-2 inline px-0.5 py-2 font-bold text-shop-brown underline underline-offset-[3px]"
+                  className="-mx-0.5 -my-2 inline px-0.5 py-2 font-semibold text-shop-brown underline underline-offset-[3px]"
                 >
                   Learn more
                 </button>
@@ -265,7 +265,7 @@ export function SubscribeProductPage({ items, onBack, onSubscribe }: Props) {
       {/* Subscribe, pinned */}
       <div className="absolute inset-x-0 bottom-0 box-border min-h-[100px] border-t border-shop-line bg-shop-cream/[0.96] px-5 pb-8 pt-3 backdrop-blur-[14px]">
         {message && (
-          <p role="alert" className="mb-2.5 text-center text-[13px] font-bold leading-[18px] text-[#9A4A3A]">
+          <p role="alert" className="mb-2.5 text-center text-[13px] font-semibold leading-[18px] text-[#9A4A3A]">
             {message}
             {alreadyHave && (
               <>
@@ -281,7 +281,7 @@ export function SubscribeProductPage({ items, onBack, onSubscribe }: Props) {
           type="button"
           disabled={!item || busy || alreadyHave}
           onClick={() => void subscribe()}
-          className="flex h-14 w-full items-center justify-between rounded-[28px] bg-shop-cta pl-6 pr-2 text-[15px] font-extrabold text-shop-cream hover:bg-shop-cta-hover disabled:opacity-50"
+          className="flex h-14 w-full items-center justify-between rounded-[28px] bg-shop-cta pl-6 pr-2 text-[15px] font-bold text-shop-cream hover:bg-shop-cta-hover disabled:opacity-50"
         >
           <span>{busy ? "One moment…" : "Subscribe"}</span>
           <span className="flex items-center gap-2.5">

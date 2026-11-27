@@ -112,9 +112,9 @@ export function ExtrasProductPage({ productKey, onBack, onAdded }: Props) {
             </span>
           </button>
           <div className="min-w-0 flex-1">
-            <h1 className="m-0 text-[22px] font-extrabold leading-[27px] tracking-[-0.015em]">{title}</h1>
+            <h1 className="m-0 text-[21px] font-bold leading-[27px] tracking-[-0.01em] text-shop-ink">{title}</h1>
             {label && <p className="mt-[3px] text-[13px] leading-[18px] text-shop-muted">{label}</p>}
-            <p className="mt-0.5 text-[20px] font-extrabold leading-7 tracking-[-0.01em]">{lineKobo === null ? "—" : formatPrice(lineKobo)}</p>
+            <p className="mt-1 text-[19px] font-semibold leading-[26px] text-shop-brown">{lineKobo === null ? "—" : formatPrice(lineKobo)}</p>
           </div>
         </div>
 
@@ -125,7 +125,7 @@ export function ExtrasProductPage({ productKey, onBack, onAdded }: Props) {
               <p className={`m-0 text-[13.5px] leading-5 text-[#5A4E44] ${folded ? "max-h-10 overflow-hidden" : ""}`}>
                 {description}
                 {descriptionOpen && (
-                  <button type="button" aria-expanded="true" onClick={() => setDescriptionOpen(false)} className="ml-0.5 inline-block h-11 px-1 text-[13.5px] font-extrabold leading-[44px] text-shop-brown">
+                  <button type="button" aria-expanded="true" onClick={() => setDescriptionOpen(false)} className="ml-0.5 inline-block h-11 px-1 text-[13.5px] font-semibold leading-[44px] text-shop-brown">
                     less
                   </button>
                 )}
@@ -138,7 +138,7 @@ export function ExtrasProductPage({ productKey, onBack, onAdded }: Props) {
                     aria-expanded="false"
                     aria-label="Read the full description"
                     onClick={() => setDescriptionOpen(true)}
-                    className="absolute -top-3 right-0 h-11 pl-[26px] text-[13.5px] font-extrabold text-shop-brown"
+                    className="absolute -top-3 right-0 h-11 pl-[26px] text-[13.5px] font-semibold text-shop-brown"
                   >
                     …more
                   </button>
@@ -160,7 +160,7 @@ export function ExtrasProductPage({ productKey, onBack, onAdded }: Props) {
             <button type="button" aria-label="Fewer" disabled={quantity <= 1} onClick={() => setQuantity((q) => Math.max(1, q - 1))} className={stepButton}>
               <Minus className="h-4 w-4" aria-hidden="true" />
             </button>
-            <span className="min-w-[30px] text-center text-[18px] font-extrabold tabular-nums" aria-live="polite">
+            <span className="min-w-[30px] text-center text-[18px] font-bold tabular-nums" aria-live="polite">
               {quantity}
             </span>
             <button type="button" aria-label="More" disabled={quantity >= MAX_QUANTITY} onClick={() => setQuantity((q) => Math.min(MAX_QUANTITY, q + 1))} className={stepButton}>
@@ -178,7 +178,7 @@ export function ExtrasProductPage({ productKey, onBack, onAdded }: Props) {
           type="button"
           disabled={!variant}
           onClick={addToPendingOrder}
-          className="flex h-14 w-full items-center justify-between rounded-[28px] bg-shop-cta pl-6 pr-2 text-[15px] font-extrabold text-shop-cream hover:bg-shop-cta-hover disabled:opacity-50"
+          className="flex h-14 w-full items-center justify-between rounded-[28px] bg-shop-cta pl-6 pr-2 text-[15px] font-bold text-shop-cream hover:bg-shop-cta-hover disabled:opacity-50"
         >
           <span>Add to pending order</span>
           <span className="flex items-center gap-2.5">

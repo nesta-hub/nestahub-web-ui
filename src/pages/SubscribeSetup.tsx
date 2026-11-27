@@ -12,7 +12,7 @@ import { BottomSheet } from "@/components/subscription-tab/BottomSheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscribeStatus } from "@/hooks/useSubscribeEnabled";
 import { describeFrequency } from "@/lib/renewalFrequency";
-import { BOX_CODES, BoxApiError, formatDay, subscriptionBoxesApi, type OfferLine, type OfferResult } from "@/lib/subscriptionBoxes";
+import { BOX_CODES, BoxApiError, brandedName, formatDay, subscriptionBoxesApi, type OfferLine, type OfferResult } from "@/lib/subscriptionBoxes";
 
 const SKIPPED_TEXT = {
   not_eligible: "could not be subscribed to",
@@ -35,7 +35,7 @@ function Steps() {
           <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-shop-brown shadow-[0_4px_10px_-6px_rgba(51,38,28,0.4)]">
             <Icon className="h-[17px] w-[17px]" />
           </span>
-          <span className="text-center text-[12px] font-extrabold leading-[15px]">{label}</span>
+          <span className="text-center text-[12px] font-semibold leading-[15px]">{label}</span>
         </span>
       ))}
     </div>
@@ -61,15 +61,15 @@ function Row({ line, picked, choice, onOpen }: { line: OfferLine; picked: boolea
       <div className="flex items-center gap-3.5">
         <Thumb url={line.imageUrl} className="h-14 w-14 rounded-[18px]" />
         <span className="flex min-w-0 flex-1 flex-col gap-px">
-          <span className="text-[15px] font-extrabold leading-5">{line.productName}</span>
+          <span className="text-[14.5px] font-semibold leading-5">{brandedName(line.brand, line.productName)}</span>
           <span className="text-[12.5px] leading-[18px] text-shop-muted">{variantLine(line)}</span>
         </span>
         {!picked && (
           <button
             type="button"
             onClick={onOpen}
-            aria-label={`Subscribe to ${line.productName}`}
-            className="flex h-11 shrink-0 items-center justify-center rounded-[22px] bg-shop-cta px-4 text-[13px] font-extrabold text-shop-cream hover:bg-shop-cta-hover"
+            aria-label={`Subscribe to ${brandedName(line.brand, line.productName)}`}
+            className="flex h-11 shrink-0 items-center justify-center rounded-[22px] bg-shop-cta px-4 text-[13px] font-bold text-shop-cream hover:bg-shop-cta-hover"
           >
             Subscribe
           </button>
@@ -77,7 +77,7 @@ function Row({ line, picked, choice, onOpen }: { line: OfferLine; picked: boolea
       </div>
       {picked && (
         <div className="mt-3 flex items-center justify-between gap-2 rounded-[18px] bg-[#E8EDE5] py-2 pl-3.5 pr-1">
-          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[13.5px] font-extrabold leading-[19px] text-[#34443A]">
+          <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[13.5px] font-semibold leading-[19px] text-[#34443A]">
             <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={3} aria-hidden="true" />
             {describeFrequency(choice.frequency)}
             {choice.firstDate ? `, from ${formatDay(choice.firstDate)}` : ""}
@@ -85,8 +85,8 @@ function Row({ line, picked, choice, onOpen }: { line: OfferLine; picked: boolea
           <button
             type="button"
             onClick={onOpen}
-            aria-label={`Change how often for ${line.productName}`}
-            className="h-11 shrink-0 px-3 text-[13px] font-extrabold text-shop-brown underline underline-offset-[3px]"
+            aria-label={`Change how often for ${brandedName(line.brand, line.productName)}`}
+            className="h-11 shrink-0 px-3 text-[13px] font-semibold text-shop-brown underline underline-offset-[3px]"
           >
             Change
           </button>
@@ -210,7 +210,7 @@ const SubscribeSetup = () => {
       <Layout>
         <main className="mx-auto w-full max-w-lg flex-1 px-4 pb-10 pt-6">
           <section className="rounded-[28px] bg-[#DDE3DA] p-6 shadow-[0_10px_24px_-14px_rgba(51,38,28,0.4)]">
-            <h1 className="text-[24px] font-extrabold leading-[30px] tracking-[-0.02em] text-shop-ink">
+            <h1 className="text-[24px] font-bold leading-[30px] tracking-[-0.02em] text-shop-ink">
               {made.length ? "You're subscribed" : "Nothing was subscribed"}
             </h1>
             {made.length > 0 && (
@@ -222,12 +222,12 @@ const SubscribeSetup = () => {
               <ul className="mt-3 space-y-1 text-[13.5px] leading-5 text-[#5A4E44]">
                 {notMade.map(({ line, reason }) => (
                   <li key={line.orderItemId}>
-                    {line.productName} {SKIPPED_TEXT[reason]}.
+                    {brandedName(line.brand, line.productName)} {SKIPPED_TEXT[reason]}.
                   </li>
                 ))}
               </ul>
             )}
-            <Link to="/subscriptions" className="mt-5 flex h-14 w-full items-center justify-center rounded-[28px] bg-shop-cta hover:bg-shop-cta-hover text-[15px] font-extrabold text-shop-cream">
+            <Link to="/subscriptions" className="mt-5 flex h-14 w-full items-center justify-center rounded-[28px] bg-shop-cta hover:bg-shop-cta-hover text-[15px] font-bold text-shop-cream">
               See my subscription
             </Link>
           </section>
@@ -272,7 +272,7 @@ const SubscribeSetup = () => {
             >
               <ArrowLeft className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
             </button>
-            <h1 className="min-w-0 flex-1 text-[18px] font-extrabold leading-6 tracking-[-0.01em]">Subscribe</h1>
+            <h1 className="min-w-0 flex-1 text-[18px] font-bold leading-6 tracking-[-0.01em]">Subscribe</h1>
           </header>
 
           <div className="px-5 pt-2">
@@ -296,7 +296,7 @@ const SubscribeSetup = () => {
                   type="button"
                   onClick={submit}
                   disabled={busy}
-                  className="flex h-14 w-full items-center justify-center rounded-[28px] border border-transparent bg-shop-cta text-[15px] font-extrabold text-shop-cream hover:bg-shop-cta-hover disabled:opacity-50"
+                  className="flex h-14 w-full items-center justify-center rounded-[28px] border border-transparent bg-shop-cta text-[15px] font-bold text-shop-cream hover:bg-shop-cta-hover disabled:opacity-50"
                 >
                   {busy ? "One moment…" : "Done"}
                 </button>
@@ -304,7 +304,7 @@ const SubscribeSetup = () => {
                 <button
                   type="button"
                   onClick={leave}
-                  className="flex h-14 w-full items-center justify-center rounded-[28px] border border-shop-line-soft bg-white text-[15px] font-extrabold text-shop-ink"
+                  className="flex h-14 w-full items-center justify-center rounded-[28px] border border-shop-line-soft bg-white text-[15px] font-semibold text-shop-ink"
                 >
                   Maybe later
                 </button>
@@ -323,7 +323,7 @@ const SubscribeSetup = () => {
             <div className="flex items-center gap-3">
               <Thumb url={sheetLine.imageUrl} className="h-[52px] w-[52px] rounded-2xl" />
               <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-extrabold leading-[19px]">{sheetLine.productName}</span>
+                <span className="block text-[15px] font-bold leading-[19px]">{brandedName(sheetLine.brand, sheetLine.productName)}</span>
                 <span className="mt-px block text-[12.5px] leading-[17px] text-shop-muted">{variantLine(sheetLine)}</span>
               </span>
             </div>
@@ -342,7 +342,7 @@ const SubscribeSetup = () => {
             <button
               type="button"
               onClick={() => setPick(sheetLine.orderItemId as string, true)}
-              className="mt-4 flex h-14 w-full items-center justify-between rounded-[28px] bg-shop-cta pl-6 pr-2 text-[15px] font-extrabold text-shop-cream hover:bg-shop-cta-hover"
+              className="mt-4 flex h-14 w-full items-center justify-between rounded-[28px] bg-shop-cta pl-6 pr-2 text-[15px] font-bold text-shop-cream hover:bg-shop-cta-hover"
             >
               <span>{sheetPicked ? "Save" : "Subscribe"}</span>
               <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-full bg-shop-cream text-shop-cta">
@@ -354,7 +354,7 @@ const SubscribeSetup = () => {
                 <button
                   type="button"
                   onClick={() => setPick(sheetLine.orderItemId as string, false)}
-                  className="h-11 px-2.5 text-[13.5px] font-bold text-shop-muted underline underline-offset-[3px]"
+                  className="h-11 px-2.5 text-[13.5px] font-semibold text-shop-muted underline underline-offset-[3px]"
                 >
                   Turn off auto-renew for this item
                 </button>

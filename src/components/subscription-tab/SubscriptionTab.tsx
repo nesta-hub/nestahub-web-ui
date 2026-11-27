@@ -145,9 +145,9 @@ export function SubscriptionTab({ linkAction, onPayScreen }: { linkAction?: Link
   if (error instanceof BoxApiError && error.code === BOX_CODES.linkOtherAccount) {
     return (
       <div className="mx-auto max-w-xl px-6 py-16 text-center">
-        <h1 className="text-[20px] font-extrabold text-shop-ink">This link is for another account</h1>
+        <h1 className="text-[20px] font-bold text-shop-ink">This link is for another account</h1>
         <p className="mt-2 text-[14px] leading-5 text-[#5A4E44]">It was sent to a different account from the one you are signed in to. Sign out, then open it again.</p>
-        <button type="button" onClick={() => void signOut()} className="mt-5 h-12 rounded-full bg-shop-cta hover:bg-shop-cta-hover px-8 text-[14px] font-extrabold text-shop-cream">
+        <button type="button" onClick={() => void signOut()} className="mt-5 h-12 rounded-full bg-shop-cta hover:bg-shop-cta-hover px-8 text-[14px] font-bold text-shop-cream">
           Sign out
         </button>
       </div>
@@ -206,7 +206,7 @@ export function SubscriptionTab({ linkAction, onPayScreen }: { linkAction?: Link
         ) : error ? (
           <div className="rounded-[24px] bg-white p-6 text-center shadow-sm">
             <p className="text-[15px] font-bold text-shop-ink">We could not load your subscription.</p>
-            <button type="button" onClick={() => void tab.refetch()} className="mt-4 h-11 rounded-full bg-shop-cta hover:bg-shop-cta-hover px-6 text-[14px] font-extrabold text-shop-cream">
+            <button type="button" onClick={() => void tab.refetch()} className="mt-4 h-11 rounded-full bg-shop-cta hover:bg-shop-cta-hover px-6 text-[14px] font-bold text-shop-cream">
               Try again
             </button>
           </div>

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Calendar, MapPin, Trash } from "lucide-react";
 import { formatPrice, getPickupStations } from "@/lib/api";
 import { CheckoutAddressSection } from "@/components/checkout/CheckoutAddressSection";
-import { formatDay, type Box, type DeliveryOptions, type LocationInput } from "@/lib/subscriptionBoxes";
+import { brandedName, formatDay, type Box, type DeliveryOptions, type LocationInput } from "@/lib/subscriptionBoxes";
 import { cn } from "@/lib/utils";
 import { BigButton, BottomSheet, MenuRow } from "./BottomSheet";
 import { Thumb } from "./Thumb";
@@ -38,7 +38,7 @@ function DateHint({ box, onChangeMethod }: { box: Box; onChangeMethod: () => voi
         <p className={hint}>
           These are the next Community Delivery days for your area. For a different day, change the delivery method to Instant
           Delivery first, then pick the day.{" "}
-          <button type="button" onClick={onChangeMethod} className="-my-2 inline py-2 font-bold text-shop-brown underline underline-offset-[3px]">
+          <button type="button" onClick={onChangeMethod} className="-my-2 inline py-2 font-semibold text-shop-brown underline underline-offset-[3px]">
             Change delivery method
           </button>
         </p>
@@ -187,7 +187,7 @@ export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, 
             <div key={line.id} className="flex items-center gap-3 border-b border-[#EEE8E1] py-3">
               <span className="h-[46px] w-[46px] shrink-0 overflow-hidden rounded-[14px] bg-[#EFEAE4]"><Thumb src={line.imageUrl} /></span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-extrabold leading-[18px]">{line.productName}</span>
+                <span className="block text-[14px] font-semibold leading-[18px]">{brandedName(line.brand, line.productName)}</span>
                 <span className="block text-[12px] leading-4 text-[#6B5F55]">{[line.variantLabel, `×${line.quantity}`, line.kind === "one_time" ? "extra" : null].filter(Boolean).join(" · ")}</span>
               </span>
               {line.subscriptionId && (
@@ -196,7 +196,7 @@ export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, 
                   aria-label={`Remove ${line.productName}`}
                   disabled={busy || subscriptionLines.length <= 1}
                   onClick={() => line.subscriptionId && onLeaveOut(line.subscriptionId)}
-                  className="h-10 rounded-[20px] border-[1.5px] border-shop-brown px-4 text-[13px] font-extrabold text-shop-brown disabled:opacity-40"
+                  className="h-10 rounded-[20px] border-[1.5px] border-shop-brown px-4 text-[13px] font-semibold text-shop-brown disabled:opacity-40"
                 >
                   Remove
                 </button>
@@ -207,7 +207,7 @@ export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, 
                   aria-label={`Remove ${line.productName} (extra)`}
                   disabled={busy}
                   onClick={() => onRemoveExtra(line.id)}
-                  className="h-10 rounded-[20px] border-[1.5px] border-shop-brown px-4 text-[13px] font-extrabold text-shop-brown disabled:opacity-40"
+                  className="h-10 rounded-[20px] border-[1.5px] border-shop-brown px-4 text-[13px] font-semibold text-shop-brown disabled:opacity-40"
                 >
                   Remove
                 </button>
@@ -253,12 +253,14 @@ export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, 
                     <Radio on />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-bold leading-5">{address.address}</span>
-                    <span className="block text-[12.5px] leading-[17px] text-[#6B5F55]">{address.address === box.delivery.address ? "Where this order is going now" : address.address === lastAddress?.address ? "Your last delivery address" : "New address"}</span>
+                    <span className="block text-[15px] font-semibold leading-5">{address.address}</span>
+                    {address.address !== lastAddress?.address || address.address === box.delivery.address ? (
+                      <span className="block text-[12.5px] leading-[17px] text-[#6B5F55]">{address.address === box.delivery.address ? "Where this order is going now" : "New address"}</span>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => setAddingAddress(true)}
-                      className="-my-1.5 mt-0 inline-block py-1.5 text-[13px] font-bold leading-[18px] text-shop-brown underline underline-offset-[3px]"
+                      className="-my-1.5 mt-0 inline-block py-1.5 text-[13px] font-semibold leading-[18px] text-shop-brown underline underline-offset-[3px]"
                     >
                       Change address
                     </button>
@@ -280,7 +282,7 @@ export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, 
                         <button
                           type="button"
                           onClick={() => setAddingAddress(false)}
-                          className="-my-1.5 py-1.5 text-[13px] font-bold leading-[18px] text-shop-brown underline underline-offset-[3px]"
+                          className="-my-1.5 py-1.5 text-[13px] font-semibold leading-[18px] text-shop-brown underline underline-offset-[3px]"
                         >
                           Cancel
                         </button>
@@ -300,7 +302,7 @@ export function MakeChangesDrawer({ box, open, startOn = "menu", busy, onClose, 
                   <button key={s.id} type="button" disabled={!usable} onClick={() => setStationId(s.id)} className="flex min-h-[68px] w-full items-center gap-3 border-b border-[#EEE8E1] py-2 text-left disabled:opacity-50">
                     <Radio on={stationId === s.id} />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[15px] font-bold leading-5">{s.name}</span>
+                      <span className="block text-[15px] font-semibold leading-5">{s.name}</span>
                       <span className="block text-[12.5px] leading-[17px] text-[#6B5F55]">{s.address}</span>
                       <span className="block text-[12.5px] font-semibold leading-[17px] text-[#46564A]">{usable ? `${s.dayOfWeek} · ${s.hours}` : "Not taking subscription orders yet"}</span>
                     </span>

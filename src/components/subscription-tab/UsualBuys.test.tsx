@@ -42,7 +42,7 @@ describe("what she buys often, on the empty tab", () => {
   it("lists what she has been buying, how often and how long it lasts, and asks without an order number", async () => {
     show();
     expect(await screen.findByText("Choose from what you buy the most")).toBeInTheDocument();
-    expect(screen.getByText("Product 1")).toBeInTheDocument();
+    expect(screen.getByText("Brand Product 1")).toBeInTheDocument();
     // bought 3 times; 3 weeks a pack x 2 packs = 6 weeks
     expect(screen.getAllByText("Bought 3 times · lasts about 6 weeks")).toHaveLength(2);
     expect(api.offer).toHaveBeenCalledWith("tok");
@@ -51,24 +51,24 @@ describe("what she buys often, on the empty tab", () => {
   it(`shows at most ${MAX_SHOWN}`, async () => {
     api.offer.mockResolvedValue(offer(Array.from({ length: 8 }, (_, n) => line(n + 1))));
     show();
-    await screen.findByText("Product 1");
-    expect(screen.getAllByRole("button", { name: /^Subscribe to Product/ })).toHaveLength(MAX_SHOWN);
+    await screen.findByText("Brand Product 1");
+    expect(screen.getAllByRole("button", { name: /^Subscribe to Brand Product/ })).toHaveLength(MAX_SHOWN);
   });
 
   it("subscribes through the same sheet as 'Subscribe to something else': how often, then the item and its frequency go to enrol", async () => {
     show();
-    fireEvent.click(await screen.findByRole("button", { name: "Subscribe to Product 1" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Subscribe to Brand Product 1" }));
     fireEvent.click(await screen.findByRole("button", { name: "Subscribe" }));
     await waitFor(() => expect(api.enrol).toHaveBeenCalledTimes(1));
     // Starts at how long one lasts (3 weeks), for one.
     expect(api.enrol).toHaveBeenCalledWith("tok", { variantId: "v1", quantity: 1, frequency: { kind: "weeks", every: 3 } });
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("You're subscribed to Product 1"));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("You're subscribed to Brand Product 1"));
   });
 
   it("reads the tab and the list again after subscribing, so it shows where she is now", async () => {
     show();
     const spy = vi.spyOn(client, "invalidateQueries");
-    fireEvent.click(await screen.findByRole("button", { name: "Subscribe to Product 1" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Subscribe to Brand Product 1" }));
     fireEvent.click(await screen.findByRole("button", { name: "Subscribe" }));
     await waitFor(() => expect(spy).toHaveBeenCalledWith({ queryKey: ["subscription-tab"] }));
     expect(spy).toHaveBeenCalledWith({ queryKey: ["subscribe-offer"] });
@@ -77,7 +77,7 @@ describe("what she buys often, on the empty tab", () => {
   it("when subscribing fails, says why inside the sheet and does not claim it worked", async () => {
     api.enrol.mockRejectedValue(new BoxApiError("x", 409, BOX_CODES.alreadySubscribed));
     show();
-    fireEvent.click(await screen.findByRole("button", { name: "Subscribe to Product 1" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Subscribe to Brand Product 1" }));
     fireEvent.click(await screen.findByRole("button", { name: "Subscribe" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("You already subscribe to this one.");
     expect(toast.success).not.toHaveBeenCalled();

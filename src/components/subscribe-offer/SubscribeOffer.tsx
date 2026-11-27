@@ -33,10 +33,10 @@ function Panel({ label, lines, title, children, to, action, embedded }: { label:
     <section aria-label={label} className={embedded ? "w-full text-shop-ink" : "w-full overflow-hidden rounded-[22px] border border-shop-line text-shop-ink"}>
       <div className="bg-[#DDE3DA] px-4 pb-[18px] pt-4 text-center">
         <Faces lines={lines} />
-        <h2 className="mt-2 text-[15px] font-extrabold leading-[19px] tracking-[-0.01em]">{title}</h2>
+        <h2 className="mt-2 text-[15px] font-bold leading-[19px] tracking-[-0.01em]">{title}</h2>
         <p className="mt-1.5 text-[12.5px] leading-[18px] text-[#46564A]">{children}</p>
         <div className="mt-3.5 flex justify-center">
-          <Link to={to} className="flex h-12 items-center justify-center whitespace-nowrap rounded-[24px] bg-white/[0.72] px-7 text-[14px] font-extrabold leading-[18px] text-shop-ink">
+          <Link to={to} className="flex h-12 items-center justify-center whitespace-nowrap rounded-[24px] bg-white/[0.72] px-7 text-[14px] font-semibold leading-[18px] text-shop-ink">
             {action}
           </Link>
         </div>

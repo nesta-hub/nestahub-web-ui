@@ -58,7 +58,7 @@ export function SubscribeChoiceFields({ value, onChange, showFirstRenewal = true
         <div className="mt-3.5 border-t border-[#EEE8E1] pt-3.5">
           <p className={`mb-1 ${EYEBROW}`}>{firstOrder ? "First order" : "First renewal"}</p>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[16px] font-extrabold leading-[22px] text-shop-ink">
+            <span className="text-[16px] font-bold leading-[22px] text-shop-ink">
               {firstOrder
                 ? formatDay(firstOrderDay)
                 : value.firstDate
@@ -70,7 +70,7 @@ export function SubscribeChoiceFields({ value, onChange, showFirstRenewal = true
             <button
               type="button"
               onClick={() => setPickingDate((open) => !open)}
-              className="h-11 shrink-0 px-1.5 text-[13px] font-bold text-shop-brown underline underline-offset-[3px]"
+              className="h-11 shrink-0 px-1.5 text-[13px] font-semibold text-shop-brown underline underline-offset-[3px]"
             >
               {firstOrder ? "Change date" : value.firstDate ? "Change" : "Pick a day"}
             </button>
@@ -93,7 +93,7 @@ export function SubscribeChoiceFields({ value, onChange, showFirstRenewal = true
                     onChange({ frequency: value.frequency });
                     setPickingDate(false);
                   }}
-                  className="h-11 shrink-0 px-2 text-[13px] font-bold text-shop-brown"
+                  className="h-11 shrink-0 px-2 text-[13px] font-semibold text-shop-brown"
                 >
                   Clear
                 </button>

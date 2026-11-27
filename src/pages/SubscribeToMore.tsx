@@ -118,7 +118,7 @@ function AddScreen() {
         >
           <ArrowLeft className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
         </Link>
-        <h1 className="m-0 min-w-0 flex-1 text-[18px] font-extrabold leading-6 tracking-[-0.01em] text-shop-ink">Subscription</h1>
+        <h1 className="m-0 min-w-0 flex-1 text-[18px] font-bold leading-6 tracking-[-0.01em] text-shop-ink">Subscription</h1>
       </header>
 
       <p className="px-5 pt-3 text-[13px] leading-[18px] text-shop-muted">Only items that can be subscribed to are listed here.</p>
@@ -144,7 +144,7 @@ function AddScreen() {
       ) : error ? (
         <div className="mx-5 mt-6 rounded-[24px] bg-white p-6 text-center shadow-sm">
           <p className="text-[15px] font-bold text-shop-ink">We could not load the list.</p>
-          <button type="button" onClick={() => void refetch()} className="mt-4 h-11 rounded-full bg-shop-cta px-6 text-[14px] font-extrabold text-shop-cream hover:bg-shop-cta-hover">
+          <button type="button" onClick={() => void refetch()} className="mt-4 h-11 rounded-full bg-shop-cta px-6 text-[14px] font-bold text-shop-cream hover:bg-shop-cta-hover">
             Try again
           </button>
         </div>
@@ -154,7 +154,7 @@ function AddScreen() {
         <div aria-busy={isPlaceholderData} className={`transition-opacity ${isPlaceholderData ? "opacity-50" : ""}`}>
           {sections.map((section) => (
             <section key={section.id} aria-labelledby={`subscribe-section-${section.id}`} className="flex flex-col">
-              <h2 id={`subscribe-section-${section.id}`} className="mx-5 mb-3 mt-6 text-[19px] font-extrabold leading-[25px] tracking-[-0.02em] text-shop-ink">
+              <h2 id={`subscribe-section-${section.id}`} className="mx-5 mb-3 mt-6 text-[19px] font-bold leading-[25px] tracking-[-0.02em] text-shop-ink">
                 {section.name}
               </h2>
               {/* The trailing space keeps the last tile off the edge once she scrolls to it. */}
