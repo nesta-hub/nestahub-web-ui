@@ -1,4 +1,5 @@
-import { CheckCircle, Clock, Link2 } from "lucide-react";
+import type { ReactNode } from "react";
+import { Check, CheckCircle, Clock, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GiftLinkShare } from "@/components/gifting/GiftLinkShare";
 import type { OutcomeCopy, CtaAction } from "@/lib/giftOutcomeCopy";
@@ -151,6 +152,82 @@ interface PaymentOutcomeViewProps {
   onAction: (action: CtaAction) => void;
   variant?: OutcomeVariant;
   whatsAppPreviewProps?: WhatsAppPreviewProps;
+  /** Something to show under the message (the offer to subscribe, after a shop order). */
+  afterContent?: ReactNode;
+  /**
+   * A shop order with the new Subscribe experience on: the Subscribe design's look (as the order-placed screen), with
+   * the order ID and delivery under the heading and `afterContent` inside the same card as the message. Off: as before.
+   */
+  subscribeDesign?: { orderId: string; deliverySummary?: string | null };
+}
+
+/** The Subscribe design's version of this screen, for a shop order paid by transfer. Same words and buttons as the usual one. */
+function SubscribeDesignOutcome({
+  copy,
+  onAction,
+  afterContent,
+  orderId,
+  deliverySummary,
+}: Pick<PaymentOutcomeViewProps, "copy" | "onAction" | "afterContent"> & { orderId: string; deliverySummary?: string | null }) {
+  const settled = copy.view !== "pending";
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-shop-page text-shop-ink">
+      <div className="min-h-0 flex-1 overflow-y-auto px-9 pb-4 pt-9">
+        <div className="flex flex-col items-center text-center">
+          {settled ? (
+            <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-full bg-[#DDE3DA] text-[#46564A]">
+              <Check className="h-[30px] w-[30px]" strokeWidth={2.2} />
+            </span>
+          ) : (
+            <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-full bg-[#EEDFD2] text-[#7A5A3E]">
+              <Clock className="h-[28px] w-[28px]" strokeWidth={2} />
+            </span>
+          )}
+          <h1 className="mt-3.5 max-w-[22ch] text-[28px] font-extrabold leading-[34px] tracking-[-0.02em]">{copy.heading}</h1>
+          <p className="mt-1.5 text-[15px] leading-[22px] text-shop-muted">
+            Order ID <b className="font-extrabold text-shop-ink">{orderId}</b>
+          </p>
+          {deliverySummary && (
+            <p className="mt-0.5 text-[13.5px] leading-5 text-shop-muted" data-testid="delivery-summary">
+              Delivery: {deliverySummary}
+            </p>
+          )}
+        </div>
+
+        {/* One card: what happens with the payment, then (when there is one) the Subscribe panel inside it. */}
+        <section aria-label="What happens next" className="mt-10 overflow-hidden rounded-[22px] border border-shop-line bg-white/55">
+          <div className="px-5 py-6 text-center text-[13.5px] leading-[21px] text-shop-muted">
+            {copy.bodyLead && <p className="font-bold text-shop-ink">{copy.bodyLead}</p>}
+            <p>
+              {copy.body}
+              {copy.bodyHighlight && <b className="font-extrabold text-shop-ink">{copy.bodyHighlight}</b>}
+              {copy.bodyAfter}
+            </p>
+          </div>
+          {afterContent}
+        </section>
+      </div>
+
+      {copy.ctas.length > 0 && (
+        <div className="flex shrink-0 flex-col gap-2 border-t border-shop-line bg-[rgba(251,249,246,0.96)] px-5 pb-4 pt-3">
+          {copy.ctas.map((cta) => (
+            <button
+              key={cta.action + cta.label}
+              type="button"
+              onClick={() => onAction(cta.action)}
+              className={
+                cta.variant === "primary"
+                  ? "flex h-[50px] w-full items-center justify-center rounded-[25px] bg-shop-cta text-[15px] font-extrabold text-shop-cream hover:bg-shop-cta-hover"
+                  : "flex h-[50px] w-full items-center justify-center rounded-[25px] border border-shop-line-soft bg-white text-[15px] font-extrabold text-shop-ink"
+              }
+            >
+              {cta.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -165,7 +242,12 @@ export function PaymentOutcomeView({
   onAction,
   variant = "mobile",
   whatsAppPreviewProps,
+  afterContent,
+  subscribeDesign,
 }: PaymentOutcomeViewProps) {
+  if (subscribeDesign && variant === "mobile") {
+    return <SubscribeDesignOutcome copy={copy} onAction={onAction} afterContent={afterContent} {...subscribeDesign} />;
+  }
   const settled = copy.view !== "pending";
   const isDesktop = variant === "desktop";
 
@@ -265,6 +347,8 @@ export function PaymentOutcomeView({
             ))}
           </div>
         )}
+
+        {afterContent && <div className="mx-auto mt-6 w-full max-w-md">{afterContent}</div>}
       </div>
     </Shell>
   );

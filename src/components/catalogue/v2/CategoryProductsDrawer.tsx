@@ -21,6 +21,8 @@ interface CategoryProductsDrawerProps {
   onOpenChange: (open: boolean) => void;
   category: DrawerCategory | null;
   onViewAll?: (category: DrawerCategory) => void;
+  /** When given, a product opens through this (as a full page) instead of inside the drawer. */
+  onOpenProduct?: (productKey: string) => void;
 }
 
 export function CategoryProductsDrawer({
@@ -28,6 +30,7 @@ export function CategoryProductsDrawer({
   onOpenChange,
   category,
   onViewAll,
+  onOpenProduct,
 }: CategoryProductsDrawerProps) {
   const [activeSub, setActiveSub] = useState("all");
   const [selectedProductKey, setSelectedProductKey] = useState<string | null>(null);
@@ -69,6 +72,10 @@ export function CategoryProductsDrawer({
 
   const handleProductTap = (productKey: string) => {
     if (carouselRef.current) savedScrollRef.current = carouselRef.current.scrollLeft;
+    if (onOpenProduct) {
+      onOpenProduct(productKey);
+      return;
+    }
     setSelectedProductKey(productKey);
   };
 

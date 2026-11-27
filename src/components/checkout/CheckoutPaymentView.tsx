@@ -200,7 +200,7 @@ export function CheckoutPaymentView({
             <button
               type="button"
               onClick={() => setCreditsDrawerOpen(true)}
-              className="w-full flex items-center justify-between rounded-xl border px-4 py-3 hover:bg-muted/50 transition-colors"
+              className="w-full flex items-center justify-between rounded-xl border-[1.5px] border-dashed border-[#CFC6BC] px-4 py-3 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">

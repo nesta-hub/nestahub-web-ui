@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCart } from "@/contexts/CartContext";
 import { CartItemRow } from "./CartItemRow";
 import { formatPrice } from "@/lib/api";
+import { futurePayments } from "@/lib/futurePayments";
 import { ShoppingBag, RefreshCw } from "lucide-react";
 import { metaPixel } from "@/lib/metaPixel";
 
@@ -23,20 +24,7 @@ export function CartDrawer() {
   };
 
   // Build upcoming renewals grouped by frequency
-  const renewalGroups = items
-    .filter(item => item.isAutoRenew && item.frequencyWeeks)
-    .reduce((acc, item) => {
-      const freq = item.frequencyWeeks!;
-      // Use custom subscription price if available, otherwise use regular price
-      const subscriptionUnitPrice = item.subscriptionPrice || item.unitPrice;
-      const amount = subscriptionUnitPrice * item.quantity;
-      acc[freq] = (acc[freq] || 0) + amount;
-      return acc;
-    }, {} as Record<number, number>);
-
-  const sortedRenewals = Object.entries(renewalGroups)
-    .map(([weeks, amount]) => ({ weeks: Number(weeks), amount }))
-    .sort((a, b) => a.weeks - b.weeks);
+  const sortedRenewals = futurePayments(items);
 
   return (
     <Drawer open={isCartOpen} onOpenChange={(open) => !open && closeCart()}>
@@ -81,9 +69,9 @@ export function CartDrawer() {
                       <span className="text-xs font-medium text-foreground">Future payments</span>
                     </div>
                     <div className="space-y-1">
-                      {sortedRenewals.map(({ weeks, amount }) => (
-                        <div key={weeks} className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">In {weeks} weeks</span>
+                      {sortedRenewals.map(({ key, label, amount }) => (
+                        <div key={key} className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">{label}</span>
                           <span className="font-medium text-foreground">{formatPrice(amount)}</span>
                         </div>
                       ))}

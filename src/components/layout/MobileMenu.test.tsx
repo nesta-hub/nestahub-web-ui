@@ -1,7 +1,12 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MobileMenu } from "./MobileMenu";
+
+// The one switch for the new Subscribe experience. Off unless a test turns it on.
+const subscribeOn = vi.fn(() => false);
+vi.mock("@/hooks/useSubscribeEnabled", () => ({ useSubscribeEnabled: () => subscribeOn() }));
+beforeEach(() => subscribeOn.mockReturnValue(false));
 
 const show = (address = "/shop") =>
   render(
@@ -65,5 +70,27 @@ describe("the phone's menu", () => {
     fireEvent.click(menu().getByRole("link", { name: "Gifting" }));
 
     expect(screen.queryByRole("navigation", { name: "Menu" })).toBeNull();
+  });
+});
+
+describe("the phone's menu with the new Subscribe experience on", () => {
+  beforeEach(() => subscribeOn.mockReturnValue(true));
+
+  it("lists Shop, Subscribe, Gifting, Share and Contact, with no Mum Tools", () => {
+    show();
+    open();
+
+    expect(menu().getAllByRole("link").map((l) => l.textContent)).toEqual(["Shop", "Subscribe", "Gifting", "Share", "Contact"]);
+    expect(menu().getByRole("link", { name: "Subscribe" })).toHaveAttribute("href", "/subscriptions");
+    expect(menu().queryByRole("link", { name: "Mum Tools" })).toBeNull();
+  });
+
+  it("marks Subscribe on the tab and on its link pages", () => {
+    for (const path of ["/subscriptions", "/subscriptions/pay/a-token"]) {
+      const { unmount } = show(path);
+      open();
+      expect(menu().getByRole("link", { name: "Subscribe" })).toHaveAttribute("aria-current", "page");
+      unmount();
+    }
   });
 });

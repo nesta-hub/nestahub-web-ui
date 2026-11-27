@@ -1,5 +1,5 @@
 /// <reference types="@types/google.maps" />
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { MapPin, Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ interface CheckoutAddressSectionProps {
   /** The chosen address and its exact coordinates. What delivery costs there is the server's answer, not ours. */
   onSelectAddress: (address: string, lat: number, lng: number) => void;
   onChangeAddress: () => void;
+  /** Something to the right of "Enter Delivery Address" (a Cancel link). Without it, the heading is as it always was. */
+  headerAction?: ReactNode;
 }
 
 /**
@@ -26,6 +28,7 @@ export function CheckoutAddressSection({
   selectedAddress,
   onSelectAddress,
   onChangeAddress,
+  headerAction,
 }: CheckoutAddressSectionProps) {
   const [query, setQuery] = useState("");
   const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
@@ -159,7 +162,14 @@ export function CheckoutAddressSection({
   // Show address search
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-medium text-muted-foreground">Enter Delivery Address</h3>
+      {headerAction ? (
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Enter Delivery Address</h3>
+          {headerAction}
+        </div>
+      ) : (
+        <h3 className="text-sm font-medium text-muted-foreground">Enter Delivery Address</h3>
+      )}
 
       {error ? (
         <Card className="p-4 border-destructive bg-destructive/10">

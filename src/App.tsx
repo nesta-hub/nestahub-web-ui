@@ -4,9 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
+import { PendingExtrasProvider } from "@/contexts/PendingExtrasContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { CartDrawer } from "@/components/cart/CartDrawer";
+import { WhatsAppNumberPrompt } from "@/components/whatsapp/WhatsAppNumberDrawer";
 import { Analytics } from "@vercel/analytics/react";
 import { metaPixel } from "@/lib/metaPixel";
 import MumTools from "./pages/MumTools";
@@ -22,6 +24,10 @@ import Account from "./pages/Account";
 import Orders from "./pages/Orders";
 import Subscriptions from "./pages/Subscriptions";
 import SubscriptionReorder from "./pages/SubscriptionReorder";
+import SubscriptionLink from "./pages/SubscriptionLink";
+import SubscribeToMore from "./pages/SubscribeToMore";
+import SubscribeSetup from "./pages/SubscribeSetup";
+import { PendingExtrasBar } from "@/components/pending-extras/PendingExtrasBar";
 import CatalogueV2 from "./pages/CatalogueV2";
 import ProductPage from "./pages/ProductPage";
 import GiftCardRedeem from "./pages/GiftCardRedeem";
@@ -92,6 +98,7 @@ const App = () => (
       <AuthProvider>
         <WalletProvider>
         <CartProvider>
+        <PendingExtrasProvider>
           <Toaster />
           <Sonner />
           <Analytics />
@@ -100,6 +107,10 @@ const App = () => (
             <MetaPageTracker />
             <ReferralCapture />
             <CartDrawer />
+            {/* Asks signed-in customers to confirm their WhatsApp number. Renders nothing unless the new Subscribe experience is on. */}
+            <WhatsAppNumberPrompt />
+            {/* While she is adding extra items to her next order: the bar over the shop. Renders nothing otherwise. */}
+            <PendingExtrasBar />
             <Routes>
               {/* There is no home page: opening Nesta Hub opens the shop. */}
               <Route path="/" element={<Navigate to="/shop" replace />} />
@@ -134,6 +145,12 @@ const App = () => (
               <Route path="/orders" element={<Orders />} />
               <Route path="/subscriptions" element={<Subscriptions />} />
               <Route path="/subscriptions/reorder" element={<SubscriptionReorder />} />
+              {/* Subscribe to something she has not bought: the shop's subscribable items. */}
+              <Route path="/subscriptions/add" element={<SubscribeToMore />} />
+              {/* Subscribe to what she has just bought (the offer on the order confirmation). */}
+              <Route path="/subscriptions/setup/:orderNumber" element={<SubscribeSetup />} />
+              {/* Where the buttons in a reminder land: /subscriptions/pay/<token>, edit, open, resume. */}
+              <Route path="/subscriptions/:action/:token" element={<SubscriptionLink />} />
               <Route path="/account/wallet" element={<Wallet />} />
               <Route path="/referrals" element={<Referrals />} />
               <Route path="/share" element={<Referrals />} />
@@ -149,6 +166,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+        </PendingExtrasProvider>
         </CartProvider>
         </WalletProvider>
       </AuthProvider>

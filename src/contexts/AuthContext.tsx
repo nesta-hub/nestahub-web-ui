@@ -12,9 +12,17 @@ interface AuthUser {
   email: string;
   name?: string;
   phone?: string;
+  /** The number she confirmed is on WhatsApp (2348012345678). Not the same thing as `phone`. */
+  whatsappNumber?: string;
+  whatsappConfirmedAt?: string;
+  /** She replied STOP on WhatsApp. */
+  whatsappOptedOutAt?: string;
   referralCode?: string;
   createdAt: string;
 }
+
+/** Which number is on WhatsApp: the one on her profile, or a different one she types. */
+export type WhatsAppNumberInput = { useProfilePhone: true } | { whatsappNumber: string };
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -25,6 +33,7 @@ interface AuthContextType {
   signInWithFacebook: () => Promise<void>;
   signOut: () => Promise<void>;
   updatePhone: (phone: string) => Promise<void>;
+  updateWhatsAppNumber: (input: WhatsAppNumberInput) => Promise<void>;
   refreshWalletBalance: () => Promise<void>;
 }
 
@@ -166,10 +175,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updatedUser);
   };
 
+  const updateWhatsAppNumber = async (input: WhatsAppNumberInput) => {
+    if (!session?.access_token) throw new Error('Not authenticated');
+    const response = await fetch(`${API_BASE}/auth/whatsapp-number`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(input),
+    });
+    if (!response.ok) {
+      // A 400 carries a message written for her ("Enter a Nigerian mobile number, like ...").
+      const body = await response.json().catch(() => null);
+      const message = Array.isArray(body?.message) ? body.message[0] : body?.message;
+      throw new Error(typeof message === 'string' ? message : 'Failed to save WhatsApp number');
+    }
+    const updatedUser = await response.json();
+    setUser(updatedUser);
+  };
+
   return (
     <AuthContext.Provider value={{
       user, session, loading, walletBalance,
-      signInWithGoogle, signInWithFacebook, signOut, updatePhone, refreshWalletBalance,
+      signInWithGoogle, signInWithFacebook, signOut, updatePhone, updateWhatsAppNumber, refreshWalletBalance,
     }}>
       {children}
     </AuthContext.Provider>

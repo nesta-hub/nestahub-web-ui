@@ -5,11 +5,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Layout } from '@/components/layout/Layout';
+import { WhatsAppNumberField } from '@/components/whatsapp/WhatsAppNumberField';
+import { useConfirmWhatsApp, useWhatsAppChoice } from '@/components/whatsapp/useWhatsAppChoice';
 import { getReferralCookie, setReferralCookie } from '@/utils/wallet';
 
 export function AuthCallback() {
   const navigate = useNavigate();
   const { user, updatePhone } = useAuth();
+  const whatsapp = useWhatsAppChoice();
+  const confirmWhatsApp = useConfirmWhatsApp();
   const [showPhoneCollection, setShowPhoneCollection] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [referralCode, setReferralCode] = useState("");
@@ -44,6 +48,7 @@ export function AuthCallback() {
     persistReferralCode();
     try {
       await updatePhone(phoneNumber.trim());
+      await confirmWhatsApp(whatsapp.toSave, phoneNumber.trim());
       navigate(redirectUrl, { replace: true });
     } catch (error) {
       console.error('Failed to update phone:', error);
@@ -78,6 +83,14 @@ export function AuthCallback() {
                 />
                 <p className="text-xs text-muted-foreground px-1">Enter your phone number,so we can keep you updated on your orders</p>
               </div>
+              {whatsapp.active && (
+                <WhatsAppNumberField
+                  phone={phoneNumber}
+                  value={whatsapp.choice}
+                  onChange={whatsapp.setChoice}
+                  error={whatsapp.error}
+                />
+              )}
               {referralFromCookie ? (
                 <div className="flex items-center gap-2 px-1 text-xs text-nesta-sage">
                   <span className="font-medium">Referral code applied:</span>
@@ -100,7 +113,7 @@ export function AuthCallback() {
                 variant="shop"
                 className="w-full h-12"
                 onClick={handlePhoneContinue}
-                disabled={phoneNumber.replace(/\D/g, '').length !== 11}
+                disabled={phoneNumber.replace(/\D/g, '').length !== 11 || whatsapp.blocked}
               >
                 Continue
               </Button>

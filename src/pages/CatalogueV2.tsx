@@ -13,6 +13,10 @@ import {
 import { DesktopShop } from "@/components/catalogue/v3/DesktopShop";
 import { MobileShopHome } from "@/components/catalogue/v3/MobileShopHome";
 import { useLinkedCategory } from "@/components/catalogue/v3/useLinkedCategory";
+import { ExtrasProductPage } from "@/components/pending-extras/ExtrasProductPage";
+import { ShopProductPage } from "@/components/catalogue/v2/ShopProductPage";
+import { useSubscribeEnabled } from "@/hooks/useSubscribeEnabled";
+import { useShoppingForExtras } from "@/hooks/useShoppingForExtras";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategoryTree, useRecentVariants } from "@/hooks/useCatalogue";
 import type { Category as ApiCategory, CategoryGroup as ApiGroup } from "@/lib/api";
@@ -39,10 +43,16 @@ const CatalogueV2 = () => {
   const { data: recent } = useRecentVariants(session?.access_token);
   const hasReorder = (recent?.variants.length ?? 0) > 0;
 
+  // Adding extra items to an order: a product opens as a full page that adds to that order, not the drawer.
+  const addingExtras = useShoppingForExtras() !== null;
+  // The new Subscribe experience: a product opens as a full page, as the design has it. Off: the drawer, as before.
+  const subscribeOn = useSubscribeEnabled();
   const [selectedProductKey, setSelectedProductKey] = useState<string | null>(null);
   const [isProductDrawerOpen, setIsProductDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<DrawerCategory | null>(null);
   const [isCategoryDrawerOpen, setIsCategoryDrawerOpen] = useState(false);
+  /** The category drawer a full-page product was opened from: Back on the product brings it back. */
+  const [categoryBehindProduct, setCategoryBehindProduct] = useState<DrawerCategory | null>(null);
   const [viewAllCategory, setViewAllCategory] = useState<DrawerCategory | null>(null);
   const [isReorderDrawerOpen, setIsReorderDrawerOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -83,6 +93,18 @@ const CatalogueV2 = () => {
     const next = new URLSearchParams(searchParams);
     next.set("product", productKey);
     setSearchParams(next);
+  };
+
+  /** Closes a full-page product. Back returns to the category drawer it came from; once added, she is back in the shop. */
+  const closeFullPageProduct = (options?: { added?: boolean }) => {
+    handleProductDrawerOpen(false);
+    if (categoryBehindProduct && !options?.added) {
+      setSelectedCategory(categoryBehindProduct);
+      setIsCategoryDrawerOpen(true);
+    } else if (categoryBehindProduct) {
+      setSelectedCategory(null);
+    }
+    setCategoryBehindProduct(null);
   };
 
   const openCategory = (cat: ApiCategory) => {
@@ -153,14 +175,35 @@ const CatalogueV2 = () => {
         }}
         category={selectedCategory}
         onViewAll={(cat) => setViewAllCategory(cat)}
+        // The new Subscribe experience: a product opens as a full page, so the drawer steps aside for it.
+        onOpenProduct={
+          subscribeOn
+            ? (key) => {
+                setCategoryBehindProduct(selectedCategory);
+                setIsCategoryDrawerOpen(false);
+                openProduct(key);
+              }
+            : undefined
+        }
       />
 
       {/* Product Detail Drawer (deep-link, search, items feed entry points) */}
-      <ShopProductDrawer
-        open={isProductDrawerOpen}
-        onOpenChange={handleProductDrawerOpen}
-        productKey={selectedProductKey}
-      />
+      {addingExtras && isProductDrawerOpen && selectedProductKey ? (
+        <ExtrasProductPage productKey={selectedProductKey} onBack={closeFullPageProduct} onAdded={() => closeFullPageProduct({ added: true })} />
+      ) : subscribeOn && isProductDrawerOpen && selectedProductKey ? (
+        <ShopProductPage
+          key={selectedProductKey}
+          productKey={selectedProductKey}
+          onBack={closeFullPageProduct}
+          onAdded={() => closeFullPageProduct({ added: true })}
+        />
+      ) : (
+        <ShopProductDrawer
+          open={isProductDrawerOpen}
+          onOpenChange={handleProductDrawerOpen}
+          productKey={selectedProductKey}
+        />
+      )}
 
       {/* Full-page CategoryView overlay (triggered by "View all" in the peek drawer) */}
       {viewAllCategory && (

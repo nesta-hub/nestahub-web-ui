@@ -4,6 +4,9 @@ import { DeliverySummaryCard } from "./DeliverySummaryCard";
 
 export type PaymentOption = "pay-now" | "pay-on-delivery";
 
+/** What "Pay Now" leads to: the next screen takes the wallet, a gift card or a bank transfer. */
+const PAY_NOW_METHODS = "Bank Transfer, Wallet or Gift Card";
+
 interface CheckoutPaymentOptionSectionProps {
   selectedOption: PaymentOption | null;
   onSelectOption: (option: PaymentOption) => void;
@@ -32,7 +35,7 @@ export function CheckoutPaymentOptionSection({
           title={selectedOption === "pay-now" ? "Pay Now" : "Pay on Delivery"}
           subtitle={
             selectedOption === "pay-now"
-              ? "Bank transfer on the next screen"
+              ? PAY_NOW_METHODS
               : "Make payment on rider arrival"
           }
           onChangeClick={onChangeOption}
@@ -58,7 +61,7 @@ export function CheckoutPaymentOptionSection({
             </div>
             <div>
               <p className="text-sm font-medium">Pay Now</p>
-              <p className="text-xs text-muted-foreground">Bank transfer</p>
+              <p className="text-xs text-muted-foreground text-balance">{PAY_NOW_METHODS}</p>
             </div>
           </div>
         </Card>

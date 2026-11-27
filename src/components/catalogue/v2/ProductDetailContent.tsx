@@ -11,6 +11,10 @@ import { CloudinaryPresets } from "@/lib/cloudinary";
 import { ArrowLeft, ChevronRight, RefreshCw, Check, Share2, ZoomIn, X } from "lucide-react";
 import { toast } from "sonner";
 import { metaPixel } from "@/lib/metaPixel";
+import { useSubscribeEnabled } from "@/hooks/useSubscribeEnabled";
+import { usePendingExtras } from "@/contexts/PendingExtrasContext";
+import { SubscribeCard } from "@/components/subscribe-card/SubscribeCard";
+import { subscribeFields, type SubscribeChoice } from "@/components/subscribe-card/choice";
 
 async function shareProduct(title: string, slug: string) {
   const url = `${window.location.origin}/catalogue/${slug}`;
@@ -67,12 +71,18 @@ export function ProductDetailContent({
   const { addToCart } = useCart();
   const navigate = useNavigate();
   const { data: detail, isLoading } = useProductDetail(productKey);
+  // The new Subscribe experience: a card on this page instead of the One-Time / Subscribe & Save step.
+  const subscribeOn = useSubscribeEnabled();
+  // Shopping for the order she is about to pay ("Add extra items"): the page adds to that order, with no subscribing.
+  const pending = usePendingExtras();
+  const addingExtras = subscribeOn && !!pending.boxId;
 
   const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [step, setStep] = useState<DrawerStep>("configure");
   const [purchaseType, setPurchaseType] = useState<"one-time" | "subscribe">("one-time");
   const [frequencyWeeks, setFrequencyWeeks] = useState(1);
+  const [subscribeChoice, setSubscribeChoice] = useState<SubscribeChoice | null>(null);
   const [imageZoomOpen, setImageZoomOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [capturedHeight, setCapturedHeight] = useState<number | null>(null);
@@ -97,6 +107,7 @@ export function ProductDetailContent({
     setStep("configure");
     setPurchaseType("one-time");
     setFrequencyWeeks(1);
+    setSubscribeChoice(null);
     setCapturedHeight(null);
     setImageZoomOpen(false);
   }, [product, detail]);
@@ -109,6 +120,12 @@ export function ProductDetailContent({
 
   const unitPrice = variant?.price ?? null;
   const canAdd = !!variant && variant.isActive && unitPrice != null;
+  const canSubscribe = subscribeOn && !addingExtras && !!variant?.isSubscribable;
+
+  // A size that cannot be subscribed to cannot carry a subscription choice made on another size.
+  useEffect(() => {
+    if (!variant?.isSubscribable) setSubscribeChoice(null);
+  }, [variant]);
 
   const totalPrice = useMemo(
     () => (unitPrice != null ? unitPrice * quantity : null),
@@ -130,10 +147,29 @@ export function ProductDetailContent({
     }
   }, [purchaseType, variant]);
 
-  const handleAddToCartClick = () => setStep("purchase-type");
+  // With the new experience the choice is made on the card, so there is no second step.
+  const handleAddToCartClick = () => (subscribeOn ? finalizeAddToCart() : setStep("purchase-type"));
 
   const finalizeAddToCart = () => {
     if (!detail || !product || !variant || unitPrice == null) return;
+    // Shopping for the order she is about to pay: this goes to that order, not to her cart.
+    if (addingExtras) {
+      pending.add(
+        {
+          variantId: variant.id,
+          productName: detail.name,
+          brand: detail.brand,
+          variantLabel: variant.attributes.map((a) => a.displayValue || a.value).filter(Boolean).join(" · ") || null,
+          imageUrl: variant.imageUrl || detail.imageUrl || null,
+          unitPriceKobo: unitPrice,
+        },
+        quantity,
+      );
+      onAdded();
+      toast.success("Added to your pending order", { duration: 2500 });
+      return;
+    }
+
     const firstAttr = product.attributes?.[0];
     const secondAttr = product.attributes?.[1];
     const isSubscribe = purchaseType === "subscribe";
@@ -156,8 +192,9 @@ export function ProductDetailContent({
         })),
         unitPrice,
         image: variant.imageUrl || detail.imageUrl,
-        isAutoRenew: isSubscribe,
-        frequencyWeeks: isSubscribe ? frequencyWeeks : undefined,
+        ...(subscribeOn
+          ? subscribeFields(canSubscribe ? subscribeChoice : null)
+          : { isAutoRenew: isSubscribe, frequencyWeeks: isSubscribe ? frequencyWeeks : undefined }),
         subscriptionPrice: variant.subscriptionPrice,
         recommendedFrequencyWeeks: variant.recommendedFrequencyWeeks,
       },
@@ -359,6 +396,19 @@ export function ProductDetailContent({
                 </div>
               </div>
             </div>
+
+            {canSubscribe && variant && (
+              <div className="px-6 pt-4">
+                <SubscribeCard
+                  price={variant.price}
+                  subscriptionPrice={variant.subscriptionPrice}
+                  recommendedFrequencyWeeks={variant.recommendedFrequencyWeeks}
+                  quantity={quantity}
+                  value={subscribeChoice}
+                  onChange={setSubscribeChoice}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -505,7 +555,7 @@ export function ProductDetailContent({
             onClick={handleAddToCartClick}
             disabled={!canAdd}
           >
-            {canAdd ? "Add to Cart" : "Unavailable"}
+            {canAdd ? (addingExtras ? "Add to pending order" : "Add to Cart") : "Unavailable"}
           </Button>
         )}
         {step === "purchase-type" && (
