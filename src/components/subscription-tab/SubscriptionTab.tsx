@@ -56,11 +56,13 @@ export function SubscriptionTab({ linkAction, onPayScreen }: { linkAction?: Link
   const [linkHandled, setLinkHandled] = useState(false);
 
   const boxes = useMemo(() => (data?.boxes ?? []).filter((b) => LIVE.has(b.status) || b.status === "skipped"), [data]);
-  // The orders shown as full cards: the ones waiting for her first (by day), then the paid ones on their way.
-  const orderCards = useMemo(
-    () => [...boxes.filter((b) => b.status === "scheduled" || b.status === "asked"), ...boxes.filter((b) => b.status === "paid")],
-    [boxes],
-  );
+  // The orders shown as full cards: one waiting for her (the soonest, or the one a message was about), then any paid
+  // ones on their way. A later one waits its turn: it shows once this one is paid, skipped or gone.
+  const orderCards = useMemo(() => {
+    const waiting = boxes.filter((b) => b.status === "scheduled" || b.status === "asked");
+    const shown = waiting.find((b) => b.id === data?.linkBoxId) ?? waiting[0];
+    return [...(shown ? [shown] : []), ...boxes.filter((b) => b.status === "paid")];
+  }, [boxes, data?.linkBoxId]);
   const firstOpenId = orderCards.find((b) => b.status !== "paid")?.id;
   const paused = useMemo(() => (data?.items ?? []).filter((i) => i.status === "paused"), [data]);
 

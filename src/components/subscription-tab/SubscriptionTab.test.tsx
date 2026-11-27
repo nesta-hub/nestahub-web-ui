@@ -184,11 +184,31 @@ describe("the next order", () => {
     expect(screen.getByText("Yaba station")).toHaveTextContent("Pick-up: Yaba station");
   });
 
-  it("shows later orders as later, and only the first as the next", async () => {
+  it("two orders waiting: only the soonest shows, no carousel; the later one waits its turn", async () => {
     api.mine.mockResolvedValue(tab({ boxes: [box(), box({ id: "b2", deliveryDate: "2026-12-08" })] }));
     show();
     expect(await screen.findByRole("region", { name: "Next order" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Order on Tue 8 Dec" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Order on Tue 8 Dec" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Your orders" })).toBeNull();
+    expect(screen.queryByText("LATER ORDER")).toBeNull();
+  });
+
+  it("once the first is paid, the next waiting one shows beside it", async () => {
+    api.mine.mockResolvedValue(
+      tab({ boxes: [box({ status: "paid", editable: false, canPay: false }), box({ id: "b2", deliveryDate: "2026-12-08" }), box({ id: "b3", deliveryDate: "2026-12-22" })] }),
+    );
+    show();
+    const slides = within(await screen.findByRole("region", { name: "Your orders" })).getAllByRole("group");
+    expect(slides).toHaveLength(2);
+    expect(within(slides[0]).getByRole("heading", { name: "Tue 8 Dec" })).toBeInTheDocument();
+    expect(within(slides[1]).getByText("PAID")).toBeInTheDocument();
+  });
+
+  it("a message about a later order opens on that order", async () => {
+    api.mine.mockResolvedValue(tab({ boxes: [box(), box({ id: "b2", deliveryDate: "2026-12-08" })], linkBoxId: "b2" }));
+    show();
+    expect(await screen.findByRole("heading", { name: "Tue 8 Dec" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Tue 24 Nov" })).toBeNull();
   });
 });
 
